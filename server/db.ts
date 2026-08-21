@@ -150,6 +150,21 @@ export async function getAllBookingRequests() {
   return db.select().from(bookingRequests).orderBy(desc(bookingRequests.createdAt));
 }
 
+export async function attachNatalPdf(input: { id: number; key: string; url: string; name: string; uploadedBy: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.update(bookingRequests).set({
+    natalPdfKey: input.key,
+    natalPdfUrl: input.url,
+    natalPdfName: input.name,
+    natalPdfUploadedAt: new Date(),
+    natalPdfUploadedBy: input.uploadedBy,
+  }).where(eq(bookingRequests.id, input.id));
+  const result = await db.select().from(bookingRequests).where(eq(bookingRequests.id, input.id)).limit(1);
+  if (!result[0]) throw new Error("Booking request not found");
+  return result[0];
+}
+
 export async function updateBookingAdmin(input: { id: number; status?: "new" | "in_progress" | "completed" | "cancelled"; adminNote?: string | null; statusUpdatedBy?: string }) {
   const db = await getDb();
   if (!db) {

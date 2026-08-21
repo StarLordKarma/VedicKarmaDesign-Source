@@ -11,4 +11,12 @@ export const updateBookingAdminSchema = z.object({
   message: "Provide a status or note update.",
 });
 
+export const attachNatalPdfSchema = z.object({
+  bookingId: z.number().int().positive(),
+  fileName: z.string().trim().min(1).max(255).regex(/\.pdf$/i, "Only PDF files are allowed."),
+  contentBase64: z.string().min(1).max(16_777_216),
+});
+
+export const exportFormatSchema = z.enum(["csv", "pdf"]);
+
 export type UpdateBookingAdminInput = z.infer<typeof updateBookingAdminSchema>;

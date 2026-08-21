@@ -43,3 +43,20 @@
 - [x] Re-run visual verification for public English/Russian states and responsive admin after final changes
 - [x] Localize remaining service highlights, FAQ, hero chips, illustration captions, and price labels
 - [x] Add localization coverage assertions for Russian public copy
+- [x] Add admin export of booking list to CSV
+- [x] Add admin export of booking list to PDF
+- [x] Add Russian/English localization switcher inside admin panel
+- [x] Add storage metadata fields for attached natal-chart PDF
+- [x] Add admin-only PDF upload and attachment mutation for a booking
+- [x] Add attached PDF link/status to admin booking cards
+- [x] Add tests for exports, admin localization, and PDF attachment validation
+- [x] Verify responsive admin UI and export/upload flows
+- [x] Add user-facing admin PDF upload error/success feedback for invalid, oversized, and failed uploads
+- [x] Add automated tests for admin-panel RU/EN copy and locale toggle
+- [x] Add executable admin export and PDF upload interaction coverage or document verified flow checks
+- [x] Add Admin.tsx UI test for RU/EN toggle and localStorage persistence
+- [x] Add Admin.tsx UI tests for export button mutation/download behavior
+- [x] Add Admin.tsx UI test for valid PDF upload success and invalid/oversized feedback
+- [x] Assert CSV/PDF export success callbacks trigger blob download behavior
+- [x] Assert successful PDF upload mutation callback shows localized success feedback
+- [x] Assert successful PDF upload shows Russian success feedback after admin locale switch

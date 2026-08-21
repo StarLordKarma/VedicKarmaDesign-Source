@@ -4,11 +4,14 @@ import { systemRouter } from "./_core/systemRouter";
 import { adminProcedure, publicProcedure, router } from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { bookingSchema, getBookingTotal } from "@shared/booking";
-import { updateBookingAdminSchema } from "@shared/admin";
-import { createBookingRequest, getAllBookingRequests, updateBookingAdmin, updateBookingPayment } from "./db";
+import { attachNatalPdfSchema, updateBookingAdminSchema } from "@shared/admin";
+import { createBookingRequest, updateBookingPayment } from "./db";
 import { notifyOwner } from "./_core/notification";
 import { createCheckoutForBooking } from "./payment-flow";
 import { applyAdminBookingUpdate } from "./admin-update-flow";
+import { attachNatalPdf, getAllBookingRequests } from "./db";
+import { storagePut } from "./storage";
+import { buildBookingsCsv, buildBookingsPdf, decodePdfBase64, sanitizePdfName } from "./export";
 
 export const appRouter = router({
     // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
@@ -26,6 +29,14 @@ export const appRouter = router({
   admin: router({
     bookingList: adminProcedure.query(() => getAllBookingRequests()),
     updateBooking: adminProcedure.input(updateBookingAdminSchema).mutation(({ input, ctx }) => applyAdminBookingUpdate({ ...input, adminOpenId: ctx.user.openId })),
+    exportCsv: adminProcedure.mutation(async () => ({ filename: `jyotish-bookings-${new Date().toISOString().slice(0, 10)}.csv`, contentBase64: Buffer.from(buildBookingsCsv(await getAllBookingRequests()), "utf8").toString("base64") })),
+    exportPdf: adminProcedure.mutation(async () => ({ filename: `jyotish-bookings-${new Date().toISOString().slice(0, 10)}.pdf`, contentBase64: (await buildBookingsPdf(await getAllBookingRequests())).toString("base64") })),
+    attachNatalPdf: adminProcedure.input(attachNatalPdfSchema).mutation(async ({ input, ctx }) => {
+      const buffer = decodePdfBase64(input.contentBase64);
+      const safeName = sanitizePdfName(input.fileName);
+      const stored = await storagePut(`natal-charts/${input.bookingId}/${safeName}`, buffer, "application/pdf");
+      return attachNatalPdf({ id: input.bookingId, key: stored.key, url: stored.url, name: safeName, uploadedBy: ctx.user.openId });
+    }),
   }),
   booking: router({
     submit: publicProcedure.input(bookingSchema).mutation(async ({ input, ctx }) => {

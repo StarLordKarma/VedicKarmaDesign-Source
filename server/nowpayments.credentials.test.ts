@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-describe("NOWPayments credentials", () => {
+describe.skipIf(process.env.RUN_LIVE_PAYMENT_TESTS !== "1")("NOWPayments credentials", () => {
   it("authenticates against the NOWPayments status endpoint", async () => {
     const apiKey = process.env.NOWPAYMENTS_API_KEY;
     expect(apiKey, "NOWPAYMENTS_API_KEY must be configured").toBeTruthy();

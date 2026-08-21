@@ -44,6 +44,11 @@ export const bookingRequests = mysqlTable("booking_requests", {
   adminNote: text("adminNote"),
   statusUpdatedAt: timestamp("statusUpdatedAt"),
   statusUpdatedBy: varchar("statusUpdatedBy", { length: 64 }),
+  natalPdfKey: varchar("natalPdfKey", { length: 512 }),
+  natalPdfUrl: text("natalPdfUrl"),
+  natalPdfName: varchar("natalPdfName", { length: 255 }),
+  natalPdfUploadedAt: timestamp("natalPdfUploadedAt"),
+  natalPdfUploadedBy: varchar("natalPdfUploadedBy", { length: 64 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
