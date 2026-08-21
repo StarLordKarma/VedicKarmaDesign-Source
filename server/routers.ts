@@ -2,6 +2,8 @@ import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
+import { bookingSchema, getBookingTotal } from "@shared/booking";
+import { createBookingRequest } from "./db";
 
 export const appRouter = router({
     // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
@@ -14,6 +16,25 @@ export const appRouter = router({
       return {
         success: true,
       } as const;
+    }),
+  }),
+  booking: router({
+    submit: publicProcedure.input(bookingSchema).mutation(async ({ input }) => {
+      const totalUsd = getBookingTotal(input.addon);
+      const result = await createBookingRequest({
+        name: input.name,
+        email: input.email,
+        birthDate: input.birthDate,
+        birthTime: input.birthTime,
+        birthCity: input.birthCity,
+        birthCountry: input.birthCountry,
+        language: input.language,
+        addon: input.addon ? 1 : 0,
+        totalUsd,
+        interest: input.interest || null,
+        status: "new",
+      });
+      return { ...result, totalUsd };
     }),
   }),
 
