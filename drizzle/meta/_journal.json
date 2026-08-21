@@ -1,5 +1,13 @@
 {
   "version": "7",
   "dialect": "mysql",
-  "entries": []
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1787337724954,
+      "tag": "0000_cooing_expediter",
+      "breakpoints": true
+    }
+  ]
 }

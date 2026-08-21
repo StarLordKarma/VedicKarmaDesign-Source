@@ -1,0 +1,12 @@
+- [x] Update booking prices: Basic package $25 and Indian numerology add-on $10
+- [x] Create responsive landing page for Vedic astrology readings
+- [x] Add service cards with Basic $25 and Indian numerology add-on $10
+- [x] Add birth details booking form with date, exact time, city, country, language, and interests
+- [x] Add multi-page PDF delivery explanation and interpretive-practice disclaimer
+- [ ] Add backend booking submission and validation
+- [x] Add unit tests for booking validation and current prices
+- [x] Verify responsive UI and booking success state
+- [x] Add explicit booking validation logic for required birth fields and email, plus tested Basic/Add-on total calculations
+- [x] Add unit tests covering booking validation and price/add-on combinations
+- [x] Verify responsive UI on mobile and tablet viewports
+- [x] Validate booking success state through an interaction check
