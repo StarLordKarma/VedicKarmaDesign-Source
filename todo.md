@@ -31,3 +31,15 @@
 - [x] Add a real client-side test for Home.tsx covering pending loading UI, success confirmation, and delayed redirect scheduling
 - [x] Update Vitest configuration so Home.tsx client test runs under jsdom
 - [x] Verify full suite includes Home.tsx client payment UX test
+- [x] Add admin-controlled request status updates with validation
+- [x] Add private admin notes per booking/client
+- [x] Add database migration for admin notes and manual status metadata
+- [x] Add Russian locale and language switcher for the public site
+- [x] Add tests for admin updates, notes, and localization
+- [x] Verify responsive admin and bilingual public UI
+- [x] Add persisted statusUpdatedAt/statusUpdatedBy metadata for manual status changes, or document reuse of existing status
+- [x] Finish Russian localization for remaining homepage sections, success state, helper text, placeholders, and notices
+- [x] Add executable admin update flow tests for status and private notes
+- [x] Re-run visual verification for public English/Russian states and responsive admin after final changes
+- [x] Localize remaining service highlights, FAQ, hero chips, illustration captions, and price labels
+- [x] Add localization coverage assertions for Russian public copy
