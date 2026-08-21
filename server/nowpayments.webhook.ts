@@ -1,5 +1,5 @@
 import type { Express } from "express";
-import { updateBookingPaymentStatus } from "./db";
+import { processPaymentNotification } from "./payment-notification";
 import { verifyNowPaymentsSignature } from "./nowpayments";
 
 function stableStringify(value: unknown): string {
@@ -13,6 +13,10 @@ function stableStringify(value: unknown): string {
 
 export function mapPaymentStatusToBookingStatus(paymentStatus: string) {
   return ["finished", "confirmed", "partially_paid"].includes(paymentStatus) ? "in_progress" : "new";
+}
+
+export function shouldNotifyPayment(previousStatus: string | null, nextStatus: string) {
+  return ["finished", "confirmed", "partially_paid"].includes(nextStatus) && previousStatus !== nextStatus;
 }
 
 export function registerNowPaymentsWebhook(app: Express) {
@@ -31,9 +35,9 @@ export function registerNowPaymentsWebhook(app: Express) {
       return;
     }
 
-    void updateBookingPaymentStatus({
-      id: bookingId,
-      paymentId: payload.payment_id ? String(payload.payment_id) : undefined,
+    void processPaymentNotification({
+      bookingId,
+      paymentId: payload.payment_id,
       paymentStatus: payload.payment_status ?? "unknown",
     }).then(() => res.status(200).json({ received: true })).catch(() => res.status(500).json({ error: "Could not update payment status" }));
   });

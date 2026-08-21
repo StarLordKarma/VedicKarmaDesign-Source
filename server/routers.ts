@@ -1,10 +1,11 @@
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, router } from "./_core/trpc";
+import { adminProcedure, publicProcedure, router } from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { bookingSchema, getBookingTotal } from "@shared/booking";
-import { createBookingRequest, updateBookingPayment } from "./db";
+import { createBookingRequest, getAllBookingRequests, updateBookingPayment } from "./db";
+import { notifyOwner } from "./_core/notification";
 import { createCheckoutForBooking } from "./payment-flow";
 
 export const appRouter = router({
@@ -19,6 +20,9 @@ export const appRouter = router({
         success: true,
       } as const;
     }),
+  }),
+  admin: router({
+    bookingList: adminProcedure.query(() => getAllBookingRequests()),
   }),
   booking: router({
     submit: publicProcedure.input(bookingSchema).mutation(async ({ input, ctx }) => {
@@ -36,6 +40,10 @@ export const appRouter = router({
         interest: input.interest || null,
         status: "new",
         paymentStatus: "creating",
+      });
+      void notifyOwner({
+        title: "New Vedic astrology booking",
+        content: `${input.name} (${input.email}) requested a $${totalUsd} reading. Birth details: ${input.birthCity}, ${input.birthCountry}; ${input.birthDate} at ${input.birthTime}. Payment checkout is being created.`,
       });
       try {
         const origin = `${ctx.req.protocol}://${ctx.req.get("host")}`;

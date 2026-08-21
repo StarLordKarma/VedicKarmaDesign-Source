@@ -1,7 +1,8 @@
 import { createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { buildInvoicePayload, verifyNowPaymentsSignature } from "./nowpayments";
-import { mapPaymentStatusToBookingStatus } from "./nowpayments.webhook";
+import { mapPaymentStatusToBookingStatus, shouldNotifyPayment } from "./nowpayments.webhook";
+import { CHECKOUT_REDIRECT_DELAY_MS, getCheckoutButtonLabel, getCheckoutSuccessMessage } from "@shared/payment-ux";
 
 describe("NOWPayments integration helpers", () => {
   it("builds a hosted invoice payload in USD with callback URLs", () => {
@@ -35,5 +36,14 @@ describe("NOWPayments integration helpers", () => {
     expect(mapPaymentStatusToBookingStatus("finished")).toBe("in_progress");
     expect(mapPaymentStatusToBookingStatus("waiting")).toBe("new");
     expect(mapPaymentStatusToBookingStatus("failed")).toBe("new");
+    expect(shouldNotifyPayment("waiting", "finished")).toBe(true);
+    expect(shouldNotifyPayment("finished", "finished")).toBe(false);
+  });
+
+  it("keeps payment UX states deterministic", () => {
+    expect(getCheckoutButtonLabel(true)).toContain("Creating");
+    expect(getCheckoutButtonLabel(false)).toBe("Request my reading");
+    expect(getCheckoutSuccessMessage(35)).toContain("$35");
+    expect(CHECKOUT_REDIRECT_DELAY_MS).toBe(1800);
   });
 });

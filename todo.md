@@ -16,3 +16,18 @@
 - [x] Connect payment status to booking requests and test the payment flow
 - [x] Add automated tests for invoice payloads, IPN signature verification, and payment-status mapping
 - [x] Add failure handling for invoice creation and verify the user-facing error path
+- [x] Send owner notification when a new booking is created
+- [x] Send owner notification when a payment is confirmed by IPN
+- [x] Add admin-only booking list query and protected admin route
+- [x] Add admin dashboard with request and payment status filters
+- [x] Add loading animation while creating checkout
+- [x] Add success confirmation before redirecting to crypto payment
+- [x] Add tests for notifications, admin access, and payment UX states
+- [x] Add frontend admin role guard
+- [x] Add booking status filter to the admin dashboard
+- [x] Add automated payment UX state tests and webhook notification-path tests
+- [x] Add an executable booking payment UX flow test for pending, success, and delayed redirect states
+- [x] Add executable IPN tests for one confirmed-payment notification and duplicate/non-confirmed suppression
+- [x] Add a real client-side test for Home.tsx covering pending loading UI, success confirmation, and delayed redirect scheduling
+- [x] Update Vitest configuration so Home.tsx client test runs under jsdom
+- [x] Verify full suite includes Home.tsx client payment UX test

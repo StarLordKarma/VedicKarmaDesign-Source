@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { InsertBookingRequest, InsertUser, bookingRequests, users } from "../drizzle/schema";
 import { ENV } from './_core/env';
@@ -127,9 +127,25 @@ export async function updateBookingPaymentStatus(input: {
     throw new Error("Database is not available");
   }
 
+  const current = await db.select({ paymentStatus: bookingRequests.paymentStatus })
+    .from(bookingRequests)
+    .where(eq(bookingRequests.id, input.id))
+    .limit(1);
+  const previousStatus = current[0]?.paymentStatus ?? null;
+  const isConfirmed = ["finished", "confirmed", "partially_paid"].includes(input.paymentStatus);
   await db.update(bookingRequests).set({
     ...(input.paymentId ? { paymentId: input.paymentId } : {}),
     paymentStatus: input.paymentStatus,
-    status: ["finished", "confirmed", "partially_paid"].includes(input.paymentStatus) ? "in_progress" : undefined,
+    ...(isConfirmed ? { status: "in_progress" as const } : {}),
   }).where(eq(bookingRequests.id, input.id));
+  return { previousStatus, isConfirmed };
+}
+
+export async function getAllBookingRequests() {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database is not available");
+  }
+
+  return db.select().from(bookingRequests).orderBy(desc(bookingRequests.createdAt));
 }
