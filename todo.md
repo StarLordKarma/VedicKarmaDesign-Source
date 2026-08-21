@@ -10,3 +10,9 @@
 - [x] Add unit tests covering booking validation and price/add-on combinations
 - [x] Verify responsive UI on mobile and tablet viewports
 - [x] Validate booking success state through an interaction check
+- [x] Choose a supported crypto payment provider and payment flow
+- [x] Add required crypto payment secrets and configuration
+- [x] Implement crypto payment creation and status verification
+- [x] Connect payment status to booking requests and test the payment flow
+- [x] Add automated tests for invoice payloads, IPN signature verification, and payment-status mapping
+- [x] Add failure handling for invoice creation and verify the user-facing error path

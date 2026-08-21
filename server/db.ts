@@ -98,3 +98,38 @@ export async function createBookingRequest(input: InsertBookingRequest) {
   const result = await db.insert(bookingRequests).values(input);
   return { id: Number(result[0].insertId) };
 }
+
+export async function updateBookingPayment(input: {
+  id: number;
+  paymentId?: string;
+  paymentUrl?: string;
+  paymentStatus: string;
+}) {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database is not available");
+  }
+
+  await db.update(bookingRequests).set({
+    paymentId: input.paymentId,
+    paymentUrl: input.paymentUrl,
+    paymentStatus: input.paymentStatus,
+  }).where(eq(bookingRequests.id, input.id));
+}
+
+export async function updateBookingPaymentStatus(input: {
+  id: number;
+  paymentId?: string;
+  paymentStatus: string;
+}) {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database is not available");
+  }
+
+  await db.update(bookingRequests).set({
+    ...(input.paymentId ? { paymentId: input.paymentId } : {}),
+    paymentStatus: input.paymentStatus,
+    status: ["finished", "confirmed", "partially_paid"].includes(input.paymentStatus) ? "in_progress" : undefined,
+  }).where(eq(bookingRequests.id, input.id));
+}

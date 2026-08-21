@@ -18,3 +18,7 @@ export type BookingInput = z.infer<typeof bookingSchema>;
 export function getBookingTotal(addon: boolean) {
   return READING_PRICES.basic + (addon ? READING_PRICES.numerologyAddon : 0);
 }
+
+export function getCheckoutErrorMessage(message?: string) {
+  return message?.trim() || "We could not create the crypto checkout. Please try again.";
+}

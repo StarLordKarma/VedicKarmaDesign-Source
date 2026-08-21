@@ -37,6 +37,9 @@ export const bookingRequests = mysqlTable("booking_requests", {
   addon: int("addon").default(0).notNull(),
   totalUsd: int("totalUsd").notNull(),
   interest: text("interest"),
+  paymentId: varchar("paymentId", { length: 128 }),
+  paymentUrl: text("paymentUrl"),
+  paymentStatus: varchar("paymentStatus", { length: 32 }).default("waiting"),
   status: mysqlEnum("status", ["new", "in_progress", "completed", "cancelled"]).default("new").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });

@@ -2,8 +2,10 @@ import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
+import { TRPCError } from "@trpc/server";
 import { bookingSchema, getBookingTotal } from "@shared/booking";
-import { createBookingRequest } from "./db";
+import { createBookingRequest, updateBookingPayment } from "./db";
+import { createCheckoutForBooking } from "./payment-flow";
 
 export const appRouter = router({
     // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
@@ -19,7 +21,7 @@ export const appRouter = router({
     }),
   }),
   booking: router({
-    submit: publicProcedure.input(bookingSchema).mutation(async ({ input }) => {
+    submit: publicProcedure.input(bookingSchema).mutation(async ({ input, ctx }) => {
       const totalUsd = getBookingTotal(input.addon);
       const result = await createBookingRequest({
         name: input.name,
@@ -33,8 +35,23 @@ export const appRouter = router({
         totalUsd,
         interest: input.interest || null,
         status: "new",
+        paymentStatus: "creating",
       });
-      return { ...result, totalUsd };
+      try {
+        const origin = `${ctx.req.protocol}://${ctx.req.get("host")}`;
+        const invoice = await createCheckoutForBooking({
+          bookingId: result.id,
+          totalUsd,
+          addon: input.addon,
+          origin,
+          savePayment: updateBookingPayment,
+          markFailed: async (id) => updateBookingPayment({ id, paymentStatus: "failed" }),
+        });
+        return { ...result, totalUsd, invoiceUrl: invoice.invoice_url, paymentId: invoice.id };
+      } catch (error) {
+        console.error("[Payments] Failed to create NOWPayments invoice", error);
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "We could not create the crypto checkout. Please try again." });
+      }
     }),
   }),
 
