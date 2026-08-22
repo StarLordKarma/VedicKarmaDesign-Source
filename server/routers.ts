@@ -6,7 +6,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { bookingSchema, isProductionSmokeTestBooking } from "@shared/booking";
 import { activityDateRangeSchema, attachNatalPdfSchema, bulkSendNatalPdfSchema, clientHistorySchema, editBookingClientSchema, pricingCurrencySchema, pricingHistoryFilterSchema, pricingHistoryPageSchema, sendNatalPdfSchema, servicePricingSchema, smokeTestRunsPageSchema, updateBookingAdminSchema } from "@shared/admin";
-import { createBookingRequest, createSmokeTestRun, deleteBookingRequest, finishSmokeTestRun, getAdminActivityEvents, getAdminActivitySummary, getBookingRequestById, getClientChangeHistory, getPricingHistory, getPricingHistoryPage, getServicePricing, getSmokeTestRuns, getSmokeTestRunsForExport, getSmokeTestRunsPage, listServicePricing, updateBookingClient, updateBookingDelivery, updateBookingPayment, updateServicePricing } from "./db";
+import { createBookingRequest, createSmokeTestRun, deleteBookingRequest, finishSmokeTestRun, getAdminActivityEvents, getAdminActivitySummary, getBookingRequestById, getClientChangeHistory, getPricingHistory, getPricingHistoryPage, getServicePricing, getSmokeTestRuns, getSmokeTestRunsForExport, getSmokeTestRunsPage, getReceiptRetentionHours, listServicePricing, updateBookingClient, updateBookingDelivery, updateBookingPayment, updateReceiptRetentionHours, updateServicePricing } from "./db";
 import { notifyOwner } from "./_core/notification";
 import { buildCheckoutBreakdownPdf, buildSmokeTestRunsCsv } from "./export";
 import { createCheckoutForBooking } from "./payment-flow";
@@ -44,6 +44,8 @@ export const appRouter = router({
   admin: router({
     bookingList: adminProcedure.query(() => getAllBookingRequests()),
     pricing: adminProcedure.query(() => listServicePricing()),
+    receiptRetention: adminProcedure.query(() => getReceiptRetentionHours()),
+    updateReceiptRetention: adminProcedure.input(z.object({ retentionHours: z.union([z.literal(24), z.literal(48), z.literal(72)]) })).mutation(({ input, ctx }) => updateReceiptRetentionHours(input.retentionHours, ctx.user.openId)),
     pricingHistory: adminProcedure.input(pricingHistoryPageSchema.optional()).query(async ({ input }) => { const page = await getPricingHistoryPage(input?.page ?? 1, input?.pageSize ?? 10, input); return { ...page, items: page.items.map((entry) => ({ ...entry, changedByName: entry.changedBy === ENV.ownerOpenId ? ENV.ownerName : entry.changedBy })) }; }),
     smokeTestRuns: adminProcedure.input(smokeTestRunsPageSchema.optional()).query(({ input }) => getSmokeTestRunsPage(input ?? {})),
     exportSmokeTestRunsCsv: adminProcedure.input(smokeTestRunsPageSchema.omit({ page: true, pageSize: true }).optional()).mutation(async ({ input }) => { const rows = await getSmokeTestRunsForExport(input ?? {}); return { filename: `smoke-test-runs-${new Date().toISOString().slice(0, 10)}.csv`, contentBase64: Buffer.from(buildSmokeTestRunsCsv(rows), "utf8").toString("base64") }; }),

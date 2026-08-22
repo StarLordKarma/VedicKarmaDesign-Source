@@ -128,3 +128,13 @@ export const receiptFiles = mysqlTable("receipt_files", {
 
 export type ReceiptFile = typeof receiptFiles.$inferSelect;
 export type InsertReceiptFile = typeof receiptFiles.$inferInsert;
+
+export const receiptRetentionSettings = mysqlTable("receipt_retention_settings", {
+  id: int("id").primaryKey(),
+  retentionHours: int("retentionHours").notNull().default(48),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedBy: varchar("updatedBy", { length: 64 }).notNull(),
+});
+
+export type ReceiptRetentionSettings = typeof receiptRetentionSettings.$inferSelect;
+export type InsertReceiptRetentionSettings = typeof receiptRetentionSettings.$inferInsert;

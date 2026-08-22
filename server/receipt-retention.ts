@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { cleanupExpiredReceiptFiles } from "./db";
+import { cleanupExpiredReceiptFiles, getReceiptRetentionHours } from "./db";
 import { sdk } from "./_core/sdk";
 
 export async function cleanupReceiptFilesHandler(req: Request, res: Response) {
@@ -10,8 +10,8 @@ export async function cleanupReceiptFilesHandler(req: Request, res: Response) {
       return;
     }
 
-    const deleted = await cleanupExpiredReceiptFiles();
-    res.json({ ok: true, deleted, retentionHours: 48 });
+    const [deleted, retentionHours] = await Promise.all([cleanupExpiredReceiptFiles(), getReceiptRetentionHours()]);
+    res.json({ ok: true, deleted, retentionHours });
   } catch (error) {
     res.status(500).json({
       error: String(error),

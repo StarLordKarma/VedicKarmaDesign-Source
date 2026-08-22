@@ -1,7 +1,7 @@
 import { asc, count, desc, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { and, gte, gt, lt } from "drizzle-orm";
-import { ClientChangeHistory, InsertBookingRequest, InsertUser, bookingRequests, clientChangeHistory, servicePricing, servicePricingCurrencies, servicePricingHistory, smokeTestRuns, users, receiptFiles } from "../drizzle/schema";
+import { ClientChangeHistory, InsertBookingRequest, InsertUser, bookingRequests, clientChangeHistory, servicePricing, servicePricingCurrencies, servicePricingHistory, smokeTestRuns, users, receiptFiles, receiptRetentionSettings } from "../drizzle/schema";
 import { READING_PRICES } from "@shared/pricing";
 import { ENV } from './_core/env';
 
@@ -91,14 +91,32 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-export const RECEIPT_RETENTION_MS = 48 * 60 * 60 * 1000;
+export const RECEIPT_RETENTION_OPTIONS = [24, 48, 72] as const;
+export type ReceiptRetentionHours = (typeof RECEIPT_RETENTION_OPTIONS)[number];
+export const DEFAULT_RECEIPT_RETENTION_HOURS: ReceiptRetentionHours = 48;
+export function isReceiptRetentionHours(value: number): value is ReceiptRetentionHours { return RECEIPT_RETENTION_OPTIONS.includes(value as ReceiptRetentionHours); }
+
+export async function getReceiptRetentionHours(): Promise<ReceiptRetentionHours> {
+  const db = await getDb();
+  if (!db) return DEFAULT_RECEIPT_RETENTION_HOURS;
+  const rows = await db.select({ retentionHours: receiptRetentionSettings.retentionHours }).from(receiptRetentionSettings).where(eq(receiptRetentionSettings.id, 1)).limit(1);
+  const value = rows[0]?.retentionHours;
+  return typeof value === "number" && isReceiptRetentionHours(value) ? value : DEFAULT_RECEIPT_RETENTION_HOURS;
+}
+
+export async function updateReceiptRetentionHours(retentionHours: number, updatedBy: string) {
+  if (!isReceiptRetentionHours(retentionHours)) throw new Error("Receipt retention must be 24, 48, or 72 hours.");
+  const db = await getDb();
+  if (db) await db.insert(receiptRetentionSettings).values({ id: 1, retentionHours, updatedBy }).onDuplicateKeyUpdate({ set: { retentionHours, updatedBy, updatedAt: new Date() } });
+  return { retentionHours: retentionHours as ReceiptRetentionHours, updatedBy };
+}
 
 export async function registerReceiptFile(storageKey: string, createdAt = new Date()) {
+  const retentionHours = await getReceiptRetentionHours();
+  const expiresAt = new Date(createdAt.getTime() + retentionHours * 60 * 60 * 1000);
   const db = await getDb();
-  if (!db) return { storageKey, expiresAt: new Date(createdAt.getTime() + RECEIPT_RETENTION_MS) };
-  const expiresAt = new Date(createdAt.getTime() + RECEIPT_RETENTION_MS);
-  await db.insert(receiptFiles).values({ storageKey, createdAt, expiresAt });
-  return { storageKey, expiresAt };
+  if (db) await db.insert(receiptFiles).values({ storageKey, createdAt, expiresAt });
+  return { storageKey, expiresAt, retentionHours };
 }
 
 export async function isReceiptFileActive(storageKey: string, now = new Date()) {

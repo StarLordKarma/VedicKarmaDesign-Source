@@ -235,3 +235,8 @@
 - [x] Configure the production Heartbeat job after the cleanup route is deployed
 - [x] Add regression coverage for Web Share fallback, expiry access control, cleanup idempotency, and cron authorization
 - [x] Run typecheck, full tests, build, responsive verification, and save a checkpoint
+- [x] Add owner-only persistent receipt retention setting with 24/48/72-hour validation
+- [x] Apply configured retention to new receipt expiry, access gating, and cleanup behavior
+- [x] Add localized Admin UI controls and save feedback for retention setting
+- [x] Add regression coverage for setting authorization, validation, persistence, and expiry calculations
+- [x] Run typecheck, full tests, build, responsive verification, and save a checkpoint

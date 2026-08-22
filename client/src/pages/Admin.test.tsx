@@ -14,8 +14,10 @@ const exportActivityMutate = vi.fn();
 const exportPricingHistoryMutate = vi.fn();
 const exportSmokeRunsMutate = vi.fn();
 const updatePricingMutate = vi.fn();
+const updateReceiptRetentionMutate = vi.fn();
 const runManualSmokeTestMutate = vi.fn();
 const clipboardWriteText = vi.fn().mockResolvedValue(undefined);
+const receiptRetentionData = 48;
 const pricingData = [{ currency: "USD", basicUsd: 25, numerologyAddonUsd: 10 }, { currency: "EUR", basicUsd: 23, numerologyAddonUsd: 9 }, { currency: "GBP", basicUsd: 20, numerologyAddonUsd: 8 }];
 const pricingHistoryData = { items: [{ id: 1, currency: "USD", oldBasicAmount: 25, oldNumerologyAddonAmount: 10, newBasicAmount: 40, newNumerologyAddonAmount: 15, changedAt: new Date("2026-08-22T12:00:00Z"), changedBy: "owner-123", changedByName: "Anika Jyotish" }], total: 11, page: 1, pageSize: 10, totalPages: 2 };
 const smokeTestRunsData = { items: [{ runId: "production-smoke-1724320000000", status: "succeeded" as const, result: JSON.stringify({ ok: true, checkoutCurrency: "EUR" }), startedAt: new Date("2026-08-22T12:00:00Z"), finishedAt: new Date("2026-08-22T12:00:01Z"), durationMs: 1000 }], total: 11, page: 1, pageSize: 10, totalPages: 2 };
@@ -37,17 +39,19 @@ vi.mock("@/const", () => ({ startLogin: startLoginMock }));
 vi.mock("sonner", () => ({ toast: { success: toastSuccess } }));
 vi.mock("@/lib/trpc", () => ({
   trpc: {
-    useUtils: () => ({ admin: { bookingList: { invalidate: vi.fn() }, activitySummary: { invalidate: vi.fn() }, pricing: { invalidate: vi.fn() }, pricingHistory: { invalidate: vi.fn() } } }),
+    useUtils: () => ({ admin: { bookingList: { invalidate: vi.fn() }, activitySummary: { invalidate: vi.fn() }, pricing: { invalidate: vi.fn() }, pricingHistory: { invalidate: vi.fn() }, receiptRetention: { invalidate: vi.fn() } } }),
     admin: {
       bookingList: { useQuery: () => ({ data: queryData, isLoading: false, error: null }) },
       activitySummary: { useQuery: (_input: unknown) => ({ data: activityData, isLoading: false, error: null }) },
       pricing: { useQuery: () => ({ data: pricingData, isLoading: false, error: null }) },
+      receiptRetention: { useQuery: () => ({ data: receiptRetentionData, isLoading: false, error: null }) },
       pricingHistory: { useQuery: () => ({ data: pricingHistoryData, isLoading: false, error: null }) },
       smokeTestRuns: { useQuery: (input: { page?: number; status?: string; sort?: string } | undefined) => { smokeQueryInputs.push(input); return { data: input?.page === 2 ? smokeTestRunsPageTwo : smokeTestRunsData, isLoading: false, error: null, refetch: vi.fn() }; } },
       runManualSmokeTest: { useMutation: (config: typeof options[number]) => { options[9] = config; return { mutate: runManualSmokeTestMutate, isPending: false }; } },
       clientHistory: { useQuery: () => ({ data: historyData, isLoading: false, error: null }) },
       updateBooking: { useMutation: () => ({ mutate: updateMutate, isPending: false, isSuccess: false }) },
       updatePricing: { useMutation: (config: typeof options[number]) => { options[7] = config; return { mutate: updatePricingMutate, isPending: false }; } },
+      updateReceiptRetention: { useMutation: (config: typeof options[number]) => { options[11] = config; return { mutate: updateReceiptRetentionMutate, isPending: false }; } },
       exportCsv: { useMutation: (config: typeof options[number]) => { options[0] = config; return { mutate: exportCsvMutate, isPending: false }; } },
       exportPdf: { useMutation: (config: typeof options[number]) => { options[1] = config; return { mutate: exportPdfMutate, isPending: false }; } },
       exportActivityCsv: { useMutation: (config: typeof options[number]) => { options[6] = config; return { mutate: exportActivityMutate, isPending: false }; } },
@@ -86,6 +90,7 @@ describe("Admin interactions", () => {
     exportActivityMutate.mockReset();
     exportPricingHistoryMutate.mockReset();
     updatePricingMutate.mockReset();
+    updateReceiptRetentionMutate.mockReset();
     pricingData[0].basicUsd = 25; pricingData[0].numerologyAddonUsd = 10; pricingData[1].basicUsd = 23; pricingData[1].numerologyAddonUsd = 9; pricingData[2].basicUsd = 20; pricingData[2].numerologyAddonUsd = 8;
     sendPdfMutate.mockReset();
     bulkSendPdfMutate.mockReset();
@@ -278,6 +283,17 @@ describe("Admin interactions", () => {
     fireEvent.click(screen.getByRole("button", { name: "Review" }));
     expect(screen.getByRole("dialog")).toBeInTheDocument();
     Object.assign(queryData[0], { natalPdfKey: null, natalPdfUrl: null, natalPdfName: null, deliveryStatus: "not_sent" });
+  });
+
+  it("edits receipt retention from the owner settings panel and sends the selected allowed value", async () => {
+    render(<Admin />);
+    const retention = screen.getByRole("combobox", { name: "Retention period" });
+    fireEvent.change(retention, { target: { value: "72" } });
+    expect(screen.getByRole("button", { name: "Save retention" })).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: "Save retention" }));
+    expect(updateReceiptRetentionMutate).toHaveBeenCalledWith({ retentionHours: 72 });
+    options[11]?.onSuccess?.({ retentionHours: 72, updatedBy: "owner-123" });
+    await waitFor(() => expect(screen.getByText("Retention updated.")).toBeInTheDocument());
   });
 
   it("edits service prices from the owner pricing panel and shows success feedback", () => {

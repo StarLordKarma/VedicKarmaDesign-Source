@@ -3,7 +3,7 @@ import { appRouter } from "./routers";
 import { notifyOwner } from "./_core/notification";
 import type { TrpcContext } from "./_core/context";
 import { ENV } from "./_core/env";
-import { createSmokeTestRun, finishSmokeTestRun, getPricingHistory, getServicePricing, updateServicePricing } from "./db";
+import { createSmokeTestRun, finishSmokeTestRun, getPricingHistory, getReceiptRetentionHours, getServicePricing, updateReceiptRetentionHours, updateServicePricing } from "./db";
 
 function context(role: "user" | "admin", openId = "test-owner"): TrpcContext {
   const now = new Date();
@@ -69,6 +69,19 @@ describe("owner notifications and admin access", () => {
     }
   });
 
+  it("persists owner receipt retention and rejects non-owner changes", async () => {
+    const owner = appRouter.createCaller(context("admin", ENV.ownerOpenId));
+    const nonOwner = appRouter.createCaller(context("admin", "another-admin"));
+    const original = await getReceiptRetentionHours();
+    try {
+      await expect(owner.admin.updateReceiptRetention({ retentionHours: 72 })).resolves.toEqual({ retentionHours: 72, updatedBy: ENV.ownerOpenId });
+      await expect(owner.admin.receiptRetention()).resolves.toBe(72);
+      await expect(nonOwner.admin.updateReceiptRetention({ retentionHours: 24 })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    } finally {
+      await updateReceiptRetentionHours(original, ENV.ownerOpenId);
+    }
+  });
+
   it("allows the manual smoke launcher only for the configured owner", async () => {
     const nonOwner = appRouter.createCaller(context("admin", "another-admin"));
     await expect(nonOwner.admin.runManualSmokeTest()).rejects.toMatchObject({ code: "FORBIDDEN" });
@@ -117,7 +130,7 @@ describe("owner notifications and admin access", () => {
     const owner = appRouter.createCaller(context("admin", ENV.ownerOpenId));
     const base = Date.now();
     const runIds = [0, 1, 2].map((offset) => `production-smoke-${base + offset}`);
-    await Promise.all(runIds.map((runId) => createSmokeTestRun(runId)));
+    for (const runId of runIds) await createSmokeTestRun(runId);
     await finishSmokeTestRun({ runId: runIds[0], status: "failed", result: JSON.stringify({ runId: runIds[0] }), durationMs: 300 });
     await finishSmokeTestRun({ runId: runIds[1], status: "failed", result: JSON.stringify({ runId: runIds[1] }), durationMs: 100 });
     await finishSmokeTestRun({ runId: runIds[2], status: "failed", result: JSON.stringify({ runId: runIds[2] }), durationMs: 200 });
@@ -126,10 +139,13 @@ describe("owner notifications and admin access", () => {
     expect(page.pageSize).toBe(50);
     expect(page.totalPages).toBe(Math.ceil(page.total / page.pageSize));
     expect(page.items.every((entry) => entry.status === "failed")).toBe(true);
-    const selectedDurations = page.items.filter((entry) => runIds.includes(entry.runId)).map((entry) => entry.durationMs);
-    expect(selectedDurations).toEqual([100, 200, 300]);
+    const durationValues = page.items.filter((entry) => entry.durationMs !== null).map((entry) => entry.durationMs as number);
+    expect(durationValues).toEqual([...durationValues].sort((a, b) => a - b));
     const latest = await owner.admin.smokeTestRuns({ status: "failed", sort: "started_desc", page: 1, pageSize: 50 });
-    const selectedIds = latest.items.filter((entry) => runIds.includes(entry.runId)).map((entry) => entry.runId);
+    const selectedLatest = latest.items.filter((entry) => runIds.includes(entry.runId));
+    const selectedDurations = selectedLatest.map((entry) => entry.durationMs);
+    expect(selectedDurations).toEqual(expect.arrayContaining([100, 200, 300]));
+    const selectedIds = selectedLatest.map((entry) => entry.runId);
     expect(selectedIds).toEqual(expect.arrayContaining(runIds));
     const startedTimes = latest.items.map((entry) => new Date(entry.startedAt).getTime());
     expect(startedTimes.every((time, index) => index === 0 || startedTimes[index - 1] >= time)).toBe(true);
