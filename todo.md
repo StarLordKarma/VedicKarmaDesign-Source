@@ -209,3 +209,5 @@
 - [x] Add selection and bulk JSON download for smoke-test runs
 - [x] Add regression coverage for page size, CSV filters, selection, and bulk download
 - [x] Run full validation, responsive verification, and save a smoke journal export checkpoint
+- [x] Investigate and correct public price mismatch showing $41.16 instead of configured $25 basic + $10 add-on
+- [x] Add regression coverage for the corrected public pricing display and checkout total

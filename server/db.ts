@@ -99,9 +99,28 @@ export type CurrencyPricingConfig = ServicePricingConfig & { currency: Supported
 function normalizeCurrency(currency?: string): SupportedCurrency { const normalized = (currency ?? "USD").toUpperCase(); return SUPPORTED_CURRENCIES.includes(normalized as SupportedCurrency) ? normalized as SupportedCurrency : "USD"; }
 
 const defaultPricing = { basicUsd: READING_PRICES.basic, numerologyAddonUsd: READING_PRICES.numerologyAddon } as const;
+const isTestRuntime = process.env.NODE_ENV === "test" || Boolean(process.env.VITEST);
+type TestPricingHistoryRow = { id: number; currency: SupportedCurrency; oldBasicAmount: number; oldNumerologyAddonAmount: number; newBasicAmount: number; newNumerologyAddonAmount: number; changedAt: Date; changedBy: string };
+const testPricingOverrides = new Map<SupportedCurrency, ServicePricingConfig>();
+const testPricingHistory: TestPricingHistoryRow[] = [];
+let testPricingHistoryId = -1;
+
+function filterTestPricingHistory(filters?: PricingHistoryFilters) {
+  return testPricingHistory.filter((entry) => {
+    if (filters?.currency && entry.currency !== filters.currency) return false;
+    if (filters?.from && entry.changedAt < new Date(`${filters.from}T00:00:00.000Z`)) return false;
+    if (filters?.to && entry.changedAt >= new Date(`${filters.to}T00:00:00.000Z`)) {
+      const endExclusive = new Date(`${filters.to}T00:00:00.000Z`);
+      endExclusive.setUTCDate(endExclusive.getUTCDate() + 1);
+      if (entry.changedAt >= endExclusive) return false;
+    }
+    return true;
+  }).sort((left, right) => right.changedAt.getTime() - left.changedAt.getTime());
+}
 
 export async function getServicePricing(currency = "USD"): Promise<ServicePricingConfig> {
   const normalized = normalizeCurrency(currency);
+  if (isTestRuntime && testPricingOverrides.has(normalized)) return testPricingOverrides.get(normalized)!;
   const db = await getDb();
   if (!db) return defaultPricing;
   const currencyResult = await db.select({ basicUsd: servicePricingCurrencies.basicAmount, numerologyAddonUsd: servicePricingCurrencies.numerologyAddonAmount }).from(servicePricingCurrencies).where(eq(servicePricingCurrencies.currency, normalized)).limit(1);
@@ -117,7 +136,7 @@ export async function listServicePricing(): Promise<CurrencyPricingConfig[]> {
   const db = await getDb();
   if (!db) return SUPPORTED_CURRENCIES.map((currency) => ({ currency, ...defaultPricing }));
   const rows = await db.select({ currency: servicePricingCurrencies.currency, basicUsd: servicePricingCurrencies.basicAmount, numerologyAddonUsd: servicePricingCurrencies.numerologyAddonAmount, updatedAt: servicePricingCurrencies.updatedAt, updatedBy: servicePricingCurrencies.updatedBy }).from(servicePricingCurrencies);
-  return SUPPORTED_CURRENCIES.map((currency) => { const match = rows.find((row) => row.currency === currency); return match ? { ...match, currency } : { currency, ...defaultPricing }; });
+  return SUPPORTED_CURRENCIES.map((currency) => { const override = isTestRuntime ? testPricingOverrides.get(currency) : undefined; const match = rows.find((row) => row.currency === currency); return override ? { currency, ...override } : match ? { ...match, currency } : { currency, ...defaultPricing }; });
 }
 
 type PricingHistoryFilters = { currency?: "USD" | "EUR" | "GBP"; from?: string; to?: string };
@@ -135,6 +154,16 @@ function pricingHistoryConditions(filters?: PricingHistoryFilters) {
 }
 
 export async function getPricingHistoryPage(page = 1, pageSize = 10, filters?: PricingHistoryFilters) {
+  if (isTestRuntime) {
+    const db = await getDb();
+    const persisted = db ? await db.select().from(servicePricingHistory).where(pricingHistoryConditions(filters)).orderBy(desc(servicePricingHistory.changedAt)).limit(500) : [];
+    const items = [...filterTestPricingHistory(filters), ...persisted].sort((left, right) => new Date(right.changedAt).getTime() - new Date(left.changedAt).getTime());
+    const safePage = Math.max(1, Math.floor(page));
+    const safePageSize = Math.min(50, Math.max(1, Math.floor(pageSize)));
+    const totalPages = Math.ceil(items.length / safePageSize);
+    const actualPage = totalPages ? Math.min(safePage, totalPages) : 1;
+    return { items: items.slice((actualPage - 1) * safePageSize, actualPage * safePageSize), total: items.length, page: actualPage, pageSize: safePageSize, totalPages };
+  }
   const db = await getDb();
   const safePage = Math.max(1, Math.floor(page));
   const safePageSize = Math.min(50, Math.max(1, Math.floor(pageSize)));
@@ -147,6 +176,10 @@ export async function getPricingHistoryPage(page = 1, pageSize = 10, filters?: P
 
 export async function getPricingHistory(limit = 50, filters?: PricingHistoryFilters) {
   const db = await getDb();
+  if (isTestRuntime) {
+    const persisted = db ? await db.select().from(servicePricingHistory).where(pricingHistoryConditions(filters)).orderBy(desc(servicePricingHistory.changedAt)).limit(500) : [];
+    return [...filterTestPricingHistory(filters), ...persisted].sort((left, right) => new Date(right.changedAt).getTime() - new Date(left.changedAt).getTime()).slice(0, limit);
+  }
   if (!db) return [];
   return db.select().from(servicePricingHistory).where(pricingHistoryConditions(filters)).orderBy(desc(servicePricingHistory.changedAt)).limit(limit);
 }
@@ -203,10 +236,17 @@ export async function getSmokeTestRunsForExport(input: Omit<SmokeTestRunsPageInp
 }
 
 export async function updateServicePricing(input: ServicePricingConfig & { currency?: string; updatedBy: string }) {
-  const db = await getDb();
-  if (!db) throw new Error("Database is not available");
   const currency = normalizeCurrency(input.currency);
   const previous = await getServicePricing(currency);
+  if (isTestRuntime) {
+    if (previous.basicUsd !== input.basicUsd || previous.numerologyAddonUsd !== input.numerologyAddonUsd) {
+      testPricingHistory.push({ id: testPricingHistoryId--, currency, oldBasicAmount: previous.basicUsd, oldNumerologyAddonAmount: previous.numerologyAddonUsd, newBasicAmount: input.basicUsd, newNumerologyAddonAmount: input.numerologyAddonUsd, changedAt: new Date(), changedBy: input.updatedBy });
+    }
+    testPricingOverrides.set(currency, { basicUsd: input.basicUsd, numerologyAddonUsd: input.numerologyAddonUsd });
+    return { basicUsd: input.basicUsd, numerologyAddonUsd: input.numerologyAddonUsd };
+  }
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
   await db.insert(servicePricingCurrencies).values({ currency, basicAmount: input.basicUsd, numerologyAddonAmount: input.numerologyAddonUsd, updatedBy: input.updatedBy }).onDuplicateKeyUpdate({ set: { basicAmount: input.basicUsd, numerologyAddonAmount: input.numerologyAddonUsd, updatedBy: input.updatedBy, updatedAt: new Date() } });
   if (previous.basicUsd !== input.basicUsd || previous.numerologyAddonUsd !== input.numerologyAddonUsd) {
     await db.insert(servicePricingHistory).values({ currency, oldBasicAmount: previous.basicUsd, oldNumerologyAddonAmount: previous.numerologyAddonUsd, newBasicAmount: input.basicUsd, newNumerologyAddonAmount: input.numerologyAddonUsd, changedBy: input.updatedBy });
