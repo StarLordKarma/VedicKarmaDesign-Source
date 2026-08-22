@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { sendClientNatalPdf } from "./client-delivery";
+import { sendClientNatalPdf, sendClientReceiptPdf } from "./client-delivery";
 
 const { signedUrl } = vi.hoisted(() => ({ signedUrl: vi.fn() }));
 vi.mock("./storage", () => ({ storageGetSignedUrl: signedUrl }));
@@ -14,6 +14,19 @@ describe("client natal PDF delivery", () => {
     expect(body.to).toEqual(["client@example.com"]);
     expect(body.attachments[0].filename).toBe("chart.pdf");
     expect(body.attachments[0].content).toBe(Buffer.from("%PDF-1.7").toString("base64"));
+    fetchMock.mockRestore();
+  });
+
+  it("localizes receipt body and disclaimer for every supported language", async () => {
+    signedUrl.mockResolvedValue("https://storage.example/receipt.pdf");
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+    for (const [language, expected] of [["English", "Your requested price breakdown receipt"], ["Русский", "Запрошенная квитанция"], ["Deutsch", "angeforderte Quittung"], ["Español", "recibo solicitado"]] as const) {
+      fetchMock.mockResolvedValueOnce(new Response("%PDF-1.7", { status: 200 })).mockResolvedValueOnce(new Response(JSON.stringify({ id: `email_${language}` }), { status: 200, headers: { "Content-Type": "application/json" } }));
+      await sendClientReceiptPdf({ email: "client@example.com", pdfKey: "price-breakdowns/receipt.pdf", pdfName: "receipt.pdf", language });
+      const body = JSON.parse(String(fetchMock.mock.calls.at(-1)?.[1]?.body));
+      expect(body.html).toContain(expected);
+      expect(body.html).toMatch(/(Disclaimer|Дисклеймер|Hinweis|Aviso)/);
+    }
     fetchMock.mockRestore();
   });
 

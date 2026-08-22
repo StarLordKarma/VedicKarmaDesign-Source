@@ -262,3 +262,19 @@
 - [x] Apply prioritized performance, maintainability, security, and UX optimizations without changing business behavior
 - [x] Add regression tests for each optimization and verify existing functionality remains intact
 - [x] Re-run full validation, review logs and responsive previews, and save an optimization checkpoint
+
+# Этап один — переносимая резервная копия
+- [x] Prepare a clean source archive excluding secrets, local databases, logs, caches, and generated build artifacts
+- [x] Include migrations, package manifests, configuration templates, security notes, and current source documentation
+- [x] Write a platform-neutral restore/deployment instruction for another AI or developer
+- [x] Document the limits of a source archive versus Manus Task Data Backup, live database, S3 files, domains, and secrets
+- [x] Validate archive contents, secret exclusion, checksums, and documentation completeness
+- [x] Deliver the archive and standalone recovery instruction to the user
+
+# Этап один — обновление backup-комплекта
+- [x] Extend restore instructions with secret-manager setup, rotation, validation, and platform-specific secret handling
+- [x] Add scheduled database and user-file backup architecture, required credentials, retention, encryption, and restore procedures to the instructions
+- [x] Add prioritized recommendations for further site optimization and operations
+- [x] Audit EN/RU/DE/ES disclaimer strings across public UI, receipt PDFs, receipt emails, and natal-chart delivery email templates
+- [x] Update archive documentation with verified disclaimer coverage and any limitations
+- [x] Rebuild archive and checksum, verify safe contents, and deliver the updated files
