@@ -4,8 +4,8 @@ import { systemRouter } from "./_core/systemRouter";
 import { adminProcedure, publicProcedure, router } from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { bookingSchema, isProductionSmokeTestBooking } from "@shared/booking";
-import { activityDateRangeSchema, attachNatalPdfSchema, bulkSendNatalPdfSchema, clientHistorySchema, editBookingClientSchema, pricingCurrencySchema, pricingHistoryFilterSchema, pricingHistoryPageSchema, sendNatalPdfSchema, servicePricingSchema, updateBookingAdminSchema } from "@shared/admin";
-import { createBookingRequest, createSmokeTestRun, deleteBookingRequest, finishSmokeTestRun, getAdminActivityEvents, getAdminActivitySummary, getBookingRequestById, getClientChangeHistory, getPricingHistory, getPricingHistoryPage, getServicePricing, getSmokeTestRuns, listServicePricing, updateBookingClient, updateBookingDelivery, updateBookingPayment, updateServicePricing } from "./db";
+import { activityDateRangeSchema, attachNatalPdfSchema, bulkSendNatalPdfSchema, clientHistorySchema, editBookingClientSchema, pricingCurrencySchema, pricingHistoryFilterSchema, pricingHistoryPageSchema, sendNatalPdfSchema, servicePricingSchema, smokeTestRunsPageSchema, updateBookingAdminSchema } from "@shared/admin";
+import { createBookingRequest, createSmokeTestRun, deleteBookingRequest, finishSmokeTestRun, getAdminActivityEvents, getAdminActivitySummary, getBookingRequestById, getClientChangeHistory, getPricingHistory, getPricingHistoryPage, getServicePricing, getSmokeTestRuns, getSmokeTestRunsPage, listServicePricing, updateBookingClient, updateBookingDelivery, updateBookingPayment, updateServicePricing } from "./db";
 import { notifyOwner } from "./_core/notification";
 import { createCheckoutForBooking } from "./payment-flow";
 import { runManualSmokeTest } from "./manual-smoke-test";
@@ -43,7 +43,7 @@ export const appRouter = router({
     bookingList: adminProcedure.query(() => getAllBookingRequests()),
     pricing: adminProcedure.query(() => listServicePricing()),
     pricingHistory: adminProcedure.input(pricingHistoryPageSchema.optional()).query(async ({ input }) => { const page = await getPricingHistoryPage(input?.page ?? 1, input?.pageSize ?? 10, input); return { ...page, items: page.items.map((entry) => ({ ...entry, changedByName: entry.changedBy === ENV.ownerOpenId ? ENV.ownerName : entry.changedBy })) }; }),
-    smokeTestRuns: adminProcedure.query(() => getSmokeTestRuns(50)),
+    smokeTestRuns: adminProcedure.input(smokeTestRunsPageSchema.optional()).query(({ input }) => getSmokeTestRunsPage(input ?? {})),
     runManualSmokeTest: adminProcedure.mutation(({ ctx }) => runManualSmokeTest(`${ctx.req.protocol}://${ctx.req.get("host")}`)),
     updatePricing: adminProcedure.input(servicePricingSchema).mutation(({ input, ctx }) => updateServicePricing({ ...input, updatedBy: ctx.user.openId })),
     activitySummary: adminProcedure.input(activityDateRangeSchema.optional()).query(({ input }) => getAdminActivitySummary(input ?? {})),

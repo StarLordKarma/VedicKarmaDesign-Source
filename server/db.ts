@@ -1,4 +1,4 @@
-import { count, desc, eq } from "drizzle-orm";
+import { asc, count, desc, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { and, gte, lt } from "drizzle-orm";
 import { ClientChangeHistory, InsertBookingRequest, InsertUser, bookingRequests, clientChangeHistory, servicePricing, servicePricingCurrencies, servicePricingHistory, smokeTestRuns, users } from "../drizzle/schema";
@@ -174,6 +174,22 @@ export async function getSmokeTestRuns(limit = 50) {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(smokeTestRuns).orderBy(desc(smokeTestRuns.startedAt)).limit(Math.min(100, Math.max(1, Math.floor(limit))));
+}
+
+export type SmokeTestRunsPageInput = { status?: "running" | "succeeded" | "failed"; sort?: "started_desc" | "started_asc" | "duration_desc" | "duration_asc"; page?: number; pageSize?: number };
+export async function getSmokeTestRunsPage(input: SmokeTestRunsPageInput = {}) {
+  const db = await getDb();
+  const pageSize = Math.min(50, Math.max(1, Math.floor(input.pageSize ?? 10)));
+  const requestedPage = Math.max(1, Math.floor(input.page ?? 1));
+  if (!db) return { items: [], total: 0, page: requestedPage, pageSize, totalPages: 0 };
+  const where = input.status ? eq(smokeTestRuns.status, input.status) : undefined;
+  const [{ total }] = await db.select({ total: count() }).from(smokeTestRuns).where(where);
+  const totalPages = Math.ceil(total / pageSize);
+  const page = totalPages ? Math.min(requestedPage, totalPages) : 1;
+  const sort = input.sort ?? "started_desc";
+  const order = sort === "started_asc" ? asc(smokeTestRuns.startedAt) : sort === "duration_desc" ? desc(smokeTestRuns.durationMs) : sort === "duration_asc" ? asc(smokeTestRuns.durationMs) : desc(smokeTestRuns.startedAt);
+  const items = await db.select().from(smokeTestRuns).where(where).orderBy(order).limit(pageSize).offset((page - 1) * pageSize);
+  return { items, total, page, pageSize, totalPages };
 }
 
 export async function updateServicePricing(input: ServicePricingConfig & { currency?: string; updatedBy: string }) {

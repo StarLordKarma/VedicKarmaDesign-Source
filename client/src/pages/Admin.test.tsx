@@ -14,9 +14,12 @@ const exportActivityMutate = vi.fn();
 const exportPricingHistoryMutate = vi.fn();
 const updatePricingMutate = vi.fn();
 const runManualSmokeTestMutate = vi.fn();
+const clipboardWriteText = vi.fn().mockResolvedValue(undefined);
 const pricingData = [{ currency: "USD", basicUsd: 25, numerologyAddonUsd: 10 }, { currency: "EUR", basicUsd: 23, numerologyAddonUsd: 9 }, { currency: "GBP", basicUsd: 20, numerologyAddonUsd: 8 }];
 const pricingHistoryData = { items: [{ id: 1, currency: "USD", oldBasicAmount: 25, oldNumerologyAddonAmount: 10, newBasicAmount: 40, newNumerologyAddonAmount: 15, changedAt: new Date("2026-08-22T12:00:00Z"), changedBy: "owner-123", changedByName: "Anika Jyotish" }], total: 11, page: 1, pageSize: 10, totalPages: 2 };
-const smokeTestRunsData = [{ runId: "production-smoke-1724320000000", status: "succeeded", result: JSON.stringify({ ok: true, checkoutCurrency: "EUR" }), startedAt: new Date("2026-08-22T12:00:00Z"), finishedAt: new Date("2026-08-22T12:00:01Z"), durationMs: 1000 }];
+const smokeTestRunsData = { items: [{ runId: "production-smoke-1724320000000", status: "succeeded" as const, result: JSON.stringify({ ok: true, checkoutCurrency: "EUR" }), startedAt: new Date("2026-08-22T12:00:00Z"), finishedAt: new Date("2026-08-22T12:00:01Z"), durationMs: 1000 }], total: 11, page: 1, pageSize: 10, totalPages: 2 };
+const smokeTestRunsPageTwo = { items: [{ runId: "production-smoke-1724320000001", status: "failed" as const, result: JSON.stringify({ ok: false, error: "timeout" }), startedAt: new Date("2026-08-22T11:00:00Z"), finishedAt: new Date("2026-08-22T11:00:03Z"), durationMs: 3000 }], total: 11, page: 2, pageSize: 10, totalPages: 2 };
+const smokeQueryInputs: unknown[] = [];
 const sendPdfMutate = vi.fn();
 const bulkSendPdfMutate = vi.fn();
 const editClientMutate = vi.fn();
@@ -39,7 +42,7 @@ vi.mock("@/lib/trpc", () => ({
       activitySummary: { useQuery: (_input: unknown) => ({ data: activityData, isLoading: false, error: null }) },
       pricing: { useQuery: () => ({ data: pricingData, isLoading: false, error: null }) },
       pricingHistory: { useQuery: () => ({ data: pricingHistoryData, isLoading: false, error: null }) },
-      smokeTestRuns: { useQuery: () => ({ data: smokeTestRunsData, isLoading: false, error: null, refetch: vi.fn() }) },
+      smokeTestRuns: { useQuery: (input: { page?: number; status?: string; sort?: string } | undefined) => { smokeQueryInputs.push(input); return { data: input?.page === 2 ? smokeTestRunsPageTwo : smokeTestRunsData, isLoading: false, error: null, refetch: vi.fn() }; } },
       runManualSmokeTest: { useMutation: (config: typeof options[number]) => { options[9] = config; return { mutate: runManualSmokeTestMutate, isPending: false }; } },
       clientHistory: { useQuery: () => ({ data: historyData, isLoading: false, error: null }) },
       updateBooking: { useMutation: () => ({ mutate: updateMutate, isPending: false, isSuccess: false }) },
@@ -61,10 +64,14 @@ describe("Admin interactions", () => {
     historyData.splice(0); });
 
   beforeEach(() => {
+    Object.defineProperty(window.navigator, "clipboard", { configurable: true, value: { writeText: clipboardWriteText } });
+    Object.defineProperty(window.URL, "createObjectURL", { configurable: true, value: vi.fn(() => "blob:smoke-json") });
+    Object.defineProperty(window.URL, "revokeObjectURL", { configurable: true, value: vi.fn() });
     Object.defineProperty(window, "innerWidth", { configurable: true, value: 1024 });
     queryData.splice(1);
     Object.assign(queryData[0], { natalPdfKey: null, natalPdfUrl: null, natalPdfName: null, deliveryStatus: "not_sent", interest: null, language: "English" });
     historyData.splice(0);
+    smokeQueryInputs.splice(0);
     activityData.deliveryFailureCount = 0; activityData.pendingPaymentCount = 0; activityData.recentlyEditedClientCount = 0; activityData.deliveryFailures.splice(0); activityData.pendingPayments.splice(0); activityData.recentlyEditedClients.splice(0);
     localStorage.clear();
     authState.user = { role: "admin" };
@@ -281,20 +288,31 @@ describe("Admin interactions", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save prices" }));
     expect(updatePricingMutate).toHaveBeenCalledWith({ currency: "USD", basicUsd: 40, numerologyAddonUsd: 15 });
     act(() => options[7].onSuccess?.({ basicUsd: 40, numerologyAddonUsd: 15 }));
+    expect(screen.getByRole("status")).toHaveTextContent("Prices updated.");
     expect(screen.getByText("Pricing change history")).toBeInTheDocument();
     expect(screen.getByText("Interface language: EN")).toBeInTheDocument();
     expect(screen.getByText("Formatting locale: en-US")).toBeInTheDocument();
     expect(screen.getAllByText(/Anika Jyotish/).length).toBeGreaterThan(0);
     expect(screen.getByText(/Smoke-test run journal|Журнал запусков smoke-тестов/)).toBeInTheDocument();
-    expect(screen.getByText(/Succeeded|Успешно/)).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: /Succeeded|Успешно/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "View full JSON" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "View full JSON" }));
     expect(screen.getByRole("dialog")).toHaveTextContent('"checkoutCurrency": "EUR"');
+    fireEvent.click(screen.getByRole("button", { name: "Copy JSON" }));
+    expect(clipboardWriteText).toHaveBeenCalledWith(expect.stringContaining('"checkoutCurrency": "EUR"'));
+    fireEvent.click(screen.getByRole("button", { name: "Download .json" }));
     fireEvent.click(within(screen.getByRole("dialog")).getAllByRole("button", { name: "Close" })[0]);
     fireEvent.click(screen.getByRole("button", { name: "Run smoke-test" }));
     expect(runManualSmokeTestMutate).toHaveBeenCalledOnce();
-    expect(screen.getByRole("button", { name: /Next history page|Следующая страница истории/ })).toBeEnabled();
-    fireEvent.click(screen.getByRole("button", { name: /Next history page|Следующая страница истории/ }));
+    fireEvent.change(screen.getByRole("combobox", { name: /Status|Статус/ }), { target: { value: "succeeded" } });
+    fireEvent.change(screen.getByRole("combobox", { name: /Sort runs|Сортировка запусков/ }), { target: { value: "duration_desc" } });
+    expect(smokeQueryInputs.at(-1)).toEqual(expect.objectContaining({ status: "succeeded", sort: "duration_desc", page: 1, pageSize: 10 }));
+    const nextHistoryButtons = screen.getAllByRole("button", { name: /Next history page|Следующая страница истории/ });
+    expect(nextHistoryButtons.length).toBeGreaterThanOrEqual(2);
+    expect(nextHistoryButtons[nextHistoryButtons.length - 1]).toBeEnabled();
+    fireEvent.click(nextHistoryButtons[nextHistoryButtons.length - 1]);
+    expect(screen.getByText("production-smoke-1724320000001")).toBeInTheDocument();
+    expect(smokeQueryInputs.at(-1)).toEqual(expect.objectContaining({ page: 2, status: "succeeded", sort: "duration_desc" }));
     fireEvent.click(screen.getByRole("button", { name: "Export pricing history CSV" }));
     expect(exportPricingHistoryMutate).toHaveBeenCalledOnce();
     fireEvent.change(screen.getByRole("combobox", { name: "Pricing history currency" }), { target: { value: "EUR" } });
@@ -305,7 +323,7 @@ describe("Admin interactions", () => {
     fireEvent.click(screen.getByRole("button", { name: "Clear history filters" }));
     expect(screen.getByRole("combobox", { name: "Pricing history currency" })).toHaveValue("all");
     expect(screen.getByLabelText("Pricing history from")).toHaveValue("");
-    expect(screen.getByRole("status")).toHaveTextContent("Prices updated.");
+    expect(screen.getByRole("status")).toHaveTextContent("JSON downloaded.");
     fireEvent.change(screen.getByRole("combobox", { name: "Currency" }), { target: { value: "EUR" } });
     expect(screen.getByRole("spinbutton", { name: "Basic reading price" })).toHaveValue(23);
     expect(screen.getAllByText((_, node) => Boolean(node?.textContent?.includes("32") && node.textContent.includes("€"))).length).toBeGreaterThan(0);

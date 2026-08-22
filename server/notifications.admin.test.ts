@@ -108,8 +108,31 @@ describe("owner notifications and admin access", () => {
     await createSmokeTestRun(runId);
     await finishSmokeTestRun({ runId, status: "succeeded", result: JSON.stringify({ ok: true, checkoutCurrency: "EUR" }), durationMs: 123 });
     const runs = await owner.admin.smokeTestRuns();
-    expect(runs).toEqual(expect.arrayContaining([expect.objectContaining({ runId, status: "succeeded", durationMs: 123 })]));
+    expect(runs.items).toEqual(expect.arrayContaining([expect.objectContaining({ runId, status: "succeeded", durationMs: 123 })]));
     await expect(nonOwner.admin.smokeTestRuns()).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(owner.admin.smokeTestRuns({ status: "succeeded", sort: "duration_desc", page: 1, pageSize: 10 })).resolves.toEqual(expect.objectContaining({ total: expect.any(Number), items: expect.any(Array) }));
+  });
+
+  it("filters, sorts, and paginates smoke-test runs with correct metadata", async () => {
+    const owner = appRouter.createCaller(context("admin", ENV.ownerOpenId));
+    const base = Date.now();
+    const runIds = [0, 1, 2].map((offset) => `production-smoke-${base + offset}`);
+    await Promise.all(runIds.map((runId) => createSmokeTestRun(runId)));
+    await finishSmokeTestRun({ runId: runIds[0], status: "failed", result: JSON.stringify({ runId: runIds[0] }), durationMs: 300 });
+    await finishSmokeTestRun({ runId: runIds[1], status: "failed", result: JSON.stringify({ runId: runIds[1] }), durationMs: 100 });
+    await finishSmokeTestRun({ runId: runIds[2], status: "failed", result: JSON.stringify({ runId: runIds[2] }), durationMs: 200 });
+    const page = await owner.admin.smokeTestRuns({ status: "failed", sort: "duration_asc", page: 1, pageSize: 50 });
+    expect(page.page).toBe(1);
+    expect(page.pageSize).toBe(50);
+    expect(page.totalPages).toBe(Math.ceil(page.total / page.pageSize));
+    expect(page.items.every((entry) => entry.status === "failed")).toBe(true);
+    const selectedDurations = page.items.filter((entry) => runIds.includes(entry.runId)).map((entry) => entry.durationMs);
+    expect(selectedDurations).toEqual([100, 200, 300]);
+    const latest = await owner.admin.smokeTestRuns({ status: "failed", sort: "started_desc", page: 1, pageSize: 50 });
+    const selectedIds = latest.items.filter((entry) => runIds.includes(entry.runId)).map((entry) => entry.runId);
+    expect(selectedIds).toEqual(expect.arrayContaining(runIds));
+    const startedTimes = latest.items.map((entry) => new Date(entry.startedAt).getTime());
+    expect(startedTimes.every((time, index) => index === 0 || startedTimes[index - 1] >= time)).toBe(true);
   });
 
   it("rejects unsupported currencies and defaults missing public currency to USD", async () => {

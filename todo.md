@@ -197,3 +197,10 @@
 - [x] Add an owner-only manual smoke-test launch action with live progress states
 - [x] Add authorization, orchestration, modal, progress, and journal regression tests
 - [x] Run full validation, responsive verification, and save a smoke-tools checkpoint
+- [x] Add copy and .json download actions to the full smoke-result modal
+- [x] Add server-side smoke journal sorting by start time/duration, status filtering, and pagination
+- [x] Add Admin controls for smoke journal filters, sorting, and pagination
+- [x] Add regression coverage for JSON actions, query contracts, authorization, filters, sorting, and pagination
+- [x] Run full validation, responsive verification, and save a smoke journal checkpoint
+- [x] Add server assertions for smoke journal status filtering, both sort directions, and pagination metadata/results
+- [x] Add Admin assertions that status/sort changes update query inputs and pagination changes rendered data
