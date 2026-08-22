@@ -54,7 +54,7 @@ export const appRouter = router({
       }
     }),
     bulkSendNatalPdf: adminProcedure.input(bulkSendNatalPdfSchema).mutation(async ({ input, ctx }) => {
-      const results: Array<{ bookingId: number; success: boolean; error?: string }> = [];
+      const results: Array<{ bookingId: number; success: boolean; providerId?: string | null; error?: string }> = [];
       for (const bookingId of input.bookingIds) {
         const booking = await getBookingRequestById(bookingId);
         if (!booking) { results.push({ bookingId, success: false, error: "Booking request not found." }); continue; }
@@ -63,7 +63,7 @@ export const appRouter = router({
         try {
           const result = await sendClientNatalPdf({ email: booking.email, name: booking.name, pdfKey: booking.natalPdfKey, pdfName: booking.natalPdfName, language: booking.language });
           await updateBookingDelivery({ id: booking.id, deliveryStatus: "sent", deliveryError: null, deliveredBy: ctx.user.openId });
-          results.push({ bookingId, success: true, ...(result.id ? { error: result.id } : {}) });
+          results.push({ bookingId, success: true, providerId: result.id ?? null });
         } catch (error) {
           const message = error instanceof Error ? error.message : "Email delivery failed.";
           await updateBookingDelivery({ id: booking.id, deliveryStatus: "failed", deliveryError: message.slice(0, 1000) });

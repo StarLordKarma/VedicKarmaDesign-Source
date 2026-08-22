@@ -93,7 +93,7 @@
 - [x] Save a new checkpoint containing the owner sign-in CTA, SECURITY.md, owner-only gate, and related tests/build results
 - [ ] Perform authenticated desktop verification of admin search and date filters with owner session
 - [ ] Perform authenticated mobile verification of admin search and date filters with owner session
-- [ ] Keep authenticated admin verification open until owner session is available, rather than claiming completion
+- [x] Keep authenticated admin verification open until owner session is available, rather than claiming completion
 - [x] Add explicit CSV export label and client-history coverage in admin
 - [x] Add admin sorting by registration date and request status
 - [x] Add visual PDF delivery-status badges with localized labels
@@ -108,3 +108,4 @@
 - [x] Run full verification and save a new checkpoint
 - [x] Add Admin UI pagination test with more than PAGE_SIZE rows and next/previous navigation
 - [x] Save a checkpoint after pagination behavior test and final full verification
+- [ ] Save a follow-up checkpoint after correcting bulk delivery providerId results
