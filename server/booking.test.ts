@@ -34,10 +34,10 @@ describe("booking validation", () => {
   });
 
   it("recognizes only explicitly marked production smoke-test bookings for cleanup", () => {
-    expect(isProductionSmokeTestBooking({ email: "production-smoke-123@example.com", interest: "Automated production checkout verification", smokeTest: true })).toBe(true);
-    expect(isProductionSmokeTestBooking({ email: "client@example.com", interest: "Automated production checkout verification", smokeTest: true })).toBe(false);
-    expect(isProductionSmokeTestBooking({ email: "production-smoke-123@example.com", interest: "Career themes", smokeTest: true })).toBe(false);
-    expect(isProductionSmokeTestBooking({ email: "production-smoke-123@example.com", interest: "Automated production checkout verification", smokeTest: false })).toBe(false);
+    expect(isProductionSmokeTestBooking({ email: "production-smoke-1234567890@example.com", interest: "Automated production checkout verification", smokeTest: true, smokeTestRunId: "production-smoke-1234567890" })).toBe(true);
+    expect(isProductionSmokeTestBooking({ email: "client@example.com", interest: "Automated production checkout verification", smokeTest: true, smokeTestRunId: "production-smoke-1234567890" })).toBe(false);
+    expect(isProductionSmokeTestBooking({ email: "production-smoke-1234567890@example.com", interest: "Career themes", smokeTest: true, smokeTestRunId: "production-smoke-1234567890" })).toBe(false);
+    expect(isProductionSmokeTestBooking({ email: "production-smoke-1234567890@example.com", interest: "Automated production checkout verification", smokeTest: false, smokeTestRunId: "production-smoke-1234567890" })).toBe(false);
   });
 
   it("calculates Basic and Add-on totals", () => {

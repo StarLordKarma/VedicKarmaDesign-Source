@@ -105,3 +105,16 @@ export const servicePricingHistory = mysqlTable("service_pricing_history", {
 
 export type ServicePricingHistory = typeof servicePricingHistory.$inferSelect;
 export type InsertServicePricingHistory = typeof servicePricingHistory.$inferInsert;
+
+export const smokeTestRuns = mysqlTable("smoke_test_runs", {
+  id: int("id").autoincrement().primaryKey(),
+  runId: varchar("runId", { length: 128 }).notNull().unique(),
+  status: mysqlEnum("status", ["running", "succeeded", "failed"]).notNull(),
+  result: text("result"),
+  startedAt: timestamp("startedAt").defaultNow().notNull(),
+  finishedAt: timestamp("finishedAt"),
+  durationMs: int("durationMs"),
+});
+
+export type SmokeTestRun = typeof smokeTestRuns.$inferSelect;
+export type InsertSmokeTestRun = typeof smokeTestRuns.$inferInsert;

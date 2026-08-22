@@ -28,11 +28,20 @@ export const servicePricingSchema = z.object({
   basicUsd: z.number().int().min(1).max(10000),
   numerologyAddonUsd: z.number().int().min(0).max(10000),
 });
-export const pricingHistoryFilterSchema = z.object({
+const pricingHistoryDateFields = {
   currency: currencySchema.optional(),
   from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-}).refine((input) => !input.from || !input.to || input.from <= input.to, { message: "The pricing history date range is invalid." });
+};
+const validPricingHistoryRange = (input: { from?: string; to?: string }) => !input.from || !input.to || input.from <= input.to;
+export const pricingHistoryFilterSchema = z.object(pricingHistoryDateFields).refine(validPricingHistoryRange, { message: "The pricing history date range is invalid." });
+export const smokeTestRunStartSchema = z.object({ runId: z.string().regex(/^production-smoke-\d{10,}$/) });
+export const smokeTestRunFinishSchema = z.object({ runId: z.string().regex(/^production-smoke-\d{10,}$/), status: z.enum(["succeeded", "failed"]), result: z.string().max(10000), durationMs: z.number().int().min(0).max(3600000) });
+export const pricingHistoryPageSchema = z.object({
+  ...pricingHistoryDateFields,
+  page: z.number().int().min(1).default(1),
+  pageSize: z.number().int().min(1).max(50).default(10),
+}).refine(validPricingHistoryRange, { message: "The pricing history date range is invalid." });
 
 export const activityDateRangeSchema = z.object({
   from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),

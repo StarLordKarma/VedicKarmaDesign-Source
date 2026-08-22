@@ -29,30 +29,38 @@ async function rpcPost(path, input) {
   return body?.result?.data?.json ?? body?.result?.data;
 }
 
-const currencies = ["EUR", "GBP"];
-const pricingByCurrency = {};
-for (const currency of currencies) {
-  const pricing = await rpcGet("pricing.current", { currency });
-  if (!pricing || (pricing.currency && pricing.currency !== currency)) throw new Error(`Expected a valid ${currency} pricing response.`);
-  if (!Number.isFinite(pricing.basicUsd) || !Number.isFinite(pricing.numerologyAddonUsd)) throw new Error(`${currency} pricing response did not contain numeric amounts.`);
-  pricingByCurrency[currency] = { ...pricing, currency };
+const startedAt = Date.now();
+const runId = `production-smoke-${startedAt}`;
+try {
+  const currencies = ["EUR", "GBP"];
+  const pricingByCurrency = {};
+  for (const currency of currencies) {
+    const pricing = await rpcGet("pricing.current", { currency });
+    if (!pricing || (pricing.currency && pricing.currency !== currency)) throw new Error(`Expected a valid ${currency} pricing response.`);
+    if (!Number.isFinite(pricing.basicUsd) || !Number.isFinite(pricing.numerologyAddonUsd)) throw new Error(`${currency} pricing response did not contain numeric amounts.`);
+    pricingByCurrency[currency] = { ...pricing, currency };
+  }
+
+  const checkout = await rpcPost("booking.submit", {
+    name: `Production smoke test ${startedAt}`,
+    email: `${runId}@example.com`,
+    birthDate: "1990-04-12",
+    birthTime: "08:30",
+    birthCity: "Berlin",
+    birthCountry: "Germany",
+    language: "English",
+    addon: false,
+    interest: "Automated production checkout verification",
+    currency: "EUR",
+    smokeTest: true,
+    smokeTestRunId: runId,
+  });
+  if (!checkout?.invoiceUrl || !checkout?.paymentId) throw new Error("Checkout response did not contain invoiceUrl and paymentId.");
+  if (checkout.smokeTestCleanup !== "completed") throw new Error("Production smoke-test booking was not cleaned up automatically.");
+
+  const result = { ok: true, pricingCurrencies: currencies, checkoutCurrency: "EUR", bookingId: checkout.id, paymentId: checkout.paymentId, invoiceUrl: checkout.invoiceUrl, pricingByCurrency };
+  console.log(JSON.stringify({ ...result, runId }, null, 2));
+} catch (error) {
+  const result = { ok: false, error: error instanceof Error ? error.message : String(error) };
+  throw error;
 }
-
-const marker = Date.now();
-const checkout = await rpcPost("booking.submit", {
-  name: `Production smoke test ${marker}`,
-  email: `production-smoke-${marker}@example.com`,
-  birthDate: "1990-04-12",
-  birthTime: "08:30",
-  birthCity: "Berlin",
-  birthCountry: "Germany",
-  language: "English",
-  addon: false,
-  interest: "Automated production checkout verification",
-  currency: "EUR",
-  smokeTest: true,
-});
-if (!checkout?.invoiceUrl || !checkout?.paymentId) throw new Error("Checkout response did not contain invoiceUrl and paymentId.");
-if (checkout.smokeTestCleanup !== "completed") throw new Error("Production smoke-test booking was not cleaned up automatically.");
-
-console.log(JSON.stringify({ ok: true, pricingCurrencies: currencies, checkoutCurrency: "EUR", bookingId: checkout.id, paymentId: checkout.paymentId, invoiceUrl: checkout.invoiceUrl }, null, 2));

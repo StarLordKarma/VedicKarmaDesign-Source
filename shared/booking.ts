@@ -13,12 +13,13 @@ export const bookingSchema = z.object({
   currency: z.enum(["USD", "EUR", "GBP"]).default("USD"),
   interest: z.string().trim().max(1000).optional(),
   smokeTest: z.boolean().optional().default(false),
+  smokeTestRunId: z.string().regex(/^production-smoke-\d{10,}$/).optional(),
 });
 
 export type BookingInput = z.infer<typeof bookingSchema>;
 
-export function isProductionSmokeTestBooking(input: Pick<BookingInput, "email" | "interest" | "smokeTest">) {
-  return input.smokeTest === true && input.email.startsWith("production-smoke-") && input.interest === "Automated production checkout verification";
+export function isProductionSmokeTestBooking(input: Pick<BookingInput, "email" | "interest" | "smokeTest" | "smokeTestRunId">) {
+  return input.smokeTest === true && input.smokeTestRunId !== undefined && input.email === `${input.smokeTestRunId}@example.com` && input.interest === "Automated production checkout verification";
 }
 
 export function getBookingTotal(addon: boolean) {

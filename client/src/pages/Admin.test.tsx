@@ -14,7 +14,8 @@ const exportActivityMutate = vi.fn();
 const exportPricingHistoryMutate = vi.fn();
 const updatePricingMutate = vi.fn();
 const pricingData = [{ currency: "USD", basicUsd: 25, numerologyAddonUsd: 10 }, { currency: "EUR", basicUsd: 23, numerologyAddonUsd: 9 }, { currency: "GBP", basicUsd: 20, numerologyAddonUsd: 8 }];
-const pricingHistoryData = [{ id: 1, currency: "USD", oldBasicAmount: 25, oldNumerologyAddonAmount: 10, newBasicAmount: 40, newNumerologyAddonAmount: 15, changedAt: new Date("2026-08-22T12:00:00Z"), changedBy: "owner-123", changedByName: "Anika Jyotish" }];
+const pricingHistoryData = { items: [{ id: 1, currency: "USD", oldBasicAmount: 25, oldNumerologyAddonAmount: 10, newBasicAmount: 40, newNumerologyAddonAmount: 15, changedAt: new Date("2026-08-22T12:00:00Z"), changedBy: "owner-123", changedByName: "Anika Jyotish" }], total: 11, page: 1, pageSize: 10, totalPages: 2 };
+const smokeTestRunsData = [{ runId: "production-smoke-1724320000000", status: "succeeded", result: JSON.stringify({ ok: true, checkoutCurrency: "EUR" }), startedAt: new Date("2026-08-22T12:00:00Z"), finishedAt: new Date("2026-08-22T12:00:01Z"), durationMs: 1000 }];
 const sendPdfMutate = vi.fn();
 const bulkSendPdfMutate = vi.fn();
 const editClientMutate = vi.fn();
@@ -37,6 +38,7 @@ vi.mock("@/lib/trpc", () => ({
       activitySummary: { useQuery: (_input: unknown) => ({ data: activityData, isLoading: false, error: null }) },
       pricing: { useQuery: () => ({ data: pricingData, isLoading: false, error: null }) },
       pricingHistory: { useQuery: () => ({ data: pricingHistoryData, isLoading: false, error: null }) },
+      smokeTestRuns: { useQuery: () => ({ data: smokeTestRunsData, isLoading: false, error: null }) },
       clientHistory: { useQuery: () => ({ data: historyData, isLoading: false, error: null }) },
       updateBooking: { useMutation: () => ({ mutate: updateMutate, isPending: false, isSuccess: false }) },
       updatePricing: { useMutation: (config: typeof options[number]) => { options[7] = config; return { mutate: updatePricingMutate, isPending: false }; } },
@@ -159,13 +161,13 @@ describe("Admin interactions", () => {
   it("paginates client history and navigates between pages", () => {
     queryData.push(...Array.from({ length: 10 }, (_, index) => ({ ...row, id: index + 2, name: `Client ${index + 2}`, createdAt: new Date(`2026-01-${String(index + 2).padStart(2, "0")}T00:00:00Z`) })));
     render(<Admin />);
-    expect(screen.getByText("Page 1 of 2")).toBeInTheDocument();
+    expect(screen.getAllByText("Page 1 of 2").length).toBeGreaterThan(0);
     expect(screen.getByText("Client 11")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
-    expect(screen.getByText("Page 2 of 2")).toBeInTheDocument();
+    expect(screen.getAllByText("Page 2 of 2").length).toBeGreaterThan(0);
     expect(screen.getByText("Maya")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Previous" }));
-    expect(screen.getByText("Page 1 of 2")).toBeInTheDocument();
+    expect(screen.getAllByText("Page 1 of 2").length).toBeGreaterThan(0);
     queryData.splice(1);
   });
 
@@ -281,6 +283,11 @@ describe("Admin interactions", () => {
     expect(screen.getByText("Interface language: EN")).toBeInTheDocument();
     expect(screen.getByText("Formatting locale: en-US")).toBeInTheDocument();
     expect(screen.getAllByText(/Anika Jyotish/).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Smoke-test run journal|Журнал запусков smoke-тестов/)).toBeInTheDocument();
+    expect(screen.getByText(/Succeeded|Успешно/)).toBeInTheDocument();
+    expect(screen.getByText(/checkoutCurrency/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Next history page|Следующая страница истории/ })).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: /Next history page|Следующая страница истории/ }));
     fireEvent.click(screen.getByRole("button", { name: "Export pricing history CSV" }));
     expect(exportPricingHistoryMutate).toHaveBeenCalledOnce();
     fireEvent.change(screen.getByRole("combobox", { name: "Pricing history currency" }), { target: { value: "EUR" } });

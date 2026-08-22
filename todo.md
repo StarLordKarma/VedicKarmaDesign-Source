@@ -188,3 +188,8 @@
 - [x] Add owner-only pricing-history filters by currency and date range
 - [x] Add regression and integration tests for smoke-test cleanup safety and pricing-history filters
 - [x] Run production smoke-test, full validation, responsive verification, and save a pricing checkpoint
+- [x] Add server-side pagination for pricing change history while preserving currency/date filters
+- [x] Add an owner-only smoke-test run journal with status, results, and execution timestamps
+- [x] Add Admin UI pagination controls and smoke-test journal display
+- [x] Add regression/integration/UI tests for pagination and smoke-run journal authorization
+- [ ] Run full validation, production verification, responsive checks, and save a pricing checkpoint

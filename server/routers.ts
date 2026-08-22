@@ -4,8 +4,8 @@ import { systemRouter } from "./_core/systemRouter";
 import { adminProcedure, publicProcedure, router } from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { bookingSchema, isProductionSmokeTestBooking } from "@shared/booking";
-import { activityDateRangeSchema, attachNatalPdfSchema, bulkSendNatalPdfSchema, clientHistorySchema, editBookingClientSchema, pricingCurrencySchema, pricingHistoryFilterSchema, sendNatalPdfSchema, servicePricingSchema, updateBookingAdminSchema } from "@shared/admin";
-import { createBookingRequest, deleteBookingRequest, getAdminActivityEvents, getAdminActivitySummary, getBookingRequestById, getClientChangeHistory, getPricingHistory, getServicePricing, listServicePricing, updateBookingClient, updateBookingDelivery, updateBookingPayment, updateServicePricing } from "./db";
+import { activityDateRangeSchema, attachNatalPdfSchema, bulkSendNatalPdfSchema, clientHistorySchema, editBookingClientSchema, pricingCurrencySchema, pricingHistoryFilterSchema, pricingHistoryPageSchema, sendNatalPdfSchema, servicePricingSchema, updateBookingAdminSchema } from "@shared/admin";
+import { createBookingRequest, createSmokeTestRun, deleteBookingRequest, finishSmokeTestRun, getAdminActivityEvents, getAdminActivitySummary, getBookingRequestById, getClientChangeHistory, getPricingHistory, getPricingHistoryPage, getServicePricing, getSmokeTestRuns, listServicePricing, updateBookingClient, updateBookingDelivery, updateBookingPayment, updateServicePricing } from "./db";
 import { notifyOwner } from "./_core/notification";
 import { createCheckoutForBooking } from "./payment-flow";
 import { applyAdminBookingUpdate } from "./admin-update-flow";
@@ -41,7 +41,8 @@ export const appRouter = router({
   admin: router({
     bookingList: adminProcedure.query(() => getAllBookingRequests()),
     pricing: adminProcedure.query(() => listServicePricing()),
-    pricingHistory: adminProcedure.input(pricingHistoryFilterSchema.optional()).query(async ({ input }) => (await getPricingHistory(50, input)).map((entry) => ({ ...entry, changedByName: entry.changedBy === ENV.ownerOpenId ? ENV.ownerName : entry.changedBy }))),
+    pricingHistory: adminProcedure.input(pricingHistoryPageSchema.optional()).query(async ({ input }) => { const page = await getPricingHistoryPage(input?.page ?? 1, input?.pageSize ?? 10, input); return { ...page, items: page.items.map((entry) => ({ ...entry, changedByName: entry.changedBy === ENV.ownerOpenId ? ENV.ownerName : entry.changedBy })) }; }),
+    smokeTestRuns: adminProcedure.query(() => getSmokeTestRuns(50)),
     updatePricing: adminProcedure.input(servicePricingSchema).mutation(({ input, ctx }) => updateServicePricing({ ...input, updatedBy: ctx.user.openId })),
     activitySummary: adminProcedure.input(activityDateRangeSchema.optional()).query(({ input }) => getAdminActivitySummary(input ?? {})),
     clientHistory: adminProcedure.input(clientHistorySchema).query(({ input }) => getClientChangeHistory(input.bookingId)),
@@ -114,6 +115,9 @@ export const appRouter = router({
         status: "new",
         paymentStatus: "creating",
       });
+      const smokeRunStartedAt = Date.now();
+      const isSmokeRun = isProductionSmokeTestBooking(input);
+      if (isSmokeRun) await createSmokeTestRun(input.smokeTestRunId!);
       void notifyOwner({
         title: "New Vedic astrology booking",
         content: `${input.name} (${input.email}) requested a $${totalUsd} reading. Birth details: ${input.birthCity}, ${input.birthCountry}; ${input.birthDate} at ${input.birthTime}. Payment checkout is being created.`,
@@ -130,9 +134,12 @@ export const appRouter = router({
           markFailed: async (id) => updateBookingPayment({ id, paymentStatus: "failed" }),
         });
         const shouldCleanupSmokeTest = await cleanupSmokeTestBooking(input, result.id, "success");
-        return { ...result, totalUsd, invoiceUrl: invoice.invoice_url, paymentId: invoice.id, smokeTestCleanup: shouldCleanupSmokeTest ? "completed" : undefined };
+        const response = { ...result, totalUsd, invoiceUrl: invoice.invoice_url, paymentId: invoice.id, smokeTestCleanup: shouldCleanupSmokeTest ? "completed" : undefined };
+        if (isSmokeRun) await finishSmokeTestRun({ runId: input.smokeTestRunId!, status: "succeeded", result: JSON.stringify({ ok: true, checkoutCurrency: input.currency, bookingId: result.id, paymentId: invoice.id, invoiceUrl: invoice.invoice_url }), durationMs: Date.now() - smokeRunStartedAt });
+        return response;
       } catch (error) {
         console.error("[Payments] Failed to create NOWPayments invoice", error);
+        if (isSmokeRun) await finishSmokeTestRun({ runId: input.smokeTestRunId!, status: "failed", result: JSON.stringify({ ok: false, error: error instanceof Error ? error.message : String(error) }), durationMs: Date.now() - smokeRunStartedAt });
         await cleanupSmokeTestBooking(input, result.id, "failure");
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "We could not create the crypto checkout. Please try again." });
       }

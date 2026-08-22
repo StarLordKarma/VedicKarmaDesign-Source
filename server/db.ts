@@ -1,7 +1,7 @@
-import { desc, eq } from "drizzle-orm";
+import { count, desc, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { and, gte, lt } from "drizzle-orm";
-import { ClientChangeHistory, InsertBookingRequest, InsertUser, bookingRequests, clientChangeHistory, servicePricing, servicePricingCurrencies, servicePricingHistory, users } from "../drizzle/schema";
+import { ClientChangeHistory, InsertBookingRequest, InsertUser, bookingRequests, clientChangeHistory, servicePricing, servicePricingCurrencies, servicePricingHistory, smokeTestRuns, users } from "../drizzle/schema";
 import { READING_PRICES } from "@shared/pricing";
 import { ENV } from './_core/env';
 
@@ -120,9 +120,9 @@ export async function listServicePricing(): Promise<CurrencyPricingConfig[]> {
   return SUPPORTED_CURRENCIES.map((currency) => { const match = rows.find((row) => row.currency === currency); return match ? { ...match, currency } : { currency, ...defaultPricing }; });
 }
 
-export async function getPricingHistory(limit = 50, filters?: { currency?: "USD" | "EUR" | "GBP"; from?: string; to?: string }) {
-  const db = await getDb();
-  if (!db) return [];
+type PricingHistoryFilters = { currency?: "USD" | "EUR" | "GBP"; from?: string; to?: string };
+
+function pricingHistoryConditions(filters?: PricingHistoryFilters) {
   const conditions = [];
   if (filters?.currency) conditions.push(eq(servicePricingHistory.currency, filters.currency));
   if (filters?.from) conditions.push(gte(servicePricingHistory.changedAt, new Date(`${filters.from}T00:00:00.000Z`)));
@@ -131,7 +131,43 @@ export async function getPricingHistory(limit = 50, filters?: { currency?: "USD"
     endExclusive.setUTCDate(endExclusive.getUTCDate() + 1);
     conditions.push(lt(servicePricingHistory.changedAt, endExclusive));
   }
-  return db.select().from(servicePricingHistory).where(conditions.length ? and(...conditions) : undefined).orderBy(desc(servicePricingHistory.changedAt)).limit(limit);
+  return conditions.length ? and(...conditions) : undefined;
+}
+
+export async function getPricingHistoryPage(page = 1, pageSize = 10, filters?: PricingHistoryFilters) {
+  const db = await getDb();
+  const safePage = Math.max(1, Math.floor(page));
+  const safePageSize = Math.min(50, Math.max(1, Math.floor(pageSize)));
+  if (!db) return { items: [], total: 0, page: safePage, pageSize: safePageSize, totalPages: 0 };
+  const where = pricingHistoryConditions(filters);
+  const [{ total }] = await db.select({ total: count() }).from(servicePricingHistory).where(where);
+  const items = await db.select().from(servicePricingHistory).where(where).orderBy(desc(servicePricingHistory.changedAt)).limit(safePageSize).offset((safePage - 1) * safePageSize);
+  return { items, total, page: safePage, pageSize: safePageSize, totalPages: Math.ceil(total / safePageSize) };
+}
+
+export async function getPricingHistory(limit = 50, filters?: PricingHistoryFilters) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(servicePricingHistory).where(pricingHistoryConditions(filters)).orderBy(desc(servicePricingHistory.changedAt)).limit(limit);
+}
+
+export async function createSmokeTestRun(runId: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const result = await db.insert(smokeTestRuns).values({ runId, status: "running" });
+  return { id: Number(result[0].insertId), runId };
+}
+
+export async function finishSmokeTestRun(input: { runId: string; status: "succeeded" | "failed"; result: string; durationMs: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.update(smokeTestRuns).set({ status: input.status, result: input.result, finishedAt: new Date(), durationMs: input.durationMs }).where(eq(smokeTestRuns.runId, input.runId));
+}
+
+export async function getSmokeTestRuns(limit = 50) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(smokeTestRuns).orderBy(desc(smokeTestRuns.startedAt)).limit(Math.min(100, Math.max(1, Math.floor(limit))));
 }
 
 export async function updateServicePricing(input: ServicePricingConfig & { currency?: string; updatedBy: string }) {

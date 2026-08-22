@@ -3,7 +3,7 @@ import { appRouter } from "./routers";
 import { notifyOwner } from "./_core/notification";
 import type { TrpcContext } from "./_core/context";
 import { ENV } from "./_core/env";
-import { getPricingHistory, getServicePricing, updateServicePricing } from "./db";
+import { createSmokeTestRun, finishSmokeTestRun, getPricingHistory, getServicePricing, updateServicePricing } from "./db";
 
 function context(role: "user" | "admin", openId = "test-owner"): TrpcContext {
   const now = new Date();
@@ -63,7 +63,7 @@ describe("owner notifications and admin access", () => {
       const history = await getPricingHistory();
       expect(history).toEqual(expect.arrayContaining([expect.objectContaining({ currency: "USD", oldBasicAmount: original.basicUsd, oldNumerologyAddonAmount: original.numerologyAddonUsd, newBasicAmount: 42, newNumerologyAddonAmount: 17, changedBy: ENV.ownerOpenId, changedAt: expect.any(Date) })]));
       const historyWithNames = await caller.admin.pricingHistory();
-      expect(historyWithNames).toEqual(expect.arrayContaining([expect.objectContaining({ changedBy: ENV.ownerOpenId, changedByName: ENV.ownerName })]));
+      expect(historyWithNames.items).toEqual(expect.arrayContaining([expect.objectContaining({ changedBy: ENV.ownerOpenId, changedByName: ENV.ownerName })]));
     } finally {
       await updateServicePricing({ ...original, currency: "USD", updatedBy: ENV.ownerOpenId });
     }
@@ -81,10 +81,30 @@ describe("owner notifications and admin access", () => {
   it("filters pricing history by currency and inclusive UTC date range", async () => {
     const caller = appRouter.createCaller(context("admin", ENV.ownerOpenId));
     const eurHistory = await caller.admin.pricingHistory({ currency: "EUR" });
-    expect(eurHistory.every((entry) => entry.currency === "EUR")).toBe(true);
+    expect(eurHistory.items.every((entry) => entry.currency === "EUR")).toBe(true);
     const futureHistory = await caller.admin.pricingHistory({ from: "2099-01-01", to: "2099-12-31" });
-    expect(futureHistory).toHaveLength(0);
+    expect(futureHistory.items).toHaveLength(0);
     await expect(caller.admin.pricingHistory({ from: "2026-08-22", to: "2026-08-01" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+  });
+
+  it("paginates pricing history while preserving filter metadata", async () => {
+    const caller = appRouter.createCaller(context("admin", ENV.ownerOpenId));
+    const page = await caller.admin.pricingHistory({ page: 2, pageSize: 2, currency: "USD" });
+    expect(page.page).toBe(2);
+    expect(page.pageSize).toBe(2);
+    expect(page.total).toBeGreaterThanOrEqual(page.items.length);
+    expect(page.items.every((entry) => entry.currency === "USD")).toBe(true);
+  });
+
+  it("records smoke-test runs and exposes them only to the owner", async () => {
+    const runId = `production-smoke-${Date.now()}`;
+    const owner = appRouter.createCaller(context("admin", ENV.ownerOpenId));
+    const nonOwner = appRouter.createCaller(context("admin", "another-admin"));
+    await createSmokeTestRun(runId);
+    await finishSmokeTestRun({ runId, status: "succeeded", result: JSON.stringify({ ok: true, checkoutCurrency: "EUR" }), durationMs: 123 });
+    const runs = await owner.admin.smokeTestRuns();
+    expect(runs).toEqual(expect.arrayContaining([expect.objectContaining({ runId, status: "succeeded", durationMs: 123 })]));
+    await expect(nonOwner.admin.smokeTestRuns()).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 
   it("rejects unsupported currencies and defaults missing public currency to USD", async () => {

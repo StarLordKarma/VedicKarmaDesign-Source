@@ -78,6 +78,13 @@
       "when": 1787418724255,
       "tag": "0010_fair_xorn",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "5",
+      "when": 1787424516748,
+      "tag": "0011_clean_amazoness",
+      "breakpoints": true
     }
   ]
 }
