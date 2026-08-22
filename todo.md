@@ -135,3 +135,13 @@
 - [x] Add tests for confirmation, interval setting, and autosave timestamp
 - [x] Run full verification and save a new checkpoint
 - [x] Display autosave timestamp with second-level precision and record the final checkpoint after this refinement
+- [x] Add owner-only activity dashboard summarizing delivery failures, pending payments, and recently edited clients
+- [x] Add configurable admin timezone preference with persistence
+- [x] Add configurable admin date-format preference with persistence
+- [x] Add compact mobile workflow for quick PDF review and delivery
+- [x] Add tests for activity dashboard authorization and metrics
+- [x] Add tests for timezone/date-format preferences and responsive mobile workflow
+- [x] Run full verification and save a new checkpoint
+- [x] Return accurate total counts alongside activity preview lists so metrics do not underreport beyond eight records
+- [x] Add breakpoint-aware mobile workflow test coverage for the compact quick-delivery queue
+- [x] Re-run final verification and save a fresh checkpoint after these corrections

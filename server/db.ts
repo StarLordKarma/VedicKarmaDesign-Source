@@ -205,6 +205,34 @@ export async function updateBookingDelivery(input: { id: number; deliveryStatus:
   return result[0];
 }
 
+export type AdminActivitySummary = {
+  deliveryFailureCount: number;
+  pendingPaymentCount: number;
+  recentlyEditedClientCount: number;
+  deliveryFailures: Array<{ id: number; name: string; email: string; deliveryError: string | null; createdAt: Date }>;
+  pendingPayments: Array<{ id: number; name: string; email: string; totalUsd: number; paymentStatus: string | null; createdAt: Date }>;
+  recentlyEditedClients: Array<{ id: number; bookingId: number; name: string; email: string; changedBy: string; changedAt: Date; changes: string }>;
+};
+
+export async function getAdminActivitySummary(): Promise<AdminActivitySummary> {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const bookings = await db.select().from(bookingRequests).orderBy(desc(bookingRequests.createdAt));
+  const allHistories = await db.select().from(clientChangeHistory).orderBy(desc(clientChangeHistory.changedAt));
+  const histories = allHistories.slice(0, 8);
+  const failedBookings = bookings.filter((booking) => booking.deliveryStatus === "failed");
+  const pendingBookings = bookings.filter((booking) => ["waiting", "creating"].includes(booking.paymentStatus ?? ""));
+  const bookingById = new Map(bookings.map((booking) => [booking.id, booking]));
+  return {
+    deliveryFailureCount: failedBookings.length,
+    pendingPaymentCount: pendingBookings.length,
+    recentlyEditedClientCount: allHistories.length,
+    deliveryFailures: failedBookings.slice(0, 8).map((booking) => ({ id: booking.id, name: booking.name, email: booking.email, deliveryError: booking.deliveryError, createdAt: booking.createdAt })),
+    pendingPayments: pendingBookings.slice(0, 8).map((booking) => ({ id: booking.id, name: booking.name, email: booking.email, totalUsd: booking.totalUsd, paymentStatus: booking.paymentStatus, createdAt: booking.createdAt })),
+    recentlyEditedClients: histories.map((history) => { const booking = bookingById.get(history.bookingId); return { id: history.id, bookingId: history.bookingId, name: booking?.name ?? `Booking #${history.bookingId}`, email: booking?.email ?? "", changedBy: history.changedBy, changedAt: history.changedAt, changes: history.changes }; }),
+  };
+}
+
 export async function updateBookingAdmin(input: { id: number; status?: "new" | "in_progress" | "completed" | "cancelled"; adminNote?: string | null; statusUpdatedBy?: string }) {
   const db = await getDb();
   if (!db) {

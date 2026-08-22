@@ -5,7 +5,7 @@ import { adminProcedure, publicProcedure, router } from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { bookingSchema, getBookingTotal } from "@shared/booking";
 import { attachNatalPdfSchema, bulkSendNatalPdfSchema, clientHistorySchema, editBookingClientSchema, sendNatalPdfSchema, updateBookingAdminSchema } from "@shared/admin";
-import { createBookingRequest, getBookingRequestById, getClientChangeHistory, updateBookingClient, updateBookingDelivery, updateBookingPayment } from "./db";
+import { createBookingRequest, getAdminActivitySummary, getBookingRequestById, getClientChangeHistory, updateBookingClient, updateBookingDelivery, updateBookingPayment } from "./db";
 import { notifyOwner } from "./_core/notification";
 import { createCheckoutForBooking } from "./payment-flow";
 import { applyAdminBookingUpdate } from "./admin-update-flow";
@@ -29,6 +29,7 @@ export const appRouter = router({
   }),
   admin: router({
     bookingList: adminProcedure.query(() => getAllBookingRequests()),
+    activitySummary: adminProcedure.query(() => getAdminActivitySummary()),
     clientHistory: adminProcedure.input(clientHistorySchema).query(({ input }) => getClientChangeHistory(input.bookingId)),
     updateBooking: adminProcedure.input(updateBookingAdminSchema).mutation(({ input, ctx }) => applyAdminBookingUpdate({ ...input, adminOpenId: ctx.user.openId })),
     editBookingClient: adminProcedure.input(editBookingClientSchema).mutation(({ input, ctx }) => updateBookingClient({ ...input, changedBy: ctx.user.openId })),

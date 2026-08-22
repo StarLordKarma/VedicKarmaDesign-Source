@@ -3,7 +3,7 @@ import React from "react";
 import "@testing-library/jest-dom/vitest";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import Admin, { autosaveIntervalStorageKey, draftSavedAtStorageKey, draftStorageKey, formatAutosaveTimestamp, getBulkDeliveryOutcome, matchesClientSearch, sortBookingRows } from "./Admin";
+import Admin, { autosaveIntervalStorageKey, draftSavedAtStorageKey, draftStorageKey, formatAdminDate, formatAutosaveTimestamp, getBulkDeliveryOutcome, matchesClientSearch, sortBookingRows } from "./Admin";
 
 const { authState, startLoginMock, toastSuccess } = vi.hoisted(() => ({ authState: { user: { role: "admin" } as { role: string } | null }, startLoginMock: vi.fn(), toastSuccess: vi.fn() }));
 const updateMutate = vi.fn();
@@ -17,6 +17,7 @@ const options: Array<{ onSuccess?: (result: any) => void; onError?: () => void }
 const row = { id: 1, name: "Maya", email: "maya@example.com", birthDate: "1990-04-12", birthTime: "08:30", birthCity: "Berlin", birthCountry: "Germany", language: "English", addon: 0, totalUsd: 25, paymentStatus: "finished", status: "new", adminNote: null, createdAt: new Date("2026-01-01T00:00:00Z"), natalPdfUrl: null, natalPdfName: null };
 const queryData = [row];
 const historyData: Array<{ id: number; bookingId: number; changedBy: string; changedAt: Date; changes: string }> = [];
+const activityData = { deliveryFailures: [] as Array<{ id: number; name: string; email: string; deliveryError: string | null; createdAt: Date }>, pendingPayments: [] as Array<{ id: number; name: string; email: string; totalUsd: number; paymentStatus: string | null; createdAt: Date }>, recentlyEditedClients: [] as Array<{ id: number; bookingId: number; name: string; email: string; changedBy: string; changedAt: Date; changes: string }> };
 
 vi.mock("@/components/DashboardLayout", () => ({ default: ({ children }: { children: React.ReactNode }) => <>{children}</> }));
 vi.mock("@/_core/hooks/useAuth", () => ({ useAuth: () => ({ user: authState.user, loading: false }) }));
@@ -27,6 +28,7 @@ vi.mock("@/lib/trpc", () => ({
     useUtils: () => ({ admin: { bookingList: { invalidate: vi.fn() } } }),
     admin: {
       bookingList: { useQuery: () => ({ data: queryData, isLoading: false, error: null }) },
+      activitySummary: { useQuery: () => ({ data: activityData, isLoading: false, error: null }) },
       clientHistory: { useQuery: () => ({ data: historyData, isLoading: false, error: null }) },
       updateBooking: { useMutation: () => ({ mutate: updateMutate, isPending: false, isSuccess: false }) },
       exportCsv: { useMutation: (config: typeof options[number]) => { options[0] = config; return { mutate: exportCsvMutate, isPending: false }; } },
@@ -44,9 +46,11 @@ describe("Admin interactions", () => {
     historyData.splice(0); });
 
   beforeEach(() => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1024 });
     queryData.splice(1);
     Object.assign(queryData[0], { natalPdfKey: null, natalPdfUrl: null, natalPdfName: null, deliveryStatus: "not_sent", interest: null, language: "English" });
     historyData.splice(0);
+    activityData.deliveryFailures.splice(0); activityData.pendingPayments.splice(0); activityData.recentlyEditedClients.splice(0);
     localStorage.clear();
     authState.user = { role: "admin" };
     startLoginMock.mockReset(); toastSuccess.mockReset();
@@ -192,6 +196,37 @@ describe("Admin interactions", () => {
     fireEvent.change(screen.getByRole("textbox", { name: "Interest contains" }), { target: { value: "health" } });
     expect(screen.getByText("No requests match this filter.")).toBeInTheDocument();
     Object.assign(queryData[0], { language: "English", interest: null });
+  });
+
+  it("renders owner activity metrics, persists display preferences, and supports mobile quick delivery", () => {
+    Object.assign(queryData[0], { natalPdfKey: "natal-charts/1/chart.pdf", natalPdfUrl: "/manus-storage/chart.pdf", natalPdfName: "chart.pdf", deliveryStatus: "failed" });
+    activityData.deliveryFailures.push({ id: 1, name: "Maya", email: "maya@example.com", deliveryError: "Mailbox rejected", createdAt: new Date("2026-01-01T00:00:00Z") });
+    activityData.pendingPayments.push({ id: 2, name: "Leo", email: "leo@example.com", totalUsd: 35, paymentStatus: "waiting", createdAt: new Date("2026-01-02T00:00:00Z") });
+    activityData.recentlyEditedClients.push({ id: 3, bookingId: 1, name: "Maya", email: "maya@example.com", changedBy: "owner-123", changedAt: new Date("2026-01-03T00:00:00Z"), changes: "{}" });
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
+    render(<Admin />);
+    expect(screen.getByText("Activity overview")).toBeInTheDocument();
+    expect(screen.getByText("Quick delivery queue").closest("section")).toHaveClass("sm:hidden");
+    expect(screen.getByText(/Mailbox rejected/)).toBeInTheDocument();
+    expect(screen.getByText("Pending payments")).toBeInTheDocument();
+    fireEvent.change(screen.getByRole("combobox", { name: "Timezone" }), { target: { value: "UTC" } });
+    fireEvent.change(screen.getByRole("combobox", { name: "Date format" }), { target: { value: "iso" } });
+    expect(localStorage.getItem("admin-timezone")).toBe("UTC");
+    expect(localStorage.getItem("admin-date-format")).toBe("iso");
+    cleanup();
+    render(<Admin />);
+    expect(screen.getByRole("combobox", { name: "Timezone" })).toHaveValue("UTC");
+    expect(screen.getByRole("combobox", { name: "Date format" })).toHaveValue("iso");
+    expect(screen.getByText(/2026-01-01/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Send PDF" }));
+    expect(sendPdfMutate).toHaveBeenCalledWith({ bookingId: 1 });
+    fireEvent.click(screen.getByRole("button", { name: "Review" }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    Object.assign(queryData[0], { natalPdfKey: null, natalPdfUrl: null, natalPdfName: null, deliveryStatus: "not_sent" });
+  });
+
+  it("formats admin dates in UTC ISO format", () => {
+    expect(formatAdminDate(new Date("2026-01-01T12:34:56Z"), "UTC", "iso")).toBe("2026-01-01 12:34:56");
   });
 
   it("shows a saved-draft badge and clears the draft from the modal", () => {

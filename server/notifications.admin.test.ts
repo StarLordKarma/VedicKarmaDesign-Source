@@ -39,6 +39,7 @@ describe("owner notifications and admin access", () => {
   it("rejects an admin-role user whose identity is not the configured owner", async () => {
     const caller = appRouter.createCaller(context("admin", "another-admin-open-id"));
     await expect(caller.admin.bookingList()).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(caller.admin.activitySummary()).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 
   it("rejects a non-owner from every admin write/export action", async () => {
