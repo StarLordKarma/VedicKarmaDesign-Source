@@ -278,3 +278,11 @@
 - [x] Audit EN/RU/DE/ES disclaimer strings across public UI, receipt PDFs, receipt emails, and natal-chart delivery email templates
 - [x] Update archive documentation with verified disclaimer coverage and any limitations
 - [x] Rebuild archive and checksum, verify safe contents, and deliver the updated files
+
+# Этап два — развитие и масштабирование
+- [x] Prepare a standalone Stage Two development and scaling roadmap
+- [x] Define prioritized product features, architecture milestones, security controls, and operational metrics
+- [x] Include database, storage, payments, email, localization, analytics, automation, and migration strategy
+- [x] Add implementation sequencing, dependencies, risks, acceptance criteria, and rollback guidance
+- [x] Add Stage Two plan to the unified ZIP archive and verify archive integrity
+- [x] Deliver the updated Stage One + Stage Two ZIP package
