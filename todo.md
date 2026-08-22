@@ -232,6 +232,6 @@
 - [x] Implement Web Share API file sharing with fallback to receipt URL/copy link
 - [x] Track receipt storage metadata with 48-hour expiry and prevent access to expired receipts
 - [x] Add cron-only daily cleanup endpoint for expired receipt metadata at 03:00 UTC
-- [ ] Configure the production Heartbeat job after the cleanup route is deployed
+- [x] Configure the production Heartbeat job after the cleanup route is deployed
 - [x] Add regression coverage for Web Share fallback, expiry access control, cleanup idempotency, and cron authorization
 - [x] Run typecheck, full tests, build, responsive verification, and save a checkpoint
