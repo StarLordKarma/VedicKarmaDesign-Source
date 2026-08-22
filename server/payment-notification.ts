@@ -1,7 +1,7 @@
 import { notifyOwner } from "./_core/notification";
 import { updateBookingPaymentStatus } from "./db";
 import { shouldNotifyPayment } from "./nowpayments.webhook";
-import { enqueueReportJobForBooking, processReportJob } from "./report-studio-db";
+import { enqueueReportJobForBooking, isReportStudioAutoProcessingEnabled, processReportJob } from "./report-studio-db";
 
 export async function processPaymentNotification(input: {
   bookingId: number;
@@ -11,11 +11,13 @@ export async function processPaymentNotification(input: {
   sendNotification?: typeof notifyOwner;
   enqueueJob?: typeof enqueueReportJobForBooking;
   processJob?: typeof processReportJob;
+  isAutoProcessingEnabled?: typeof isReportStudioAutoProcessingEnabled;
 }) {
   const updateStatus = input.updateStatus ?? updateBookingPaymentStatus;
   const sendNotification = input.sendNotification ?? notifyOwner;
   const enqueueJob = input.enqueueJob ?? enqueueReportJobForBooking;
   const processJob = input.processJob ?? processReportJob;
+  const isAutoProcessingEnabled = input.isAutoProcessingEnabled ?? isReportStudioAutoProcessingEnabled;
   const result = await updateStatus({
     id: input.bookingId,
     paymentId: input.paymentId ? String(input.paymentId) : undefined,
@@ -25,7 +27,7 @@ export async function processPaymentNotification(input: {
   if (result.isConfirmed && shouldNotifyPayment(result.previousStatus, input.paymentStatus)) {
     const reportJob = await enqueueJob(input.bookingId, "system");
     const reportJobId = "jobId" in reportJob ? reportJob.jobId : "job" in reportJob ? reportJob.job?.id : undefined;
-    if (reportJobId) void processJob({ reportJobId, actorId: "system" }).catch((error) => console.error(`[Report Studio] Automatic job ${reportJobId} failed`, error));
+    if (reportJobId && await isAutoProcessingEnabled()) void processJob({ reportJobId, actorId: "system" }).catch((error) => console.error(`[Report Studio] Automatic job ${reportJobId} failed`, error));
     await sendNotification({
       title: "Crypto payment confirmed",
       content: `NOWPayments confirmed payment ${input.paymentId ?? ""} for booking #${input.bookingId}. Status: ${input.paymentStatus}.`,

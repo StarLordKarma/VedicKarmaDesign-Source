@@ -187,3 +187,42 @@ export function decodePdfBase64(contentBase64: string) {
   if (buffer.subarray(0, 4).toString("ascii") !== "%PDF") throw new Error("The uploaded file is not a valid PDF.");
   return buffer;
 }
+
+
+export async function buildFullNatalReportPdf(input: { background: Buffer; locale: ReportPreviewLocale; clientName: string; packageType: "basic" | "basic_plus"; narrative: { sections: Array<{ sectionKey: string; title: string; paragraphs: string[]; factRefs: string[] }> }; facts: unknown; fontPath?: string }) {
+  const copy = reportPreviewCopy[input.locale];
+  const pageCount = input.packageType === "basic_plus" ? 25 : 22;
+  const doc = new PDFDocument({ size: "A4", margin: 0, info: { Title: copy.title, Subject: "Personal Vedic astrology report" } });
+  const chunks: Buffer[] = [];
+  const result = new Promise<Buffer>((resolve, reject) => { doc.on("data", (chunk) => chunks.push(Buffer.from(chunk))); doc.on("end", () => resolve(Buffer.concat(chunks))); doc.on("error", reject); });
+  const width = doc.page.width;
+  const height = doc.page.height;
+  const fontName = input.fontPath ? "ReportSans" : "Helvetica";
+  if (input.fontPath) doc.registerFont(fontName, input.fontPath);
+  const factsText = JSON.stringify(input.facts).slice(0, 1800);
+  const sectionLabels = input.locale === "ru" ? ["Обзор карты", "Асцендент и дома", "Планетные акценты", "Накшатры", "Vimshottari dasha", "Практика рефлексии"] : input.locale === "de" ? ["Kartenübersicht", "Aszendent und Häuser", "Planetenbetonungen", "Nakshatras", "Vimshottari-Dasha", "Reflexionspraxis"] : ["Chart overview", "Ascendant and houses", "Planetary emphasis", "Nakshatras", "Vimshottari dasha", "Reflective practice"];
+  const disclaimer = copy.disclaimer;
+  for (let page = 1; page <= pageCount; page += 1) {
+    if (page > 1) doc.addPage();
+    doc.image(input.background, 0, 0, { width, height });
+    doc.fillOpacity(0.92).fillColor("#FBF6EC").roundedRect(42, 42, width - 84, height - 84, 18).fill();
+    doc.fillOpacity(1).fillColor("#A96346").font(fontName).fontSize(8).text(`${copy.eyebrow}  ·  ${String(page).padStart(2, "0")} / ${String(pageCount).padStart(2, "0")}`, 72, 72, { characterSpacing: 1 });
+    doc.fillColor("#302A25").font(fontName).fontSize(page === 1 ? 30 : 20).text(page === 1 ? copy.title : sectionLabels[(page - 2) % sectionLabels.length], 72, page === 1 ? 130 : 128, { width: width - 144, lineGap: 5 });
+    doc.fillColor("#73685D").font(fontName).fontSize(10).text(`${input.clientName}  ·  ${copy.settingsValue}`, 72, page === 1 ? 260 : 186, { width: width - 144 });
+    if (page === 1) {
+      doc.fillColor("#514A43").font(fontName).fontSize(12).text(input.packageType === "basic_plus" ? "D1 / Rāśi · D9 / Navāṁśa · Vimshottari" : "D1 / Rāśi · Vimshottari", 72, 320, { width: width - 144 });
+      doc.fillColor("#514A43").font(fontName).fontSize(11).text(input.narrative.sections[0]?.paragraphs[0] ?? copy.sampleBody, 72, 390, { width: 360, lineGap: 6 });
+    } else {
+      const section = input.narrative.sections[(page - 2) % Math.max(1, input.narrative.sections.length)];
+      doc.fillColor("#514A43").font(fontName).fontSize(12).text(section?.paragraphs.join("\n\n") ?? copy.sampleBody, 72, 240, { width: width - 144, lineGap: 6 });
+      doc.fillColor("#8D7868").font(fontName).fontSize(8).text(`Validated fact references: ${section?.factRefs.join(", ") ?? "chart contract"}`, 72, 600, { width: width - 144 });
+      if (page === pageCount - 1) {
+        doc.fillColor("#8D7868").font(fontName).fontSize(8).text(`Calculation facts snapshot:\n${factsText}`, 72, 640, { width: width - 144, lineGap: 3 });
+      }
+    }
+    doc.fillColor("#85776A").font(fontName).fontSize(7.5).text(disclaimer, 72, height - 92, { width: width - 144, lineGap: 3 });
+    doc.fillColor("#A96346").font(fontName).fontSize(8).text("REPORT STUDIO · PARASARA LIGHT 9", 72, height - 58, { characterSpacing: 0.8 });
+  }
+  doc.end();
+  return result;
+}

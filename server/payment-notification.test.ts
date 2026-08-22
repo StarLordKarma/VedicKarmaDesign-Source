@@ -7,7 +7,7 @@ describe("payment notification processor", () => {
     const updateStatus = vi.fn(async () => ({ previousStatus: "waiting", isConfirmed: true }));
     const enqueueJob = vi.fn(async () => ({ created: true, jobId: 42, idempotencyKey: "7:1:hash:template" }));
     const processJob = vi.fn(async () => ({ skipped: false, status: "needs_review" as const, pdfUrl: "/manus-storage/report.pdf" }));
-    const result = await processPaymentNotification({ bookingId: 7, paymentId: 99, paymentStatus: "finished", updateStatus, sendNotification, enqueueJob, processJob });
+    const result = await processPaymentNotification({ bookingId: 7, paymentId: 99, paymentStatus: "finished", updateStatus, sendNotification, enqueueJob, processJob, isAutoProcessingEnabled: vi.fn(async () => true) });
     expect(result.notified).toBe(true);
     expect(sendNotification).toHaveBeenCalledOnce();
     expect(enqueueJob).toHaveBeenCalledWith(7, "system");

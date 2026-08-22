@@ -1,16 +1,16 @@
 import { createHash } from "node:crypto";
 import { and, desc, eq, inArray } from "drizzle-orm";
-import { calculationResults, calculationSnapshots, narrativeDrafts, reportAuditEvents, reportDeliveryAttempts, reportJobs, reportVersions } from "../drizzle/schema";
+import { calculationResults, calculationSnapshots, narrativeDrafts, reportAuditEvents, reportDeliveryAttempts, reportJobs, reportStudioProcessingSettings, reportVersions } from "../drizzle/schema";
 import { getBookingRequestById, getDb } from "./db";
 import { calculateVedicSnapshot } from "./vedic-astrology-calculator";
-import { buildReportStylePreviewPdf } from "./export";
+import { buildFullNatalReportPdf } from "./export";
 import { resolveBirthLocation } from "./report-geocoding";
 import { generateNarrativeDraft } from "./report-narrative";
 import { storagePut } from "./storage";
 import { sendClientReportPdf } from "./client-delivery";
 
 const CONFIRMED_PAYMENT_STATUSES = new Set(["finished", "confirmed", "partially_paid"]);
-const REPORT_TEMPLATE_VERSION = "parasara-light-9-preview-v1";
+const REPORT_TEMPLATE_VERSION = "parasara-light-9-v1";
 const EMPTY_BACKGROUND = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64");
 
 function sha256(value: string) { return createHash("sha256").update(value).digest("hex"); }
@@ -30,6 +30,26 @@ export async function enqueueReportJobForBooking(bookingId: number, confirmedBy 
   const jobId = Number(result[0].insertId);
   await db.insert(reportAuditEvents).values({ reportJobId: jobId, eventType: "job_queued", actorType: "system", actorId: confirmedBy, fromStatus: "paid", toStatus: "queued", metadataJson: JSON.stringify({ bookingId }) });
   return { created: true, jobId, idempotencyKey };
+}
+
+export async function getReportProcessingSettings() {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const row = (await db.select().from(reportStudioProcessingSettings).where(eq(reportStudioProcessingSettings.id, 1)).limit(1))[0];
+  if (row) return row;
+  await db.insert(reportStudioProcessingSettings).values({ id: 1, autoProcessEnabled: false, updatedBy: "system" });
+  return (await db.select().from(reportStudioProcessingSettings).where(eq(reportStudioProcessingSettings.id, 1)).limit(1))[0];
+}
+
+export async function setReportProcessingSettings(input: { autoProcessEnabled: boolean; actorId: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.insert(reportStudioProcessingSettings).values({ id: 1, autoProcessEnabled: input.autoProcessEnabled, updatedBy: input.actorId }).onDuplicateKeyUpdate({ set: { autoProcessEnabled: input.autoProcessEnabled, updatedBy: input.actorId } });
+  return getReportProcessingSettings();
+}
+
+export async function isReportStudioAutoProcessingEnabled() {
+  return (await getReportProcessingSettings())?.autoProcessEnabled === true;
 }
 
 export async function listReportReviewJobs() {
@@ -75,7 +95,7 @@ export async function processReportJob(input: { reportJobId: number; actorId: st
     const narrative = await generateNarrativeDraft({ facts, locale: current.language as "ru" | "en" | "de" });
     await db.insert(narrativeDrafts).values({ reportJobId: current.id, locale: current.language, modelName: "gpt-5-mini", modelVersion: narrative.modelVersion, promptVersion: narrative.promptVersion, narrativeJson: JSON.stringify(narrative), validationStatus: "valid", createdBy: "system" });
     const narrativeSummary = narrative.sections[0]?.paragraphs[0]?.slice(0, 600);
-    const pdf = await buildReportStylePreviewPdf({ background: EMPTY_BACKGROUND, locale: current.language as "ru" | "en" | "de", clientName: booking.name, packageType: current.packageType, narrativeSummary });
+    const pdf = await buildFullNatalReportPdf({ background: EMPTY_BACKGROUND, locale: current.language as "ru" | "en" | "de", clientName: booking.name, packageType: current.packageType, narrative: { sections: narrative.sections.map((section) => ({ sectionKey: section.sectionKey, title: section.title, paragraphs: section.paragraphs, factRefs: section.factRefs })) }, facts });
     const stored = await storagePut(`report-studio/${current.id}/v1-preview.pdf`, pdf, "application/pdf");
     await db.insert(reportVersions).values({ reportJobId: current.id, versionNumber: 1, templateVersion: REPORT_TEMPLATE_VERSION, locale: current.language, pdfStorageKey: stored.key, pdfSha256: sha256(pdf.toString("base64")), status: "needs_review" });
     await db.update(reportJobs).set({ status: "needs_review", factsHash, finishedAt: new Date() }).where(eq(reportJobs.id, current.id));
@@ -86,6 +106,14 @@ export async function processReportJob(input: { reportJobId: number; actorId: st
     await db.update(reportJobs).set({ status: "calculation_failed", lastErrorCode: "CALCULATION_FAILED", lastErrorMessage: message.slice(0, 1000), finishedAt: new Date() }).where(eq(reportJobs.id, current.id));
     throw error;
   }
+}
+
+export async function retryReportDelivery(input: { reportJobId: number; versionId: number; actorId: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const job = (await db.select().from(reportJobs).where(eq(reportJobs.id, input.reportJobId)).limit(1))[0];
+  if (!job || job.status !== "delivery_failed") throw new Error("Manual resend is available only for delivery_failed jobs.");
+  return deliverApprovedReport(input);
 }
 
 export async function deliverApprovedReport(input: { reportJobId: number; versionId: number; actorId: string }) {

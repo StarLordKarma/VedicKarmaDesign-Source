@@ -113,6 +113,13 @@
       "when": 1787438133753,
       "tag": "0015_fluffy_hobgoblin",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "5",
+      "when": 1787441311383,
+      "tag": "0016_tough_khan",
+      "breakpoints": true
     }
   ]
 }

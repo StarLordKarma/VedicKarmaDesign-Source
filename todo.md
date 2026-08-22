@@ -350,3 +350,10 @@
 - [x] Add owner-only approval and idempotent Resend delivery for approved report versions
 - [x] Update Report Studio UI for geocode status, narrative generation, approval, and delivery
 - [x] Add integration/regression tests and run full validation before checkpoint
+
+- [x] Add owner-only manual resend action allowed only for delivery_failed report versions
+- [x] Expand Report Studio PDF renderer to 20–25 localized pages with generated narrative sections and chart summaries
+- [x] Add persistent owner-only automatic job-processing setting with safe default and worker guard
+- [x] Update Report Studio/Admin UI for resend, PDF page status, and auto-processing toggle
+- [x] Add regression/integration tests for resend restrictions, PDF page count, toggle persistence, and worker gating
+- [x] Run full validation, visual checks, and save a checkpoint

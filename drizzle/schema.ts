@@ -1,4 +1,4 @@
-import { index, int, mysqlEnum, mysqlTable, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
+import { boolean, index, int, mysqlEnum, mysqlTable, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -138,6 +138,16 @@ export const receiptRetentionSettings = mysqlTable("receipt_retention_settings",
 
 export type ReceiptRetentionSettings = typeof receiptRetentionSettings.$inferSelect;
 export type InsertReceiptRetentionSettings = typeof receiptRetentionSettings.$inferInsert;
+
+export const reportStudioProcessingSettings = mysqlTable("report_studio_processing_settings", {
+  id: int("id").primaryKey(),
+  autoProcessEnabled: boolean("autoProcessEnabled").notNull().default(false),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedBy: varchar("updatedBy", { length: 64 }).notNull(),
+});
+
+export type ReportStudioProcessingSettings = typeof reportStudioProcessingSettings.$inferSelect;
+export type InsertReportStudioProcessingSettings = typeof reportStudioProcessingSettings.$inferInsert;
 
 export const receiptEmailAttempts = mysqlTable("receipt_email_attempts", {
   id: int("id").autoincrement().primaryKey(),

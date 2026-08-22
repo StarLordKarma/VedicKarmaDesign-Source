@@ -17,7 +17,7 @@ import { sendClientNatalPdf, sendClientReceiptPdf } from "./client-delivery";
 import { storagePut } from "./storage";
 import { buildActivityCsv, buildBookingsCsv, buildBookingsPdf, buildPricingHistoryCsv, decodePdfBase64, sanitizePdfName } from "./export";
 import { ENV } from "./_core/env";
-import { approveReportVersion, enqueueReportJobForBooking, getReportReviewJob, listReportReviewJobs, processReportJob } from "./report-studio-db";
+import { approveReportVersion, enqueueReportJobForBooking, getReportProcessingSettings, getReportReviewJob, listReportReviewJobs, processReportJob, retryReportDelivery, setReportProcessingSettings } from "./report-studio-db";
 
 async function cleanupSmokeTestBooking(input: Parameters<typeof isProductionSmokeTestBooking>[0], bookingId: number, reason: "success" | "failure") {
   if (!isProductionSmokeTestBooking(input)) return false;
@@ -108,6 +108,9 @@ export const appRouter = router({
     getJob: adminProcedure.input(z.object({ reportJobId: z.number().int().positive() })).query(({ input }) => getReportReviewJob(input.reportJobId)),
     runCalculation: adminProcedure.input(reportRunSchema).mutation(({ input, ctx }) => processReportJob({ ...input, actorId: ctx.user.openId })),
     approve: adminProcedure.input(reportApprovalSchema).mutation(({ input, ctx }) => approveReportVersion({ ...input, actorId: ctx.user.openId })),
+    retryDelivery: adminProcedure.input(reportApprovalSchema.pick({ reportJobId: true, versionId: true })).mutation(({ input, ctx }) => retryReportDelivery({ ...input, actorId: ctx.user.openId })),
+    processingSettings: adminProcedure.query(() => getReportProcessingSettings()),
+    updateProcessingSettings: adminProcedure.input(z.object({ autoProcessEnabled: z.boolean() })).mutation(({ input, ctx }) => setReportProcessingSettings({ ...input, actorId: ctx.user.openId })),
   }),
   pricing: router({
     current: publicProcedure.input(pricingCurrencySchema.optional()).query(({ input }) => getServicePricing(input?.currency)),

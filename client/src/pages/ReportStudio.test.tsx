@@ -9,9 +9,12 @@ vi.mock("@/lib/trpc", () => ({
   trpc: {
     reportStudio: {
       queue: { useQuery: () => ({ data: [], isLoading: false, error: null }) },
+      processingSettings: { useQuery: () => ({ data: { autoProcessEnabled: false }, refetch: vi.fn() }) },
+      updateProcessingSettings: { useMutation: () => ({ mutate: vi.fn(), isPending: false }) },
       getJob: { useQuery: () => ({ data: undefined, refetch: vi.fn() }) },
       runCalculation: { useMutation: () => ({ mutate: vi.fn(), isPending: false }) },
       approve: { useMutation: () => ({ mutate: vi.fn(), isPending: false }) },
+      retryDelivery: { useMutation: () => ({ mutate: vi.fn(), isPending: false }) },
     },
     useUtils: () => ({ reportStudio: { queue: { invalidate: vi.fn() } } }),
   },
