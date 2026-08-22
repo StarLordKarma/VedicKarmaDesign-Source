@@ -1,11 +1,17 @@
 import type { Express } from "express";
 import { ENV } from "./env";
+import { isReceiptFileActive } from "../db";
 
 export function registerStorageProxy(app: Express) {
   app.get("/manus-storage/*", async (req, res) => {
     const key = (req.params as Record<string, string>)[0];
     if (!key) {
       res.status(400).send("Missing storage key");
+      return;
+    }
+
+    if (key.startsWith("price-breakdowns/") && !(await isReceiptFileActive(key))) {
+      res.status(410).send("Receipt link expired");
       return;
     }
 

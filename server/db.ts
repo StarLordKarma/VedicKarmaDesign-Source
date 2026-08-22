@@ -1,7 +1,7 @@
 import { asc, count, desc, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { and, gte, lt } from "drizzle-orm";
-import { ClientChangeHistory, InsertBookingRequest, InsertUser, bookingRequests, clientChangeHistory, servicePricing, servicePricingCurrencies, servicePricingHistory, smokeTestRuns, users } from "../drizzle/schema";
+import { and, gte, gt, lt } from "drizzle-orm";
+import { ClientChangeHistory, InsertBookingRequest, InsertUser, bookingRequests, clientChangeHistory, servicePricing, servicePricingCurrencies, servicePricingHistory, smokeTestRuns, users, receiptFiles } from "../drizzle/schema";
 import { READING_PRICES } from "@shared/pricing";
 import { ENV } from './_core/env';
 
@@ -89,6 +89,31 @@ export async function getUserByOpenId(openId: string) {
   const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
 
   return result.length > 0 ? result[0] : undefined;
+}
+
+export const RECEIPT_RETENTION_MS = 48 * 60 * 60 * 1000;
+
+export async function registerReceiptFile(storageKey: string, createdAt = new Date()) {
+  const db = await getDb();
+  if (!db) return { storageKey, expiresAt: new Date(createdAt.getTime() + RECEIPT_RETENTION_MS) };
+  const expiresAt = new Date(createdAt.getTime() + RECEIPT_RETENTION_MS);
+  await db.insert(receiptFiles).values({ storageKey, createdAt, expiresAt });
+  return { storageKey, expiresAt };
+}
+
+export async function isReceiptFileActive(storageKey: string, now = new Date()) {
+  const db = await getDb();
+  if (!db) return true;
+  const rows = await db.select({ id: receiptFiles.id }).from(receiptFiles).where(and(eq(receiptFiles.storageKey, storageKey), gt(receiptFiles.expiresAt, now))).limit(1);
+  return rows.length > 0;
+}
+
+export async function cleanupExpiredReceiptFiles(now = new Date()) {
+  const db = await getDb();
+  if (!db) return 0;
+  const expired = await db.select({ id: receiptFiles.id }).from(receiptFiles).where(lt(receiptFiles.expiresAt, now));
+  if (expired.length > 0) await db.delete(receiptFiles).where(lt(receiptFiles.expiresAt, now));
+  return expired.length;
 }
 
 export type SupportedCurrency = "USD" | "EUR" | "GBP";

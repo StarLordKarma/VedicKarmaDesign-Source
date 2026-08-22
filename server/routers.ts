@@ -12,7 +12,7 @@ import { buildCheckoutBreakdownPdf, buildSmokeTestRunsCsv } from "./export";
 import { createCheckoutForBooking } from "./payment-flow";
 import { runManualSmokeTest } from "./manual-smoke-test";
 import { applyAdminBookingUpdate } from "./admin-update-flow";
-import { attachNatalPdf, getAllBookingRequests } from "./db";
+import { attachNatalPdf, getAllBookingRequests, registerReceiptFile } from "./db";
 import { sendClientNatalPdf } from "./client-delivery";
 import { storagePut } from "./storage";
 import { buildActivityCsv, buildBookingsCsv, buildBookingsPdf, buildPricingHistoryCsv, decodePdfBase64, sanitizePdfName } from "./export";
@@ -100,7 +100,7 @@ export const appRouter = router({
   }),
   pricing: router({
     current: publicProcedure.input(pricingCurrencySchema.optional()).query(({ input }) => getServicePricing(input?.currency)),
-    breakdownPdf: publicProcedure.input(z.object({ currency: pricingCurrencySchema.shape.currency, locale: z.string().min(2).max(20), addon: z.boolean(), labels: z.object({ title: z.string().min(1).max(120), currency: z.string().min(1).max(40), basic: z.string().min(1).max(120), addon: z.string().min(1).max(120), addonNotSelected: z.string().min(1).max(80), total: z.string().min(1).max(80), generated: z.string().min(1).max(80) }) })).mutation(async ({ input }) => { const pricing = await getServicePricing(input.currency); const pdf = await buildCheckoutBreakdownPdf({ ...input, basicUsd: pricing.basicUsd, numerologyAddonUsd: pricing.numerologyAddonUsd }); const stored = await storagePut(`price-breakdowns/${new Date().toISOString().slice(0, 10)}/${crypto.randomUUID()}.pdf`, pdf, "application/pdf"); return { filename: `jyotish-price-breakdown-${input.currency.toLowerCase()}.pdf`, contentBase64: pdf.toString("base64"), url: stored.url }; }),
+    breakdownPdf: publicProcedure.input(z.object({ currency: pricingCurrencySchema.shape.currency, locale: z.string().min(2).max(20), addon: z.boolean(), labels: z.object({ title: z.string().min(1).max(120), currency: z.string().min(1).max(40), basic: z.string().min(1).max(120), addon: z.string().min(1).max(120), addonNotSelected: z.string().min(1).max(80), total: z.string().min(1).max(80), generated: z.string().min(1).max(80) }) })).mutation(async ({ input }) => { const pricing = await getServicePricing(input.currency); const pdf = await buildCheckoutBreakdownPdf({ ...input, basicUsd: pricing.basicUsd, numerologyAddonUsd: pricing.numerologyAddonUsd }); const stored = await storagePut(`price-breakdowns/${new Date().toISOString().slice(0, 10)}/${crypto.randomUUID()}.pdf`, pdf, "application/pdf"); const receipt = await registerReceiptFile(stored.key); return { filename: `jyotish-price-breakdown-${input.currency.toLowerCase()}.pdf`, contentBase64: pdf.toString("base64"), url: stored.url, expiresAt: receipt.expiresAt.toISOString() }; }),
   }),
   booking: router({
     submit: publicProcedure.input(bookingSchema).mutation(async ({ input, ctx }) => {

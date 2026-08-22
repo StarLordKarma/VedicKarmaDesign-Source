@@ -118,3 +118,13 @@ export const smokeTestRuns = mysqlTable("smoke_test_runs", {
 
 export type SmokeTestRun = typeof smokeTestRuns.$inferSelect;
 export type InsertSmokeTestRun = typeof smokeTestRuns.$inferInsert;
+
+export const receiptFiles = mysqlTable("receipt_files", {
+  id: int("id").autoincrement().primaryKey(),
+  storageKey: varchar("storageKey", { length: 512 }).notNull().unique(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  expiresAt: timestamp("expiresAt").notNull(),
+});
+
+export type ReceiptFile = typeof receiptFiles.$inferSelect;
+export type InsertReceiptFile = typeof receiptFiles.$inferInsert;

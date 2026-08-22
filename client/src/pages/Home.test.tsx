@@ -106,6 +106,11 @@ describe("Home booking payment UX", () => {
     expect(window.URL.createObjectURL).toHaveBeenCalled();
     expect(screen.getByRole("link", { name: "WhatsApp" })).toHaveAttribute("href", expect.stringContaining(encodeURIComponent("http://localhost:3000/manus-storage/price-breakdowns/test.pdf")));
     expect(screen.getByRole("link", { name: "Telegram" })).toHaveAttribute("href", expect.stringContaining(encodeURIComponent("http://localhost:3000/manus-storage/price-breakdowns/test.pdf")));
+    const share = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "share", { configurable: true, value: share });
+    Object.defineProperty(navigator, "canShare", { configurable: true, value: vi.fn(() => true) });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Share on device" })); });
+    expect(share).toHaveBeenCalledWith(expect.objectContaining({ title: "Share receipt", files: expect.arrayContaining([expect.any(File)]) }));
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Copy receipt link" })); });
     expect(screen.getByRole("button", { name: "Receipt link copied" })).toBeInTheDocument();
   });
