@@ -166,6 +166,9 @@ importers:
       next-themes:
         specifier: ^0.4.6
         version: 0.4.6(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
+      openastrology-library:
+        specifier: 1.1.1
+        version: 1.1.1
       pdf-lib:
         specifier: ^1.17.1
         version: 1.17.1
@@ -199,6 +202,9 @@ importers:
       superjson:
         specifier: ^1.13.3
         version: 1.13.3
+      sweph:
+        specifier: 2.10.3-5
+        version: 2.10.3-5
       tailwind-merge:
         specifier: ^3.3.1
         version: 3.3.1
@@ -3606,6 +3612,10 @@ packages:
     peerDependencies:
       react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
+  luxon@3.7.2:
+    resolution: {integrity: sha512-vtEhXh/gNjI9Yg1u4jX/0YVPMvxzHuGgCm6tC5kZyb08yjGWGnqAjGJvcXbqQR2P3MyMEFnRbpcdFS6PBcLqew==}
+    engines: {node: '>=12'}
+
   lz-string@1.5.0:
     resolution: {integrity: sha512-h5bgJWpxJNswbU7qCrV0tIKQCaS3blPDrqKWx+QxzuzL1zGUzij9XCWLrSLsJPu5t+eWA/ycetzYAO5IOMcWAQ==}
     hasBin: true
@@ -3851,6 +3861,14 @@ packages:
       react: ^16.8 || ^17 || ^18 || ^19 || ^19.0.0-rc
       react-dom: ^16.8 || ^17 || ^18 || ^19 || ^19.0.0-rc
 
+  node-addon-api@8.9.2:
+    resolution: {integrity: sha512-VijLXbi3UACN69I0JVXJsX4tjACjNoQDgv2gTF6sx2wWEi8tkSg2eX8p5gSIFi8z2+DL3oHmY6OyKce38SDolg==}
+    engines: {node: ^18 || ^20 || >= 21}
+
+  node-gyp-build@4.8.4:
+    resolution: {integrity: sha512-LA4ZjwlnUblHVgq0oBF3Jl/6h/Nvs5fzBLwdEF4nuxnFdsfajde4WfxtJr3CaiH+F6ewcIB/q4jQ4UzPyid+CQ==}
+    hasBin: true
+
   node-releases@2.0.23:
     resolution: {integrity: sha512-cCmFDMSm26S6tQSDpBCg/NR8NENrVPhAJSf+XbxBG4rPFaaonlEoE9wHQmun+cls499TQGSb7ZyPBRlzgKfpeg==}
 
@@ -3875,6 +3893,10 @@ packages:
 
   oniguruma-to-es@4.3.3:
     resolution: {integrity: sha512-rPiZhzC3wXwE59YQMRDodUwwT9FZ9nNBwQQfsd1wfdtlKEyCdRV0avrTcSZ5xlIvGRVPd/cx6ZN45ECmS39xvg==}
+
+  openastrology-library@1.1.1:
+    resolution: {integrity: sha512-+3Kkq/yTwNszApS7396ujsEiOFHMHBFnqO/j2A/6DgVKG/gjZW3/IF5HmhIle2gs/kAcwKfoyRSMFkWwI9cmhQ==}
+    engines: {node: '>=18.0.0'}
 
   package-manager-detector@1.5.0:
     resolution: {integrity: sha512-uBj69dVlYe/+wxj8JOpr97XfsxH/eumMt6HqjNTmJDf/6NO9s+0uxeOneIz3AsPt2m6y9PqzDzd3ATcU17MNfw==}
@@ -4280,6 +4302,9 @@ packages:
   superjson@1.13.3:
     resolution: {integrity: sha512-mJiVjfd2vokfDxsQPOwJ/PtanO87LhpYY88ubI5dUB1Ab58Txbyje3+jpm+/83R/fevaq/107NNhtYBLuoTrFg==}
     engines: {node: '>=10'}
+
+  sweph@2.10.3-5:
+    resolution: {integrity: sha512-sbdfm9rvcLbImBRPSsfts1NP6rpwx4UrdjtyN6XKr7GqQjmuTxllwSRTmH4vjWFjgo4aBmali38V/hf1IM6h9A==}
 
   symbol-tree@3.2.4:
     resolution: {integrity: sha512-9QNk5KwDF+Bvz+PyObkmSYjI5ksVUYtjW7AU22r2NKcfLJcXp96hkDWU3+XndOsUb+AQ9QhfzfCT2O+CNWT5Tw==}
@@ -8318,6 +8343,8 @@ snapshots:
     dependencies:
       react: 19.2.1
 
+  luxon@3.7.2: {}
+
   lz-string@1.5.0: {}
 
   magic-string@0.30.19:
@@ -8793,6 +8820,10 @@ snapshots:
       react: 19.2.1
       react-dom: 19.2.1(react@19.2.1)
 
+  node-addon-api@8.9.2: {}
+
+  node-gyp-build@4.8.4: {}
+
   node-releases@2.0.23: {}
 
   normalize-range@0.1.2: {}
@@ -8812,6 +8843,11 @@ snapshots:
       oniguruma-parser: 0.12.1
       regex: 6.0.1
       regex-recursion: 6.0.2
+
+  openastrology-library@1.1.1:
+    dependencies:
+      luxon: 3.7.2
+      sweph: 2.10.3-5
 
   package-manager-detector@1.5.0: {}
 
@@ -9334,6 +9370,11 @@ snapshots:
   superjson@1.13.3:
     dependencies:
       copy-anything: 3.0.5
+
+  sweph@2.10.3-5:
+    dependencies:
+      node-addon-api: 8.9.2
+      node-gyp-build: 4.8.4
 
   symbol-tree@3.2.4: {}
 

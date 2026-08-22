@@ -304,12 +304,12 @@
 - [x] Validate the migration, PDF artifact, tests, and preview, then save a checkpoint
 
 # Report Studio — deterministic calculation adapter
-- [ ] Audit calculation adapter requirements and current Report Studio integration boundaries
-- [ ] Research authoritative engines/modules/APIs for Lahiri sidereal, Vimshottari, D1 and D9, including license constraints
-- [ ] Select an adapter and document the reproducible calculation contract and engine provenance
-- [ ] Implement the server-side adapter with validation and reference calculations
-- [ ] Add regression tests for timezone conversion, Lahiri settings, Vimshottari, D1/D9 package behavior, and determinism
-- [ ] Document integration and validate the adapter before saving a checkpoint
+- [x] Audit calculation adapter requirements and current Report Studio integration boundaries
+- [x] Research authoritative engines/modules/APIs for Lahiri sidereal, Vimshottari, D1 and D9, including license constraints
+- [x] Select an adapter and document the reproducible calculation contract and engine provenance
+- [x] Implement the server-side adapter with validation and reference calculations
+- [x] Add regression tests for timezone conversion, Lahiri settings, Vimshottari, D1/D9 package behavior, and determinism
+- [x] Document integration and validate the adapter before saving a checkpoint
 
 # Calculation engine alternatives — permissive licenses
 - [x] Define MIT/Apache-compatible requirements for the natal-chart calculation stack
@@ -317,3 +317,19 @@
 - [x] Verify official licenses, Lahiri support, D1/D9, Vimshottari, timezone handling, maturity, and accuracy claims
 - [x] Compare candidates against Swiss Ephemeris and identify a safe adapter path
 - [x] Document the recommendation and any remaining legal/technical validation before production use
+
+# Report Studio — AGPL VedAstro prototype
+- [ ] Record the AGPL deployment decision and required source/license notices
+- [ ] Verify VedAstro runtime, dependency licenses, and reproducible offline execution
+- [ ] Build an isolated server-side VedAstro worker with validated JSON I/O
+- [ ] Connect the worker through the existing Report Studio adapter boundary, owner-only and disabled for automatic client delivery by default
+- [ ] Add reference fixtures, determinism checks, and benchmark/production gating
+- [ ] Run full validation and document AGPL obligations and remaining legal/quality limits
+
+- [x] Replace the incomplete openastrology-library package path with a documented working Swiss Ephemeris adapter boundary
+- [x] Implement deterministic Lahiri sidereal chart calculation JSON contract on the server
+- [x] Implement D1 and D9 divisional chart mapping with validated birth input normalization
+- [x] Implement Vimshottari dasha calculation from sidereal Moon nakshatra and balance
+- [x] Keep production report delivery disabled until calculation benchmarks pass
+- [x] Add reproducible reference snapshots and benchmark/regression tests for the calculation adapter
+- [x] Run typecheck, tests, and production build for the calculation adapter and save a checkpoint
