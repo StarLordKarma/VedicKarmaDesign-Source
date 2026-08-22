@@ -11,6 +11,7 @@ const updateMutate = vi.fn();
 const exportCsvMutate = vi.fn();
 const exportPdfMutate = vi.fn();
 const exportActivityMutate = vi.fn();
+const exportPricingHistoryMutate = vi.fn();
 const updatePricingMutate = vi.fn();
 const pricingData = [{ currency: "USD", basicUsd: 25, numerologyAddonUsd: 10 }, { currency: "EUR", basicUsd: 23, numerologyAddonUsd: 9 }, { currency: "GBP", basicUsd: 20, numerologyAddonUsd: 8 }];
 const pricingHistoryData = [{ id: 1, currency: "USD", oldBasicAmount: 25, oldNumerologyAddonAmount: 10, newBasicAmount: 40, newNumerologyAddonAmount: 15, changedAt: new Date("2026-08-22T12:00:00Z"), changedBy: "owner-123", changedByName: "Anika Jyotish" }];
@@ -42,6 +43,7 @@ vi.mock("@/lib/trpc", () => ({
       exportCsv: { useMutation: (config: typeof options[number]) => { options[0] = config; return { mutate: exportCsvMutate, isPending: false }; } },
       exportPdf: { useMutation: (config: typeof options[number]) => { options[1] = config; return { mutate: exportPdfMutate, isPending: false }; } },
       exportActivityCsv: { useMutation: (config: typeof options[number]) => { options[6] = config; return { mutate: exportActivityMutate, isPending: false }; } },
+      exportPricingHistoryCsv: { useMutation: (config: typeof options[number]) => { options[8] = config; return { mutate: exportPricingHistoryMutate, isPending: false }; } },
       sendNatalPdf: { useMutation: (config: typeof options[number]) => { options[3] = config; return { mutate: sendPdfMutate, isPending: false }; } },
       bulkSendNatalPdf: { useMutation: (config: { onSuccess?: (result: { sent: number; failed: number }) => void; onError?: () => void }) => { options[4] = config as typeof options[number]; return { mutate: bulkSendPdfMutate, isPending: false }; } },
       editBookingClient: { useMutation: (config: { onSuccess?: (result: typeof row) => void; onError?: () => void }) => { options[5] = config as typeof options[number]; return { mutate: editClientMutate, isPending: false }; } },
@@ -68,6 +70,7 @@ describe("Admin interactions", () => {
     exportCsvMutate.mockReset();
     exportPdfMutate.mockReset();
     exportActivityMutate.mockReset();
+    exportPricingHistoryMutate.mockReset();
     updatePricingMutate.mockReset();
     pricingData[0].basicUsd = 25; pricingData[0].numerologyAddonUsd = 10; pricingData[1].basicUsd = 23; pricingData[1].numerologyAddonUsd = 9; pricingData[2].basicUsd = 20; pricingData[2].numerologyAddonUsd = 8;
     sendPdfMutate.mockReset();
@@ -275,7 +278,11 @@ describe("Admin interactions", () => {
     expect(updatePricingMutate).toHaveBeenCalledWith({ currency: "USD", basicUsd: 40, numerologyAddonUsd: 15 });
     act(() => options[7].onSuccess?.({ basicUsd: 40, numerologyAddonUsd: 15 }));
     expect(screen.getByText("Pricing change history")).toBeInTheDocument();
+    expect(screen.getByText("Interface language: EN")).toBeInTheDocument();
+    expect(screen.getByText("Formatting locale: en-US")).toBeInTheDocument();
     expect(screen.getAllByText(/Anika Jyotish/).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: "Export pricing history CSV" }));
+    expect(exportPricingHistoryMutate).toHaveBeenCalledOnce();
     expect(screen.getByRole("status")).toHaveTextContent("Prices updated.");
     fireEvent.change(screen.getByRole("combobox", { name: "Currency" }), { target: { value: "EUR" } });
     expect(screen.getByRole("spinbutton", { name: "Basic reading price" })).toHaveValue(23);

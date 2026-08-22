@@ -12,7 +12,7 @@ import { applyAdminBookingUpdate } from "./admin-update-flow";
 import { attachNatalPdf, getAllBookingRequests } from "./db";
 import { sendClientNatalPdf } from "./client-delivery";
 import { storagePut } from "./storage";
-import { buildActivityCsv, buildBookingsCsv, buildBookingsPdf, decodePdfBase64, sanitizePdfName } from "./export";
+import { buildActivityCsv, buildBookingsCsv, buildBookingsPdf, buildPricingHistoryCsv, decodePdfBase64, sanitizePdfName } from "./export";
 import { ENV } from "./_core/env";
 
 export const appRouter = router({
@@ -39,6 +39,7 @@ export const appRouter = router({
     editBookingClient: adminProcedure.input(editBookingClientSchema).mutation(({ input, ctx }) => updateBookingClient({ ...input, changedBy: ctx.user.openId })),
     exportCsv: adminProcedure.mutation(async () => ({ filename: `jyotish-bookings-${new Date().toISOString().slice(0, 10)}.csv`, contentBase64: Buffer.from(buildBookingsCsv(await getAllBookingRequests()), "utf8").toString("base64") })),
     exportActivityCsv: adminProcedure.input(activityDateRangeSchema.optional()).mutation(async ({ input }) => ({ filename: `jyotish-activity-${new Date().toISOString().slice(0, 10)}.csv`, contentBase64: Buffer.from(buildActivityCsv(await getAdminActivityEvents(input ?? {})), "utf8").toString("base64") })),
+    exportPricingHistoryCsv: adminProcedure.mutation(async () => { const history = await getPricingHistory(); const namedHistory = history.map((entry) => ({ ...entry, changedByName: entry.changedBy === ENV.ownerOpenId ? ENV.ownerName : entry.changedBy })); return { filename: `jyotish-pricing-history-${new Date().toISOString().slice(0, 10)}.csv`, contentBase64: Buffer.from(buildPricingHistoryCsv(namedHistory), "utf8").toString("base64") }; }),
     exportPdf: adminProcedure.mutation(async () => ({ filename: `jyotish-bookings-${new Date().toISOString().slice(0, 10)}.pdf`, contentBase64: (await buildBookingsPdf(await getAllBookingRequests())).toString("base64") })),
     attachNatalPdf: adminProcedure.input(attachNatalPdfSchema).mutation(async ({ input, ctx }) => {
       const buffer = decodePdfBase64(input.contentBase64);

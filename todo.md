@@ -180,3 +180,7 @@
 - [x] Run full validation, responsive verification, and save a pricing checkpoint
 - [x] Use the localized formatted currency string in the public checkout success state and test EUR/GBP checkout display
 - [x] Capture final public/admin responsive verification and save a checkpoint after pricing-polish edits
+- [x] Show the active admin language and locale in the pricing preview
+- [x] Add owner-only CSV export for pricing change history
+- [x] Add a production smoke-test for currency selection and successful crypto checkout creation
+- [x] Run full validation, responsive verification, and save a pricing checkpoint

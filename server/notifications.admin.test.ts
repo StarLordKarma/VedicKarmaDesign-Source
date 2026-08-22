@@ -69,6 +69,15 @@ describe("owner notifications and admin access", () => {
     }
   });
 
+  it("exports pricing history CSV only for the configured owner", async () => {
+    const owner = appRouter.createCaller(context("admin", ENV.ownerOpenId));
+    const nonOwner = appRouter.createCaller(context("admin", "another-admin"));
+    const result = await owner.admin.exportPricingHistoryCsv();
+    expect(result.filename).toMatch(/^jyotish-pricing-history-.*\.csv$/);
+    expect(Buffer.from(result.contentBase64, "base64").toString("utf8")).toContain("Currency");
+    await expect(nonOwner.admin.exportPricingHistoryCsv()).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
   it("rejects unsupported currencies and defaults missing public currency to USD", async () => {
     const owner = appRouter.createCaller(context("admin", ENV.ownerOpenId));
     const publicCaller = appRouter.createCaller(context("user"));

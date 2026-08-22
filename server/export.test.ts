@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildActivityCsv, buildBookingsCsv, decodePdfBase64, sanitizePdfName } from "./export";
+import { buildActivityCsv, buildBookingsCsv, buildPricingHistoryCsv, decodePdfBase64, sanitizePdfName } from "./export";
 import { attachNatalPdfSchema } from "@shared/admin";
 import type { BookingRequest } from "../drizzle/schema";
 
@@ -52,6 +52,17 @@ describe("admin exports and PDF validation", () => {
     expect(csv).toContain('Mailbox ""rejected""');
     expect(csv).toContain("owner-123");
     expect(csv).toContain("2026-01-03T00:00:00.000Z");
+  });
+
+  it("exports pricing history with currency, before/after amounts, and display name", () => {
+    const csv = buildPricingHistoryCsv([{ id: 3, currency: "EUR", oldBasicAmount: 23, oldNumerologyAddonAmount: 9, newBasicAmount: 25, newNumerologyAddonAmount: 10, changedBy: "owner-123", changedByName: "Anika Jyotish", changedAt: new Date("2026-08-22T12:00:00Z") }]);
+    expect(csv.startsWith("\uFEFF")).toBe(true);
+    expect(csv).toContain("Currency");
+    expect(csv).toContain("EUR");
+    expect(csv).toContain("23");
+    expect(csv).toContain("25");
+    expect(csv).toContain("Anika Jyotish");
+    expect(csv).toContain("2026-08-22T12:00:00.000Z");
   });
 
   it("accepts a PDF signature and rejects non-PDF data", () => {

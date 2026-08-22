@@ -1,5 +1,5 @@
 import PDFDocument from "pdfkit";
-import type { BookingRequest } from "../drizzle/schema";
+import type { BookingRequest, ServicePricingHistory } from "../drizzle/schema";
 import type { AdminActivityEvents } from "./db";
 
 function escapeCsv(value: unknown) {
@@ -15,6 +15,21 @@ export function buildActivityCsv(events: AdminActivityEvents) {
     ...events.recentlyEditedClients.map((event) => ["client_edited", event.bookingId, event.name, event.email, "edited", "", event.changes, event.changedBy, event.changedAt.toISOString()]),
   ];
   return `\uFEFF${headers.map(escapeCsv).join(",")}\n${rows.map((row) => row.map(escapeCsv).join(",")).join("\n")}`;
+}
+
+export function buildPricingHistoryCsv(rows: Array<ServicePricingHistory & { changedByName?: string }>) {
+  const headers = ["ID", "Currency", "Old basic amount", "Old add-on amount", "New basic amount", "New add-on amount", "Changed by", "Changed at"];
+  const lines = rows.map((row) => [
+    row.id,
+    row.currency,
+    row.oldBasicAmount,
+    row.oldNumerologyAddonAmount,
+    row.newBasicAmount,
+    row.newNumerologyAddonAmount,
+    row.changedByName ?? row.changedBy,
+    row.changedAt.toISOString(),
+  ].map(escapeCsv).join(","));
+  return `\uFEFF${headers.map(escapeCsv).join(",")}\n${lines.join("\n")}`;
 }
 
 export function buildBookingsCsv(rows: BookingRequest[]) {
