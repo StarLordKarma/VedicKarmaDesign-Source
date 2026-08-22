@@ -173,8 +173,10 @@
 - [x] Run migrations, full validation, responsive verification, and save a pricing checkpoint
 - [x] Add automated tests rejecting unsupported currency in admin pricing updates and booking submit
 - [x] Add regression tests proving missing currency defaults to USD and unsupported currency is rejected across query, submit, and payment payload
-- [ ] Add locale-aware currency formatting with currency-specific rounding on public checkout
-- [ ] Add confirmation modal before saving multi-currency pricing changes
-- [ ] Display the administrator name in pricing history alongside or instead of OpenID
-- [ ] Add tests for currency formatting/rounding, save confirmation, and administrator-name history
-- [ ] Run full validation, responsive verification, and save a pricing checkpoint
+- [x] Add locale-aware currency formatting with currency-specific rounding on public checkout
+- [x] Add confirmation modal before saving multi-currency pricing changes
+- [x] Display the administrator name in pricing history alongside or instead of OpenID
+- [x] Add tests for currency formatting/rounding, save confirmation, and administrator-name history
+- [x] Run full validation, responsive verification, and save a pricing checkpoint
+- [x] Use the localized formatted currency string in the public checkout success state and test EUR/GBP checkout display
+- [x] Capture final public/admin responsive verification and save a checkpoint after pricing-polish edits

@@ -62,6 +62,8 @@ describe("owner notifications and admin access", () => {
       await expect(caller.admin.pricing()).resolves.toEqual(expect.arrayContaining([expect.objectContaining({ currency: "USD", basicUsd: 42, numerologyAddonUsd: 17 })]));
       const history = await getPricingHistory();
       expect(history).toEqual(expect.arrayContaining([expect.objectContaining({ currency: "USD", oldBasicAmount: original.basicUsd, oldNumerologyAddonAmount: original.numerologyAddonUsd, newBasicAmount: 42, newNumerologyAddonAmount: 17, changedBy: ENV.ownerOpenId, changedAt: expect.any(Date) })]));
+      const historyWithNames = await caller.admin.pricingHistory();
+      expect(historyWithNames).toEqual(expect.arrayContaining([expect.objectContaining({ changedBy: ENV.ownerOpenId, changedByName: ENV.ownerName })]));
     } finally {
       await updateServicePricing({ ...original, currency: "USD", updatedBy: ENV.ownerOpenId });
     }

@@ -4,6 +4,7 @@ import "@testing-library/jest-dom/vitest";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import Admin, { autosaveIntervalStorageKey, draftSavedAtStorageKey, draftStorageKey, formatAdminDate, formatAutosaveTimestamp, getBulkDeliveryOutcome, matchesClientSearch, sortBookingRows } from "./Admin";
+import { formatCurrency, roundCurrencyAmount } from "@shared/currency";
 
 const { authState, startLoginMock, toastSuccess } = vi.hoisted(() => ({ authState: { user: { role: "admin" } as { role: string } | null }, startLoginMock: vi.fn(), toastSuccess: vi.fn() }));
 const updateMutate = vi.fn();
@@ -12,7 +13,7 @@ const exportPdfMutate = vi.fn();
 const exportActivityMutate = vi.fn();
 const updatePricingMutate = vi.fn();
 const pricingData = [{ currency: "USD", basicUsd: 25, numerologyAddonUsd: 10 }, { currency: "EUR", basicUsd: 23, numerologyAddonUsd: 9 }, { currency: "GBP", basicUsd: 20, numerologyAddonUsd: 8 }];
-const pricingHistoryData = [{ id: 1, currency: "USD", oldBasicAmount: 25, oldNumerologyAddonAmount: 10, newBasicAmount: 40, newNumerologyAddonAmount: 15, changedAt: new Date("2026-08-22T12:00:00Z"), changedBy: "owner-123" }];
+const pricingHistoryData = [{ id: 1, currency: "USD", oldBasicAmount: 25, oldNumerologyAddonAmount: 10, newBasicAmount: 40, newNumerologyAddonAmount: 15, changedAt: new Date("2026-08-22T12:00:00Z"), changedBy: "owner-123", changedByName: "Anika Jyotish" }];
 const sendPdfMutate = vi.fn();
 const bulkSendPdfMutate = vi.fn();
 const editClientMutate = vi.fn();
@@ -267,14 +268,25 @@ describe("Admin interactions", () => {
     fireEvent.change(screen.getByRole("spinbutton", { name: "Basic reading price" }), { target: { value: "40" } });
     fireEvent.change(screen.getByRole("spinbutton", { name: "Numerology add-on price" }), { target: { value: "15" } });
     fireEvent.click(screen.getByRole("button", { name: "Save prices" }));
+    expect(updatePricingMutate).not.toHaveBeenCalled();
+    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+    expect(screen.getByText("Save these pricing changes?")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Save prices" }));
     expect(updatePricingMutate).toHaveBeenCalledWith({ currency: "USD", basicUsd: 40, numerologyAddonUsd: 15 });
     act(() => options[7].onSuccess?.({ basicUsd: 40, numerologyAddonUsd: 15 }));
     expect(screen.getByText("Pricing change history")).toBeInTheDocument();
-    expect(screen.getAllByText(/owner-123/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Anika Jyotish/).length).toBeGreaterThan(0);
     expect(screen.getByRole("status")).toHaveTextContent("Prices updated.");
     fireEvent.change(screen.getByRole("combobox", { name: "Currency" }), { target: { value: "EUR" } });
     expect(screen.getByRole("spinbutton", { name: "Basic reading price" })).toHaveValue(23);
-    expect(screen.getByText("€32")).toBeInTheDocument();
+    expect(screen.getAllByText((_, node) => Boolean(node?.textContent?.includes("32") && node.textContent.includes("€"))).length).toBeGreaterThan(0);
+  });
+
+  it("formats supported currencies with locale-aware symbols and rounding", () => {
+    expect(formatCurrency(25.4, "USD", "en-US")).toBe("$25");
+    expect(formatCurrency(23.6, "EUR", "de-DE")).toBe("24 €");
+    expect(formatCurrency(20.4, "GBP", "en-GB")).toBe("£20");
+    expect(roundCurrencyAmount(23.6, "EUR")).toBe(24);
   });
 
   it("formats admin dates in UTC ISO format", () => {

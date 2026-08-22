@@ -13,6 +13,7 @@ import { attachNatalPdf, getAllBookingRequests } from "./db";
 import { sendClientNatalPdf } from "./client-delivery";
 import { storagePut } from "./storage";
 import { buildActivityCsv, buildBookingsCsv, buildBookingsPdf, decodePdfBase64, sanitizePdfName } from "./export";
+import { ENV } from "./_core/env";
 
 export const appRouter = router({
     // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
@@ -30,7 +31,7 @@ export const appRouter = router({
   admin: router({
     bookingList: adminProcedure.query(() => getAllBookingRequests()),
     pricing: adminProcedure.query(() => listServicePricing()),
-    pricingHistory: adminProcedure.query(() => getPricingHistory()),
+    pricingHistory: adminProcedure.query(async () => (await getPricingHistory()).map((entry) => ({ ...entry, changedByName: entry.changedBy === ENV.ownerOpenId ? ENV.ownerName : entry.changedBy }))),
     updatePricing: adminProcedure.input(servicePricingSchema).mutation(({ input, ctx }) => updateServicePricing({ ...input, updatedBy: ctx.user.openId })),
     activitySummary: adminProcedure.input(activityDateRangeSchema.optional()).query(({ input }) => getAdminActivitySummary(input ?? {})),
     clientHistory: adminProcedure.input(clientHistorySchema).query(({ input }) => getClientChangeHistory(input.bookingId)),

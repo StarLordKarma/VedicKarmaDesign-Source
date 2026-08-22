@@ -45,6 +45,10 @@ describe("Home booking payment UX", () => {
     expect(screen.getAllByText("$40").length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("checkbox"));
     expect(screen.getAllByText("$55").length).toBeGreaterThan(0);
+    fireEvent.change(screen.getAllByRole("combobox", { name: "Currency" })[0], { target: { value: "EUR" } });
+    expect(screen.getAllByText("€40").length).toBeGreaterThan(0);
+    fireEvent.change(screen.getAllByRole("combobox", { name: "Currency" })[0], { target: { value: "GBP" } });
+    expect(screen.getAllByText("£40").length).toBeGreaterThan(0);
     pricingData.basicUsd = 25;
     pricingData.numerologyAddonUsd = 10;
   });
@@ -71,6 +75,8 @@ describe("Home booking payment UX", () => {
 
     mutationState.isPending = false;
     view.rerender(<Home />);
+    fireEvent.change(screen.getAllByRole("combobox", { name: "Currency" })[0], { target: { value: "EUR" } });
+    expect(screen.getAllByText((_, node) => Boolean(node?.textContent?.includes("25") && node.textContent.includes("€"))).length).toBeGreaterThan(0);
     fireEvent.change(screen.getByLabelText("Preferred name"), { target: { value: "Maya" } });
     fireEvent.change(screen.getByLabelText("Email"), { target: { value: "maya@example.com" } });
     fireEvent.change(screen.getByLabelText("Date of birth"), { target: { value: "1990-04-12" } });
@@ -85,6 +91,7 @@ describe("Home booking payment UX", () => {
     });
     expect(screen.getByText("Your request is received.")).toBeInTheDocument();
     expect(screen.getByText(/Your request is saved/)).toBeInTheDocument();
+    expect(screen.getAllByText((_, node) => Boolean(node?.textContent?.includes("25") && node.textContent.includes("€"))).length).toBeGreaterThan(0);
 
     await act(async () => {
       vi.advanceTimersByTime(1800);
