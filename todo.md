@@ -371,3 +371,6 @@
 - [x] Refresh the backup package index and README with current architecture, migrations, scripts, and version metadata
 - [x] Build an updated secret-free ZIP backup containing source, documentation, schema/migrations, and operational guides
 - [x] Verify archive integrity, exclude secrets/build artifacts, generate SHA-256 checksum, and deliver the package
+
+- [x] Build one unified ZIP containing the source backup, all project history/restoration documents, roadmap, Report Studio specifications, and checksum metadata
+- [x] Verify the unified archive integrity and secret-free contents
