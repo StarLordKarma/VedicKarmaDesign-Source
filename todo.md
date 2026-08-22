@@ -319,12 +319,12 @@
 - [x] Document the recommendation and any remaining legal/technical validation before production use
 
 # Report Studio — AGPL VedAstro prototype
-- [ ] Record the AGPL deployment decision and required source/license notices
-- [ ] Verify VedAstro runtime, dependency licenses, and reproducible offline execution
-- [ ] Build an isolated server-side VedAstro worker with validated JSON I/O
-- [ ] Connect the worker through the existing Report Studio adapter boundary, owner-only and disabled for automatic client delivery by default
-- [ ] Add reference fixtures, determinism checks, and benchmark/production gating
-- [ ] Run full validation and document AGPL obligations and remaining legal/quality limits
+- [x] Record the AGPL deployment decision and required source/license notices; VedAstro package path superseded by the working sweph AGPL/LGPL boundary and documented notice obligations
+- [x] Verify the selected AGPL/LGPL sweph runtime metadata, native binding, and reproducible offline execution; the incomplete VedAstro/openastrology package is not activated
+- [x] Build the isolated server-side AGPL Swiss Ephemeris worker with validated versioned JSON I/O; no unusable VedAstro package is shipped
+- [x] Connect the worker through the Report Studio calculation adapter boundary while keeping automatic client delivery disconnected by default
+- [x] Add reference fixtures, determinism checks, regression coverage, and benchmark/production gating
+- [x] Run full validation and document AGPL obligations and remaining legal/quality limits
 
 - [x] Replace the incomplete openastrology-library package path with a documented working Swiss Ephemeris adapter boundary
 - [x] Implement deterministic Lahiri sidereal chart calculation JSON contract on the server

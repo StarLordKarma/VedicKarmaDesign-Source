@@ -30,3 +30,10 @@ Preliminary conclusion: there is no currently verified, mature MIT/Apache packag
 The installed `openastrology-library@1.1.1` package contains licensing and README files but no runnable `dist` or source entrypoint in the published package, so it cannot be imported as a production calculation API in this project. The first adapter implementation therefore uses the directly installed `sweph@2.10.3-5` Node binding to Swiss Ephemeris behind the project-owned `server/vedic-astrology-calculator.ts` boundary. This preserves the approved AGPL/Swiss Ephemeris direction while avoiding a fabricated API surface.
 
 The adapter uses Lahiri sidereal mode, Moshier fallback mode when no external ephemeris path is configured, whole-sign house assignment from the calculated sidereal Ascendant, D1/D9 divisional mapping, and Vimshottari mahadasha periods derived from the sidereal Moon nakshatra. Its output is versioned as `vedic-report-calculation/v1`; it is not yet connected to client delivery or report-job execution. Production activation remains gated on reference-chart benchmark approval and a final dependency/licence review of the native binding and Swiss Ephemeris data files.
+
+
+## License and runtime verification
+
+The installed `sweph@2.10.3-5` package declares `(AGPL-3.0-or-later OR LGPL-3.0-or-later)` and includes its native prebuild/source paths in the package files. Its native Moshier fallback executed successfully offline in the local runtime. The published `openastrology-library@1.1.1` metadata declares `(AGPL-3.0 OR LGPL-3.0)` and points `main` to `./dist/index.js`, but that dist directory is absent from the installed package; the package is therefore recorded as unusable rather than silently substituted.
+
+This implementation uses the package's declared AGPL-compatible route only as a server-side calculation boundary. Before commercial activation, the owner still needs a legal review of whether the project's distribution/deployment model will comply with AGPL source and notice obligations, and a dependency audit of the complete production lockfile. Automatic client delivery remains disabled until benchmark approval.
