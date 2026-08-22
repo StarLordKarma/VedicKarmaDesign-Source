@@ -189,7 +189,28 @@ export function decodePdfBase64(contentBase64: string) {
 }
 
 
-export async function buildFullNatalReportPdf(input: { background: Buffer; locale: ReportPreviewLocale; clientName: string; packageType: "basic" | "basic_plus"; narrative: { sections: Array<{ sectionKey: string; title: string; paragraphs: string[]; factRefs: string[] }> }; facts: unknown; fontPath?: string }) {
+type ChartPanelPlacement = { planet: string; sign: number; degreeInSign: number };
+
+function drawVedicChartPanel(doc: PDFKit.PDFDocument, placements: ChartPanelPlacement[], x: number, y: number, size: number, title: string, fontName: string) {
+  const cell = size / 4;
+  doc.fillColor("#fffaf0").roundedRect(x, y, size, size, 12).fill();
+  doc.strokeColor("#b47552").lineWidth(1).roundedRect(x, y, size, size, 12).stroke();
+  doc.fillColor("#302a25").font(fontName).fontSize(12).text(title, x, y - 24, { width: size, align: "center" });
+  doc.strokeColor("#8d7868").lineWidth(0.8);
+  const lines = [[0, 0, size, size], [size, 0, 0, size], [cell * 2, 0, cell * 2, size], [0, cell * 2, size, cell * 2], [cell, 0, cell * 2, cell], [size, cell, cell * 2, cell * 2], [cell * 3, 0, cell * 2, cell], [0, cell, cell, cell * 2], [0, cell * 3, cell, cell * 2], [cell * 3, size, cell * 2, cell * 2], [size, cell * 3, cell * 2, cell * 2], [cell, size, cell * 2, cell * 3]];
+  for (const [x1, y1, x2, y2] of lines) doc.moveTo(x + x1, y + y1).lineTo(x + x2, y + y2).stroke();
+  const grouped = new Map<number, ChartPanelPlacement[]>();
+  for (const placement of placements) grouped.set(placement.sign, [...(grouped.get(placement.sign) ?? []), placement]);
+  for (let house = 0; house < 12; house += 1) {
+    const cx = x + (house % 4 + 0.5) * cell;
+    const cy = y + (Math.floor(house / 4) + 0.5) * cell;
+    const items = grouped.get(house) ?? [];
+    doc.fillColor("#a96346").font(fontName).fontSize(7).text(String(house + 1), cx - 10, cy - 18, { width: 20, align: "center" });
+    doc.fillColor("#302a25").font(fontName).fontSize(8).text(items.map((p) => `${p.planet === "Ascendant" ? "Asc" : p.planet.slice(0, 3)} ${p.degreeInSign.toFixed(1)}°`).join("\n") || "—", cx - cell / 2 + 5, cy - 5, { width: cell - 10, align: "center", lineGap: 1 });
+  }
+}
+
+export async function buildFullNatalReportPdf(input: { background: Buffer; locale: ReportPreviewLocale; clientName: string; packageType: "basic" | "basic_plus"; narrative: { sections: Array<{ sectionKey: string; title: string; paragraphs: string[]; factRefs: string[] }> }; facts: any; fontPath?: string }) {
   const copy = reportPreviewCopy[input.locale];
   const pageCount = input.packageType === "basic_plus" ? 25 : 22;
   const doc = new PDFDocument({ size: "A4", margin: 0, info: { Title: copy.title, Subject: "Personal Vedic astrology report" } });
@@ -212,6 +233,10 @@ export async function buildFullNatalReportPdf(input: { background: Buffer; local
     if (page === 1) {
       doc.fillColor("#514A43").font(fontName).fontSize(12).text(input.packageType === "basic_plus" ? "D1 / Rāśi · D9 / Navāṁśa · Vimshottari" : "D1 / Rāśi · Vimshottari", 72, 320, { width: width - 144 });
       doc.fillColor("#514A43").font(fontName).fontSize(11).text(input.narrative.sections[0]?.paragraphs[0] ?? copy.sampleBody, 72, 390, { width: 360, lineGap: 6 });
+    } else if (page === 2 || (page === 3 && input.packageType === "basic_plus")) {
+      const placements = page === 2 ? input.facts.d1 : input.facts.d9;
+      drawVedicChartPanel(doc, placements, 72, 250, width - 144, page === 2 ? "D1 · Rāśi chart" : "D9 · Navāṁśa chart", fontName);
+      doc.fillColor("#8D7868").font(fontName).fontSize(8).text("Sidereal zodiac · Lahiri · whole-sign houses · degrees rounded for display", 72, 700, { width: width - 144, align: "center" });
     } else {
       const section = input.narrative.sections[(page - 2) % Math.max(1, input.narrative.sections.length)];
       doc.fillColor("#514A43").font(fontName).fontSize(12).text(section?.paragraphs.join("\n\n") ?? copy.sampleBody, 72, 240, { width: width - 144, lineGap: 6 });

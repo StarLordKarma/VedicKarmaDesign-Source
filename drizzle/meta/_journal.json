@@ -120,6 +120,13 @@
       "when": 1787441311383,
       "tag": "0016_tough_khan",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "5",
+      "when": 1787441673696,
+      "tag": "0017_luxuriant_stark_industries",
+      "breakpoints": true
     }
   ]
 }

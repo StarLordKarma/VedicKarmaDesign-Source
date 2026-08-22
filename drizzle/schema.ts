@@ -142,6 +142,10 @@ export type InsertReceiptRetentionSettings = typeof receiptRetentionSettings.$in
 export const reportStudioProcessingSettings = mysqlTable("report_studio_processing_settings", {
   id: int("id").primaryKey(),
   autoProcessEnabled: boolean("autoProcessEnabled").notNull().default(false),
+  aiModel: varchar("aiModel", { length: 64 }).notNull().default("gpt-5-mini"),
+  maxTokens: int("maxTokens").notNull().default(5000),
+  maxSections: int("maxSections").notNull().default(6),
+  maxParagraphChars: int("maxParagraphChars").notNull().default(1800),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   updatedBy: varchar("updatedBy", { length: 64 }).notNull(),
 });

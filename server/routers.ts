@@ -18,6 +18,7 @@ import { storagePut } from "./storage";
 import { buildActivityCsv, buildBookingsCsv, buildBookingsPdf, buildPricingHistoryCsv, decodePdfBase64, sanitizePdfName } from "./export";
 import { ENV } from "./_core/env";
 import { approveReportVersion, enqueueReportJobForBooking, getReportProcessingSettings, getReportReviewJob, listReportReviewJobs, processReportJob, retryReportDelivery, setReportProcessingSettings } from "./report-studio-db";
+import { AI_NARRATIVE_MODELS } from "./report-narrative";
 
 async function cleanupSmokeTestBooking(input: Parameters<typeof isProductionSmokeTestBooking>[0], bookingId: number, reason: "success" | "failure") {
   if (!isProductionSmokeTestBooking(input)) return false;
@@ -110,7 +111,7 @@ export const appRouter = router({
     approve: adminProcedure.input(reportApprovalSchema).mutation(({ input, ctx }) => approveReportVersion({ ...input, actorId: ctx.user.openId })),
     retryDelivery: adminProcedure.input(reportApprovalSchema.pick({ reportJobId: true, versionId: true })).mutation(({ input, ctx }) => retryReportDelivery({ ...input, actorId: ctx.user.openId })),
     processingSettings: adminProcedure.query(() => getReportProcessingSettings()),
-    updateProcessingSettings: adminProcedure.input(z.object({ autoProcessEnabled: z.boolean() })).mutation(({ input, ctx }) => setReportProcessingSettings({ ...input, actorId: ctx.user.openId })),
+    updateProcessingSettings: adminProcedure.input(z.object({ autoProcessEnabled: z.boolean(), aiModel: z.enum(AI_NARRATIVE_MODELS), maxTokens: z.number().int().min(1000).max(12000), maxSections: z.number().int().min(1).max(12), maxParagraphChars: z.number().int().min(300).max(1800) })).mutation(({ input, ctx }) => setReportProcessingSettings({ ...input, actorId: ctx.user.openId })),
   }),
   pricing: router({
     current: publicProcedure.input(pricingCurrencySchema.optional()).query(({ input }) => getServicePricing(input?.currency)),

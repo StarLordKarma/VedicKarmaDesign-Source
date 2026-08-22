@@ -102,3 +102,17 @@ describe("admin exports and PDF validation", () => {
     expect(attachNatalPdfSchema.safeParse({ bookingId: 7, fileName: "chart.txt", contentBase64: "JVBERi0x" }).success).toBe(false);
   });
 });
+
+
+describe("full natal report PDF", () => {
+  const background = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64");
+  const facts = { d1: [{ planet: "Ascendant", sign: 0, degreeInSign: 12.3 }], d9: [{ planet: "Ascendant", sign: 5, degreeInSign: 3.2 }] };
+  const narrative = { sections: [{ sectionKey: "core-themes", title: "Core themes", paragraphs: ["A cautious reflective summary."], factRefs: ["d1[0].sign"] }] };
+  it("renders the requested Basic and Basic+ page counts with chart panels", async () => {
+    const { buildFullNatalReportPdf } = await import("./export");
+    const basic = await buildFullNatalReportPdf({ background, locale: "en", clientName: "Test Client", packageType: "basic", narrative, facts });
+    const plus = await buildFullNatalReportPdf({ background, locale: "en", clientName: "Test Client", packageType: "basic_plus", narrative, facts });
+    expect((basic.toString("latin1").match(/\/Type \/Page\b/g) ?? []).length).toBe(22);
+    expect((plus.toString("latin1").match(/\/Type \/Page\b/g) ?? []).length).toBe(25);
+  });
+});

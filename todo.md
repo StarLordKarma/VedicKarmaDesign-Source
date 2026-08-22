@@ -357,3 +357,11 @@
 - [x] Update Report Studio/Admin UI for resend, PDF page status, and auto-processing toggle
 - [x] Add regression/integration tests for resend restrictions, PDF page count, toggle persistence, and worker gating
 - [x] Run full validation, visual checks, and save a checkpoint
+
+- [x] Add accurate graphical D1/Rāśi panel rendering from validated facts JSON
+- [x] Add accurate graphical D9/Navāṁśa panel rendering for Basic+ reports
+- [x] Embed chart panels into the multi-page localized PDF with accessible legends and method metadata
+- [x] Add persistent owner-only AI model and narrative limits settings with strict server validation
+- [x] Apply selected model and limits to structured narrative generation without allowing prompt-controlled overrides
+- [x] Update Report Studio settings UI and add regression tests for charts, settings, and limits
+- [x] Run full validation, visual PDF checks, and save a checkpoint

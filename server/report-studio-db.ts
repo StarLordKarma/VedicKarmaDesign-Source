@@ -92,8 +92,9 @@ export async function processReportJob(input: { reportJobId: number; actorId: st
     const factsHash = sha256(factsJson);
     await db.insert(calculationResults).values({ reportJobId: current.id, schemaVersion: facts.contractVersion, engineName: facts.engine.adapter, engineVersion: facts.engine.engineVersion, ephemerisVersion: facts.engine.ephemerisMode, factsJson, factsHash, validationStatus: "valid" }).onDuplicateKeyUpdate({ set: { factsJson, factsHash, validationStatus: "valid", validationErrorsJson: null } });
     await db.update(reportJobs).set({ status: "narrative_draft", factsHash }).where(eq(reportJobs.id, current.id));
-    const narrative = await generateNarrativeDraft({ facts, locale: current.language as "ru" | "en" | "de" });
-    await db.insert(narrativeDrafts).values({ reportJobId: current.id, locale: current.language, modelName: "gpt-5-mini", modelVersion: narrative.modelVersion, promptVersion: narrative.promptVersion, narrativeJson: JSON.stringify(narrative), validationStatus: "valid", createdBy: "system" });
+    const aiSettings = await getReportProcessingSettings();
+    const narrative = await generateNarrativeDraft({ facts, locale: current.language as "ru" | "en" | "de", settings: { aiModel: aiSettings.aiModel as "gpt-5-nano" | "gpt-5-mini" | "gpt-5" | "claude-haiku-4-5" | "claude-sonnet-4-6" | "gemini-3-flash-preview", maxTokens: aiSettings.maxTokens, maxSections: aiSettings.maxSections, maxParagraphChars: aiSettings.maxParagraphChars } });
+    await db.insert(narrativeDrafts).values({ reportJobId: current.id, locale: current.language, modelName: aiSettings.aiModel, modelVersion: narrative.modelVersion, promptVersion: narrative.promptVersion, narrativeJson: JSON.stringify(narrative), validationStatus: "valid", createdBy: "system" });
     const narrativeSummary = narrative.sections[0]?.paragraphs[0]?.slice(0, 600);
     const pdf = await buildFullNatalReportPdf({ background: EMPTY_BACKGROUND, locale: current.language as "ru" | "en" | "de", clientName: booking.name, packageType: current.packageType, narrative: { sections: narrative.sections.map((section) => ({ sectionKey: section.sectionKey, title: section.title, paragraphs: section.paragraphs, factRefs: section.factRefs })) }, facts });
     const stored = await storagePut(`report-studio/${current.id}/v1-preview.pdf`, pdf, "application/pdf");
