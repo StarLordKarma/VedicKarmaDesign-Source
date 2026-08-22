@@ -196,4 +196,4 @@
 - [x] Add a modal for viewing the full JSON result of each smoke-test run
 - [x] Add an owner-only manual smoke-test launch action with live progress states
 - [x] Add authorization, orchestration, modal, progress, and journal regression tests
-- [ ] Run full validation, responsive verification, and save a smoke-tools checkpoint
+- [x] Run full validation, responsive verification, and save a smoke-tools checkpoint
