@@ -1,7 +1,6 @@
-import { asc, count, desc, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { and, gte, gt, lt } from "drizzle-orm";
-import { ClientChangeHistory, InsertBookingRequest, InsertUser, bookingRequests, clientChangeHistory, servicePricing, servicePricingCurrencies, servicePricingHistory, smokeTestRuns, users, receiptFiles, receiptRetentionSettings } from "../drizzle/schema";
+import { and, asc, count, desc, eq, gte, gt, like, lt } from "drizzle-orm";
+import { ClientChangeHistory, InsertBookingRequest, InsertUser, bookingRequests, clientChangeHistory, servicePricing, servicePricingCurrencies, servicePricingHistory, smokeTestRuns, users, receiptFiles, receiptRetentionSettings, receiptEmailAttempts, receiptEmailFailureAlerts } from "../drizzle/schema";
 import { READING_PRICES } from "@shared/pricing";
 import { ENV } from './_core/env';
 
@@ -132,6 +131,67 @@ export async function cleanupExpiredReceiptFiles(now = new Date()) {
   const expired = await db.select({ id: receiptFiles.id }).from(receiptFiles).where(lt(receiptFiles.expiresAt, now));
   if (expired.length > 0) await db.delete(receiptFiles).where(lt(receiptFiles.expiresAt, now));
   return expired.length;
+}
+
+export const RECEIPT_EMAIL_COOLDOWN_MS = 60_000;
+export const RECEIPT_EMAIL_FAILURE_WINDOW_MS = 60 * 60 * 1000;
+export const RECEIPT_EMAIL_FAILURE_THRESHOLD = 3;
+export function normalizeReceiptEmail(email: string) { return email.trim().toLowerCase(); }
+export function isReceiptEmailCoolingDown(lastRequestedAt: Date | undefined, now = Date.now()) { return Boolean(lastRequestedAt && now - lastRequestedAt.getTime() < RECEIPT_EMAIL_COOLDOWN_MS); }
+export function shouldCreateReceiptEmailFailureAlert(failureCount: number, hasRecentAlert: boolean) { return failureCount >= RECEIPT_EMAIL_FAILURE_THRESHOLD && !hasRecentAlert; }
+
+export async function getLatestReceiptEmailAttempt(recipientEmail: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(receiptEmailAttempts).where(eq(receiptEmailAttempts.recipientEmail, normalizeReceiptEmail(recipientEmail))).orderBy(desc(receiptEmailAttempts.requestedAt)).limit(1);
+  return rows[0];
+}
+
+export async function createReceiptEmailAttempt(input: { recipientEmail: string; storageKey: string; language: string; requestedAt?: Date }) {
+  const db = await getDb();
+  const requestedAt = input.requestedAt ?? new Date();
+  const recipientEmail = normalizeReceiptEmail(input.recipientEmail);
+  if (!db) return { id: 0, recipientEmail, requestedAt, storageKey: input.storageKey, language: input.language, status: "sending" as const };
+  const result = await db.insert(receiptEmailAttempts).values({ recipientEmail, storageKey: input.storageKey, language: input.language, status: "sending", requestedAt });
+  return { id: Number(result[0].insertId), recipientEmail, requestedAt, storageKey: input.storageKey, language: input.language, status: "sending" as const };
+}
+
+export async function finishReceiptEmailAttempt(input: { id: number; status: "sent" | "failed"; providerId?: string | null; error?: string | null; completedAt?: Date }) {
+  const db = await getDb();
+  if (db && input.id > 0) await db.update(receiptEmailAttempts).set({ status: input.status, providerId: input.providerId ?? null, error: input.error?.slice(0, 1000) ?? null, completedAt: input.completedAt ?? new Date() }).where(eq(receiptEmailAttempts.id, input.id));
+}
+
+export async function listReceiptEmailAttempts(limit = 100) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(receiptEmailAttempts).orderBy(desc(receiptEmailAttempts.requestedAt)).limit(Math.min(Math.max(limit, 1), 250));
+}
+
+export async function getReceiptEmailHistoryPage(input: { status?: "sending" | "sent" | "failed"; recipient?: string; page: number; pageSize: number }) {
+  const db = await getDb();
+  if (!db) return { items: [], total: 0, page: input.page, pageSize: input.pageSize, totalPages: 0 };
+  const filters = [];
+  if (input.status) filters.push(eq(receiptEmailAttempts.status, input.status));
+  if (input.recipient?.trim()) filters.push(like(receiptEmailAttempts.recipientEmail, `%${normalizeReceiptEmail(input.recipient)}%`));
+  const where = filters.length ? and(...filters) : undefined;
+  const [items, totals] = await Promise.all([
+    db.select().from(receiptEmailAttempts).where(where).orderBy(desc(receiptEmailAttempts.requestedAt)).limit(input.pageSize).offset((input.page - 1) * input.pageSize),
+    db.select({ value: count() }).from(receiptEmailAttempts).where(where),
+  ]);
+  const total = Number(totals[0]?.value ?? 0);
+  return { items, total, page: input.page, pageSize: input.pageSize, totalPages: Math.ceil(total / input.pageSize) };
+}
+
+export async function recordReceiptEmailFailureAlert(recipientEmail: string, now = new Date()) {
+  const db = await getDb();
+  if (!db) return { shouldAlert: false, failureCount: 0 };
+  const normalized = normalizeReceiptEmail(recipientEmail);
+  const since = new Date(now.getTime() - RECEIPT_EMAIL_FAILURE_WINDOW_MS);
+  const failures = await db.select({ id: receiptEmailAttempts.id }).from(receiptEmailAttempts).where(and(eq(receiptEmailAttempts.recipientEmail, normalized), eq(receiptEmailAttempts.status, "failed"), gte(receiptEmailAttempts.requestedAt, since)));
+  const alerts = await db.select({ id: receiptEmailFailureAlerts.id }).from(receiptEmailFailureAlerts).where(and(eq(receiptEmailFailureAlerts.recipientEmail, normalized), gte(receiptEmailFailureAlerts.alertedAt, since))).limit(1);
+  const shouldAlert = shouldCreateReceiptEmailFailureAlert(failures.length, alerts.length > 0);
+  if (shouldAlert) await db.insert(receiptEmailFailureAlerts).values({ recipientEmail: normalized, failureCount: failures.length, alertedAt: now });
+  return { shouldAlert, failureCount: failures.length };
 }
 
 export type SupportedCurrency = "USD" | "EUR" | "GBP";

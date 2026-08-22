@@ -20,6 +20,7 @@ const runManualSmokeTestMutate = vi.fn();
 const clipboardWriteText = vi.fn().mockResolvedValue(undefined);
 const receiptRetentionData = 48;
 const pricingData = [{ currency: "USD", basicUsd: 25, numerologyAddonUsd: 10 }, { currency: "EUR", basicUsd: 23, numerologyAddonUsd: 9 }, { currency: "GBP", basicUsd: 20, numerologyAddonUsd: 8 }];
+const receiptHistoryData: { items: Array<{ id: number; recipientEmail: string; storageKey: string; language: string; status: "sending" | "sent" | "failed"; providerId: string | null; error: string | null; requestedAt: Date; completedAt: Date | null }>; total: number; page: number; pageSize: number; totalPages: number } = { items: [], total: 0, page: 1, pageSize: 10, totalPages: 0 };
 const pricingHistoryData = { items: [{ id: 1, currency: "USD", oldBasicAmount: 25, oldNumerologyAddonAmount: 10, newBasicAmount: 40, newNumerologyAddonAmount: 15, changedAt: new Date("2026-08-22T12:00:00Z"), changedBy: "owner-123", changedByName: "Anika Jyotish" }], total: 11, page: 1, pageSize: 10, totalPages: 2 };
 const smokeTestRunsData = { items: [{ runId: "production-smoke-1724320000000", status: "succeeded" as const, result: JSON.stringify({ ok: true, checkoutCurrency: "EUR" }), startedAt: new Date("2026-08-22T12:00:00Z"), finishedAt: new Date("2026-08-22T12:00:01Z"), durationMs: 1000 }], total: 11, page: 1, pageSize: 10, totalPages: 2 };
 const smokeTestRunsPageTwo = { items: [{ runId: "production-smoke-1724320000001", status: "failed" as const, result: JSON.stringify({ ok: false, error: "timeout" }), startedAt: new Date("2026-08-22T11:00:00Z"), finishedAt: new Date("2026-08-22T11:00:03Z"), durationMs: 3000 }], total: 11, page: 2, pageSize: 10, totalPages: 2 };
@@ -46,6 +47,7 @@ vi.mock("@/lib/trpc", () => ({
       activitySummary: { useQuery: (_input: unknown) => ({ data: activityData, isLoading: false, error: null }) },
       pricing: { useQuery: () => ({ data: pricingData, isLoading: false, error: null }) },
       receiptRetention: { useQuery: () => ({ data: receiptRetentionData, isLoading: false, error: null }) },
+      receiptEmailHistory: { useQuery: () => ({ data: receiptHistoryData, isLoading: false, error: null }) },
       pricingHistory: { useQuery: () => ({ data: pricingHistoryData, isLoading: false, error: null }) },
       smokeTestRuns: { useQuery: (input: { page?: number; status?: string; sort?: string } | undefined) => { smokeQueryInputs.push(input); return { data: input?.page === 2 ? smokeTestRunsPageTwo : smokeTestRunsData, isLoading: false, error: null, refetch: vi.fn() }; } },
       runManualSmokeTest: { useMutation: (config: typeof options[number]) => { options[9] = config; return { mutate: runManualSmokeTestMutate, isPending: false }; } },
@@ -339,7 +341,7 @@ describe("Admin interactions", () => {
     expect(window.URL.createObjectURL).toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Export smoke CSV" }));
     expect(exportSmokeRunsMutate).toHaveBeenCalledWith({ status: undefined, sort: "started_desc" });
-    fireEvent.change(screen.getByRole("combobox", { name: /Status|Статус/ }), { target: { value: "succeeded" } });
+    fireEvent.change(screen.getAllByRole("combobox", { name: /Status|Статус/ })[0], { target: { value: "succeeded" } });
     fireEvent.change(screen.getByRole("combobox", { name: /Sort runs|Сортировка запусков/ }), { target: { value: "duration_desc" } });
     expect(smokeQueryInputs.at(-1)).toEqual(expect.objectContaining({ status: "succeeded", sort: "duration_desc", page: 1, pageSize: 25 }));
     const nextHistoryButtons = screen.getAllByRole("button", { name: /Next history page|Следующая страница истории/ });
@@ -446,6 +448,18 @@ describe("Admin interactions", () => {
     expect(cleanupExpiredReceiptsMutate).toHaveBeenCalledOnce();
     act(() => options[12]?.onSuccess?.({ deleted: 3, retentionHours: 48 }));
     await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("3 expired receipts removed."));
+  });
+
+  it("renders owner receipt email resend history with status and timestamp", () => {
+    receiptHistoryData.items.splice(0, receiptHistoryData.items.length, { id: 7, recipientEmail: "receipt@example.com", storageKey: "price-breakdowns/test.pdf", language: "English", status: "failed", providerId: null, error: "Provider rejected", requestedAt: new Date("2026-08-22T12:00:00Z"), completedAt: new Date("2026-08-22T12:00:03Z") });
+    receiptHistoryData.total = 1;
+    render(<Admin />);
+    expect(screen.getByText("Receipt email history")).toBeInTheDocument();
+    expect(screen.getByText("receipt@example.com")).toBeInTheDocument();
+    expect(screen.getAllByText("Failed").length).toBeGreaterThan(0);
+    expect(screen.getByText("Provider rejected")).toBeInTheDocument();
+    receiptHistoryData.items.splice(0);
+    receiptHistoryData.total = 0;
   });
 
   it("accepts valid PDF upload and shows invalid/oversized feedback", async () => {

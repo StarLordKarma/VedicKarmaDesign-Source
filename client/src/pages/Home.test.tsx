@@ -105,7 +105,7 @@ describe("Home booking payment UX", () => {
     expect(screen.getByRole("button", { name: "Date of birth" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Exact time of birth" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Download price breakdown PDF" }));
-    expect(pdfMutationState.mutate).toHaveBeenCalledWith(expect.objectContaining({ currency: "USD", locale: "en", addon: false, labels: expect.objectContaining({ title: "Price breakdown", basic: "Basic reading", total: "Total" }) }));
+    expect(pdfMutationState.mutate).toHaveBeenCalledWith(expect.objectContaining({ currency: "USD", locale: "en", addon: false, labels: expect.objectContaining({ title: "Price breakdown", basic: "Basic reading", total: "Total", disclaimer: expect.stringContaining("personal reflection") }) }));
     act(() => { pdfMutationOptions.onSuccess?.({ filename: "price.pdf", contentBase64: btoa("%PDF-1.7"), url: "/manus-storage/price-breakdowns/test.pdf" }); });
     expect(window.URL.createObjectURL).toHaveBeenCalled();
     expect(screen.getByRole("link", { name: "WhatsApp" })).toHaveAttribute("href", expect.stringContaining(encodeURIComponent("http://localhost:3000/manus-storage/price-breakdowns/test.pdf")));
@@ -186,6 +186,8 @@ describe("Home booking payment UX", () => {
 
     await act(async () => { emailMutationOptions.onSuccess?.(); });
     expect(screen.getByRole("status")).toHaveTextContent("Receipt sent by email.");
+    expect(screen.getByRole("button", { name: "Email this receipt" })).toBeDisabled();
+    expect(screen.getByText(/personal reflection and spiritual exploration/)).toBeInTheDocument();
     await act(async () => { emailMutationOptions.onError?.(); });
     expect(screen.getByRole("alert")).toHaveTextContent("Could not send the receipt. Please try again.");
   });

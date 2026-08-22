@@ -245,3 +245,12 @@
 - [x] Add localized Admin cleanup confirmation/feedback and checkout success email form
 - [x] Add regression coverage for cleanup authorization, email validation, delivery errors, and success states
 - [x] Run typecheck, full tests, build, responsive verification, and save a checkpoint
+
+- [x] Add receipt-email resend history with timestamps, recipient, status, and failure details for owner review
+- [x] Add server-enforced receipt-email cooldown/rate limiting with localized user feedback
+- [x] Add repeated receipt-email failure threshold and owner notification alert
+- [x] Define legally cautious localized disclaimer copy for EN/RU/DE/ES and document scope/limitations
+- [x] Add localized disclaimer to public site, receipt PDFs, receipt emails, and natal-chart delivery documents where applicable
+- [x] Add owner resend-history UI with secure owner-only access and useful filters/statuses
+- [x] Add regression tests for resend history, cooldown/rate limiting, repeated-failure alerts, and disclaimer presence
+- [x] Run full validation, responsive verification, and save a checkpoint

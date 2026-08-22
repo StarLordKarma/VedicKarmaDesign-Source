@@ -61,7 +61,7 @@ export function buildBookingsCsv(rows: BookingRequest[]) {
   return `\uFEFF${headers.map(escapeCsv).join(",")}\n${lines.join("\n")}`;
 }
 
-export async function buildCheckoutBreakdownPdf(input: { currency: SupportedCurrency; locale: string; basicUsd: number; numerologyAddonUsd: number; addon: boolean; labels: { title: string; currency: string; basic: string; addon: string; addonNotSelected: string; total: string; generated: string } }) {
+export async function buildCheckoutBreakdownPdf(input: { currency: SupportedCurrency; locale: string; basicUsd: number; numerologyAddonUsd: number; addon: boolean; labels: { title: string; currency: string; basic: string; addon: string; addonNotSelected: string; total: string; generated: string; disclaimer: string } }) {
   const doc = new PDFDocument({ size: "A4", margin: 48, info: { Title: input.labels.title } });
   const chunks: Buffer[] = [];
   const result = new Promise<Buffer>((resolve, reject) => {
@@ -78,6 +78,7 @@ export async function buildCheckoutBreakdownPdf(input: { currency: SupportedCurr
   doc.moveDown(0.7).moveTo(48, doc.y).lineTo(547, doc.y).strokeColor("#d9d0c5").stroke();
   doc.moveDown(0.7).fillColor("#28231f").fontSize(15).text(input.labels.total, { continued: true }).text(formatCurrency(total, input.currency, input.locale), { align: "right" });
   doc.moveDown(2).fillColor("#635a52").fontSize(9).text(`${input.labels.generated}: ${new Date().toISOString()}`);
+  doc.moveDown(1.5).fillColor("#635a52").fontSize(8).text(input.labels.disclaimer, { width: 500, align: "left" });
   doc.end();
   return result;
 }

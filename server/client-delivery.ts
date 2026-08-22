@@ -6,10 +6,10 @@ const RESEND_ENDPOINT = "https://api.resend.com/emails";
 
 function escapeHtml(value: string) { return value.replace(/[&<>\"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '\"': "&quot;", "'": "&#39;" })[character] ?? character); }
 function getDeliveryCopy(language: string) {
-  if (language === "Русский") return { subject: "Ваше ведическое астрологическое чтение", greeting: "Здравствуйте", body: "Ваше персональное чтение ведической астрологии прикреплено в виде PDF.", signoff: "С заботой" };
-  if (language === "Deutsch") return { subject: "Ihre vedische astrologische Deutung", greeting: "Guten Tag", body: "Ihre persönliche vedische astrologische Deutung ist als PDF angehängt.", signoff: "Mit besten Grüßen" };
-  if (language === "Español") return { subject: "Tu lectura de astrología védica", greeting: "Hola", body: "Tu lectura personalizada de astrología védica está adjunta en formato PDF.", signoff: "Con atención" };
-  return { subject: "Your Vedic astrology reading", greeting: "Hello", body: "Your personalized Vedic astrology reading is attached as a PDF.", signoff: "With care" };
+  if (language === "Русский") return { subject: "Ваше ведическое астрологическое чтение", greeting: "Здравствуйте", body: "Ваше персональное чтение ведической астрологии прикреплено в виде PDF.", disclaimer: "Дисклеймер: материал предназначен только для личного осмысления и духовного исследования; это не медицинская, юридическая, финансовая, психологическая или иная профессиональная консультация. Прогнозы и конкретные результаты не гарантируются. Обязательные права потребителя и ответственность, которую нельзя исключить по закону, сохраняются.", signoff: "С заботой" };
+  if (language === "Deutsch") return { subject: "Ihre vedische astrologische Deutung", greeting: "Guten Tag", body: "Ihre persönliche vedische astrologische Deutung ist als PDF angehängt.", disclaimer: "Hinweis: Dieser Inhalt dient ausschließlich der persönlichen Reflexion und spirituellen Orientierung. Er ist keine medizinische, rechtliche, finanzielle, psychologische oder sonstige Fachberatung. Vorhersagen und bestimmte Ergebnisse werden nicht garantiert. Zwingende Verbraucherrechte und gesetzlich nicht ausschließbare Haftung bleiben unberührt.", signoff: "Mit besten Grüßen" };
+  if (language === "Español") return { subject: "Tu lectura de astrología védica", greeting: "Hola", body: "Tu lectura personalizada de astrología védica está adjunta en formato PDF.", disclaimer: "Aviso: este material se ofrece únicamente para la reflexión personal y la exploración espiritual. No constituye asesoramiento médico, legal, financiero, psicológico ni profesional. No se garantizan predicciones ni resultados concretos. Se mantienen los derechos imperativos del consumidor y la responsabilidad que legalmente no pueda excluirse.", signoff: "Con atención" };
+  return { subject: "Your Vedic astrology reading", greeting: "Hello", body: "Your personalized Vedic astrology reading is attached as a PDF.", disclaimer: "Disclaimer: This material is provided for personal reflection and spiritual exploration only. It is not medical, legal, financial, psychological, or other professional advice. Predictions and specific outcomes are not guaranteed. Mandatory consumer rights and liability that cannot legally be excluded remain unaffected.", signoff: "With care" };
 }
 
 function bytesToBase64(bytes: Uint8Array) {
@@ -33,7 +33,7 @@ export async function sendClientNatalPdf(input: { email: string; name: string; p
   const response = await fetch(RESEND_ENDPOINT, {
     method: "POST",
     headers: { Authorization: `Bearer ${ENV.resendApiKey}`, "Content-Type": "application/json", Accept: "application/json" },
-    body: JSON.stringify({ from: ENV.resendFromEmail, to: [input.email], subject: copy.subject, html: `<p>${copy.greeting} ${safeName},</p><p>${copy.body}</p><p>${copy.signoff},<br />Jyotish</p>`, attachments: [{ filename: input.pdfName || "natal-chart.pdf", content: bytesToBase64(pdfBytes) }] }),
+    body: JSON.stringify({ from: ENV.resendFromEmail, to: [input.email], subject: copy.subject, html: `<p>${copy.greeting} ${safeName},</p><p>${copy.body}</p><p style="font-size:12px;color:#635a52">${copy.disclaimer}</p><p>${copy.signoff},<br />Jyotish</p>`, attachments: [{ filename: input.pdfName || "natal-chart.pdf", content: bytesToBase64(pdfBytes) }] }),
     signal: AbortSignal.timeout(20_000),
   });
   if (!response.ok) {
@@ -54,7 +54,7 @@ export async function sendClientReceiptPdf(input: { email: string; pdfKey: strin
   const response = await fetch(RESEND_ENDPOINT, {
     method: "POST",
     headers: { Authorization: `Bearer ${ENV.resendApiKey}`, "Content-Type": "application/json", Accept: "application/json" },
-    body: JSON.stringify({ from: ENV.resendFromEmail, to: [input.email], subject: `Receipt · ${copy.subject}`, html: `<p>${copy.greeting},</p><p>Your requested price breakdown receipt is attached as a PDF.</p><p>${copy.signoff},<br />Jyotish</p>`, attachments: [{ filename: input.pdfName || "receipt.pdf", content: bytesToBase64(pdfBytes) }] }),
+    body: JSON.stringify({ from: ENV.resendFromEmail, to: [input.email], subject: `Receipt · ${copy.subject}`, html: `<p>${copy.greeting},</p><p>Your requested price breakdown receipt is attached as a PDF.</p><p style="font-size:12px;color:#635a52">${copy.disclaimer}</p><p>${copy.signoff},<br />Jyotish</p>`, attachments: [{ filename: input.pdfName || "receipt.pdf", content: bytesToBase64(pdfBytes) }] }),
     signal: AbortSignal.timeout(20_000),
   });
   if (!response.ok) {

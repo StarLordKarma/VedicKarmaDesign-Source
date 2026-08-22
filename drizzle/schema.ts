@@ -1,4 +1,4 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { index, int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -138,3 +138,28 @@ export const receiptRetentionSettings = mysqlTable("receipt_retention_settings",
 
 export type ReceiptRetentionSettings = typeof receiptRetentionSettings.$inferSelect;
 export type InsertReceiptRetentionSettings = typeof receiptRetentionSettings.$inferInsert;
+
+export const receiptEmailAttempts = mysqlTable("receipt_email_attempts", {
+  id: int("id").autoincrement().primaryKey(),
+  recipientEmail: varchar("recipientEmail", { length: 320 }).notNull(),
+  storageKey: varchar("storageKey", { length: 512 }).notNull(),
+  language: varchar("language", { length: 32 }).notNull(),
+  status: mysqlEnum("status", ["sending", "sent", "failed"]).notNull(),
+  providerId: varchar("providerId", { length: 128 }),
+  error: text("error"),
+  requestedAt: timestamp("requestedAt").defaultNow().notNull(),
+  completedAt: timestamp("completedAt"),
+}, (table) => ({ recipientRequestedAtIdx: index("receipt_email_attempts_recipient_requested_at_idx").on(table.recipientEmail, table.requestedAt), statusRequestedAtIdx: index("receipt_email_attempts_status_requested_at_idx").on(table.status, table.requestedAt) }));
+
+export type ReceiptEmailAttempt = typeof receiptEmailAttempts.$inferSelect;
+export type InsertReceiptEmailAttempt = typeof receiptEmailAttempts.$inferInsert;
+
+export const receiptEmailFailureAlerts = mysqlTable("receipt_email_failure_alerts", {
+  id: int("id").autoincrement().primaryKey(),
+  recipientEmail: varchar("recipientEmail", { length: 320 }).notNull(),
+  failureCount: int("failureCount").notNull(),
+  alertedAt: timestamp("alertedAt").defaultNow().notNull(),
+}, (table) => ({ recipientAlertedAtIdx: index("receipt_email_failure_alerts_recipient_alerted_at_idx").on(table.recipientEmail, table.alertedAt) }));
+
+export type ReceiptEmailFailureAlert = typeof receiptEmailFailureAlerts.$inferSelect;
+export type InsertReceiptEmailFailureAlert = typeof receiptEmailFailureAlerts.$inferInsert;

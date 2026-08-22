@@ -51,6 +51,14 @@ export const pricingHistoryPageSchema = z.object({
   pageSize: z.number().int().min(1).max(50).default(10),
 }).refine(validPricingHistoryRange, { message: "The pricing history date range is invalid." });
 
+export const receiptEmailStatusSchema = z.enum(["sending", "sent", "failed"]);
+export const receiptEmailHistoryPageSchema = z.object({
+  status: receiptEmailStatusSchema.optional(),
+  recipient: z.string().trim().max(320).optional(),
+  page: z.number().int().min(1).default(1),
+  pageSize: z.number().int().min(1).max(50).default(10),
+});
+
 export const activityDateRangeSchema = z.object({
   from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
