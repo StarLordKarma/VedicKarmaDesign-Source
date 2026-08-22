@@ -374,3 +374,7 @@
 
 - [x] Build one unified ZIP containing the source backup, all project history/restoration documents, roadmap, Report Studio specifications, and checksum metadata
 - [x] Verify the unified archive integrity and secret-free contents
+
+- [x] Add a secret-free `.env.example` with the complete configuration variable list and safe placeholders
+- [x] Add a detailed configuration/secrets setup guide covering purpose, requiredness, sources, validation, rotation, and client/server separation
+- [x] Rebuild the unified ZIP with the example env and configuration guide, then verify its contents and secret safety
