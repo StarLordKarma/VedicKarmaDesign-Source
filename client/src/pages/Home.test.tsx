@@ -7,12 +7,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import Home from "./Home";
 
 const mutationState = { isPending: false, mutate: vi.fn() };
+const pdfMutationState = { isPending: false, mutate: vi.fn() };
 let mutationOptions: { onSuccess?: (result: { invoiceUrl: string }) => void } = {};
+let pdfMutationOptions: { onSuccess?: (result: { filename: string; contentBase64: string }) => void; onError?: (error: Error) => void } = {};
 const pricingData = { basicUsd: 25, numerologyAddonUsd: 10 };
 
 vi.mock("@/lib/trpc", () => ({
   trpc: {
-    pricing: { current: { useQuery: () => ({ data: pricingData }) } },
+    pricing: { current: { useQuery: () => ({ data: pricingData }) }, breakdownPdf: { useMutation: (options: typeof pdfMutationOptions) => { pdfMutationOptions = options; return pdfMutationState; } } },
     booking: {
       submit: {
         useMutation: (options: typeof mutationOptions) => {
@@ -29,9 +31,14 @@ describe("Home booking payment UX", () => {
 
   beforeEach(() => {
     localStorage.clear();
+    window.history.replaceState({}, "", "/");
     vi.useFakeTimers();
     mutationState.isPending = false;
     mutationState.mutate.mockReset();
+    pdfMutationState.isPending = false;
+    pdfMutationState.mutate.mockReset();
+    Object.defineProperty(window.URL, "createObjectURL", { configurable: true, value: vi.fn(() => "blob:test") });
+    Object.defineProperty(window.URL, "revokeObjectURL", { configurable: true, value: vi.fn() });
   });
 
   afterEach(() => {
@@ -86,6 +93,16 @@ describe("Home booking payment UX", () => {
     expect(screen.getByRole("button", { name: "Lectura básica" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Complemento de numerología india/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Total" })).toBeInTheDocument();
+  });
+
+  it("offers localized birth-field help and downloads the current detailed price breakdown as PDF", () => {
+    render(<Home />);
+    expect(screen.getByRole("button", { name: "Date of birth" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Exact time of birth" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Download price breakdown PDF" }));
+    expect(pdfMutationState.mutate).toHaveBeenCalledWith(expect.objectContaining({ currency: "USD", locale: "en", addon: false, labels: expect.objectContaining({ title: "Price breakdown", basic: "Basic reading", total: "Total" }) }));
+    pdfMutationOptions.onSuccess?.({ filename: "price.pdf", contentBase64: btoa("%PDF-1.7") });
+    expect(window.URL.createObjectURL).toHaveBeenCalled();
   });
 
   it("persists the selected German language and resolves it on a later session", () => {

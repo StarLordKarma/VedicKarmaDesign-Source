@@ -221,3 +221,7 @@
 - [x] Add smooth fade/slide-in and fade/slide-out animation for successful admin price-save feedback
 - [x] Add regression coverage for localized tooltip labels and feedback transition classes
 - [x] Run targeted/full tests, typecheck, production build, and desktop/mobile responsive verification
+- [x] Add localized informative tooltips to birth date and exact birth time fields for EN/RU/DE/ES
+- [x] Add client-side PDF download for the detailed checkout price breakdown
+- [x] Add regression coverage for birth-field tooltips and PDF breakdown download
+- [x] Run typecheck, tests, build, responsive verification, and save a checkpoint

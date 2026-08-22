@@ -35,6 +35,10 @@ describe("admin updates and localization", () => {
       expect(COPY[locale].faqs).toHaveLength(4);
       expect(COPY[locale].languageOptions).toHaveLength(4);
       expect(COPY[locale].checkoutSuccess(25)).toContain("25");
+      expect(COPY[locale].dateHint.length).toBeGreaterThan(12);
+      expect(COPY[locale].timeHint.length).toBeGreaterThan(12);
+      expect(COPY[locale].downloadBreakdown.length).toBeGreaterThan(12);
+      expect(COPY[locale].generatedAt.length).toBeGreaterThan(3);
     }
     expect(COPY.de.heroTitle).toContain("klarere");
     expect(COPY.es.heroTitle).toContain("claro");

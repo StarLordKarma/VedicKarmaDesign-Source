@@ -1,6 +1,7 @@
 import PDFDocument from "pdfkit";
 import type { BookingRequest, ServicePricingHistory } from "../drizzle/schema";
 import type { AdminActivityEvents } from "./db";
+import { formatCurrency, type SupportedCurrency } from "../shared/currency";
 
 function escapeCsv(value: unknown) {
   const text = value == null ? "" : String(value);
@@ -58,6 +59,27 @@ export function buildBookingsCsv(rows: BookingRequest[]) {
     row.createdAt.toISOString(),
   ].map(escapeCsv).join(","));
   return `\uFEFF${headers.map(escapeCsv).join(",")}\n${lines.join("\n")}`;
+}
+
+export async function buildCheckoutBreakdownPdf(input: { currency: SupportedCurrency; locale: string; basicUsd: number; numerologyAddonUsd: number; addon: boolean; labels: { title: string; currency: string; basic: string; addon: string; addonNotSelected: string; total: string; generated: string } }) {
+  const doc = new PDFDocument({ size: "A4", margin: 48, info: { Title: input.labels.title } });
+  const chunks: Buffer[] = [];
+  const result = new Promise<Buffer>((resolve, reject) => {
+    doc.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
+    doc.on("end", () => resolve(Buffer.concat(chunks)));
+    doc.on("error", reject);
+  });
+  const addonAmount = input.addon ? input.numerologyAddonUsd : 0;
+  const total = input.basicUsd + addonAmount;
+  doc.fillColor("#28231f").fontSize(22).text(input.labels.title);
+  doc.moveDown(0.4).fillColor("#635a52").fontSize(10).text(`${input.labels.currency}: ${input.currency}`);
+  doc.moveDown(1.2).fillColor("#28231f").fontSize(12).text(input.labels.basic, { continued: true }).text(formatCurrency(input.basicUsd, input.currency, input.locale), { align: "right" });
+  doc.moveDown(0.5).fillColor("#635a52").fontSize(12).text(input.addon ? input.labels.addon : `${input.labels.addon} · ${input.labels.addonNotSelected}`, { continued: true }).text(formatCurrency(addonAmount, input.currency, input.locale), { align: "right" });
+  doc.moveDown(0.7).moveTo(48, doc.y).lineTo(547, doc.y).strokeColor("#d9d0c5").stroke();
+  doc.moveDown(0.7).fillColor("#28231f").fontSize(15).text(input.labels.total, { continued: true }).text(formatCurrency(total, input.currency, input.locale), { align: "right" });
+  doc.moveDown(2).fillColor("#635a52").fontSize(9).text(`${input.labels.generated}: ${new Date().toISOString()}`);
+  doc.end();
+  return result;
 }
 
 export async function buildBookingsPdf(rows: BookingRequest[]) {

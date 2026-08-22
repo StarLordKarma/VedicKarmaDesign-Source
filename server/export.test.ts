@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildActivityCsv, buildBookingsCsv, buildPricingHistoryCsv, buildSmokeTestRunsCsv, decodePdfBase64, sanitizePdfName } from "./export";
+import { buildActivityCsv, buildBookingsCsv, buildCheckoutBreakdownPdf, buildPricingHistoryCsv, buildSmokeTestRunsCsv, decodePdfBase64, sanitizePdfName } from "./export";
 import { attachNatalPdfSchema } from "@shared/admin";
 import type { BookingRequest } from "../drizzle/schema";
 
@@ -74,6 +74,12 @@ describe("admin exports and PDF validation", () => {
     expect(csv).toContain("1000");
     expect(csv).toContain('{""ok"":true,""currency"":""EUR""}');
     expect(csv).not.toContain("run-failed");
+  });
+
+  it("builds a localized checkout price-breakdown PDF with a consistent total", async () => {
+    const pdf = await buildCheckoutBreakdownPdf({ currency: "EUR", locale: "ru-RU", basicUsd: 25, numerologyAddonUsd: 10, addon: true, labels: { title: "Разбивка стоимости", currency: "Валюта", basic: "Базовое чтение", addon: "Индийская нумерология", addonNotSelected: "Не выбрано", total: "Итого", generated: "Сформировано" } });
+    expect(pdf.subarray(0, 8).toString("ascii")).toContain("%PDF");
+    expect(pdf.length).toBeGreaterThan(500);
   });
 
   it("accepts a PDF signature and rejects non-PDF data", () => {
