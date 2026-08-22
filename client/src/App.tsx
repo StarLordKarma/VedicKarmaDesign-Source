@@ -1,11 +1,12 @@
 import { Toaster } from "@/components/ui/sonner";
+import React, { Suspense, lazy } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
-import Admin from "./pages/Admin";
+const Admin = lazy(() => import("./pages/Admin"));
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -34,7 +35,9 @@ function App() {
       >
         <TooltipProvider>
           <Toaster />
-          <Router />
+          <Suspense fallback={<div className="grid min-h-screen place-items-center bg-[#f8f5f0] text-sm text-[#635a52]">Loading workspace…</div>}>
+            <Router />
+          </Suspense>
         </TooltipProvider>
       </ThemeProvider>
     </ErrorBoundary>

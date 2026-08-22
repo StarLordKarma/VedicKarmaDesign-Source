@@ -254,3 +254,11 @@
 - [x] Add owner resend-history UI with secure owner-only access and useful filters/statuses
 - [x] Add regression tests for resend history, cooldown/rate limiting, repeated-failure alerts, and disclaimer presence
 - [x] Run full validation, responsive verification, and save a checkpoint
+
+- [x] Establish audit baseline: check, tests, build, bundle size, logs, dependency state, and current responsive screenshots
+- [x] Audit frontend architecture, render performance, accessibility, and localization consistency
+- [x] Audit server procedures, database queries, storage access, owner-only authorization, and error handling
+- [x] Audit production bundle and identify safe code-splitting/dependency optimizations
+- [x] Apply prioritized performance, maintainability, security, and UX optimizations without changing business behavior
+- [x] Add regression tests for each optimization and verify existing functionality remains intact
+- [x] Re-run full validation, review logs and responsive previews, and save an optimization checkpoint
