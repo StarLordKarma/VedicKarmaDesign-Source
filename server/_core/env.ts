@@ -9,4 +9,6 @@ export const ENV = {
   forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? "",
   nowpaymentsApiKey: process.env.NOWPAYMENTS_API_KEY ?? "",
   nowpaymentsIpnSecret: process.env.NOWPAYMENTS_IPN_SECRET ?? "",
+  resendApiKey: process.env.RESEND_API_KEY ?? "",
+  resendFromEmail: process.env.RESEND_FROM_EMAIL ?? "",
 };

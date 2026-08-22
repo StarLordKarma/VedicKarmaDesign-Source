@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import React from "react";
 import "@testing-library/jest-dom/vitest";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { resolveLocale } from "./Home";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import Home from "./Home";
 
@@ -22,7 +23,10 @@ vi.mock("@/lib/trpc", () => ({
 }));
 
 describe("Home booking payment UX", () => {
+  afterEach(() => cleanup());
+
   beforeEach(() => {
+    localStorage.clear();
     vi.useFakeTimers();
     mutationState.isPending = false;
     mutationState.mutate.mockReset();
@@ -30,6 +34,17 @@ describe("Home booking payment UX", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it("persists the selected German language and resolves it on a later session", () => {
+    const view = render(<Home />);
+    const selector = screen.getAllByRole("combobox", { name: "Language" })[0];
+    fireEvent.change(selector, { target: { value: "de" } });
+    expect(localStorage.getItem("public-locale")).toBe("de");
+    expect(screen.getByText("Eine klarere Karte für Ihren inneren Himmel.")).toBeInTheDocument();
+    cleanup();
+    expect(resolveLocale(localStorage.getItem("public-locale"))).toBe("de");
+    view.unmount();
   });
 
   it("shows pending loading, success confirmation, and schedules the checkout redirect", async () => {

@@ -4,12 +4,13 @@ import { systemRouter } from "./_core/systemRouter";
 import { adminProcedure, publicProcedure, router } from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { bookingSchema, getBookingTotal } from "@shared/booking";
-import { attachNatalPdfSchema, updateBookingAdminSchema } from "@shared/admin";
-import { createBookingRequest, updateBookingPayment } from "./db";
+import { attachNatalPdfSchema, sendNatalPdfSchema, updateBookingAdminSchema } from "@shared/admin";
+import { createBookingRequest, getBookingRequestById, updateBookingDelivery, updateBookingPayment } from "./db";
 import { notifyOwner } from "./_core/notification";
 import { createCheckoutForBooking } from "./payment-flow";
 import { applyAdminBookingUpdate } from "./admin-update-flow";
 import { attachNatalPdf, getAllBookingRequests } from "./db";
+import { sendClientNatalPdf } from "./client-delivery";
 import { storagePut } from "./storage";
 import { buildBookingsCsv, buildBookingsPdf, decodePdfBase64, sanitizePdfName } from "./export";
 
@@ -36,6 +37,21 @@ export const appRouter = router({
       const safeName = sanitizePdfName(input.fileName);
       const stored = await storagePut(`natal-charts/${input.bookingId}/${safeName}`, buffer, "application/pdf");
       return attachNatalPdf({ id: input.bookingId, key: stored.key, url: stored.url, name: safeName, uploadedBy: ctx.user.openId });
+    }),
+    sendNatalPdf: adminProcedure.input(sendNatalPdfSchema).mutation(async ({ input, ctx }) => {
+      const booking = await getBookingRequestById(input.bookingId);
+      if (!booking) throw new TRPCError({ code: "NOT_FOUND", message: "Booking request not found." });
+      if (!booking.natalPdfKey || !booking.natalPdfName) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Attach a natal-chart PDF before sending it." });
+      await updateBookingDelivery({ id: booking.id, deliveryStatus: "sending", deliveryError: null });
+      try {
+        const result = await sendClientNatalPdf({ email: booking.email, name: booking.name, pdfKey: booking.natalPdfKey, pdfName: booking.natalPdfName, language: booking.language });
+        await updateBookingDelivery({ id: booking.id, deliveryStatus: "sent", deliveryError: null, deliveredBy: ctx.user.openId });
+        return { success: true, providerId: result.id ?? null } as const;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Email delivery failed.";
+        await updateBookingDelivery({ id: booking.id, deliveryStatus: "failed", deliveryError: message.slice(0, 1000) });
+        throw error;
+      }
     }),
   }),
   booking: router({

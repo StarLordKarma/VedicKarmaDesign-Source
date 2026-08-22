@@ -35,4 +35,11 @@ describe("owner notifications and admin access", () => {
     const caller = appRouter.createCaller(context("user"));
     await expect(caller.admin.bookingList()).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
+
+  it("rejects a non-admin and unauthenticated caller from PDF delivery", async () => {
+    const nonAdmin = appRouter.createCaller(context("user"));
+    await expect(nonAdmin.admin.sendNatalPdf({ bookingId: 1 })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    const unauthenticated = appRouter.createCaller({ ...context("user"), user: null });
+    await expect(unauthenticated.admin.sendNatalPdf({ bookingId: 1 })).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
 });

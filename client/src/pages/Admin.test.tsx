@@ -8,6 +8,7 @@ import Admin from "./Admin";
 const updateMutate = vi.fn();
 const exportCsvMutate = vi.fn();
 const exportPdfMutate = vi.fn();
+const sendPdfMutate = vi.fn();
 const attachMutateAsync = vi.fn().mockResolvedValue(undefined);
 const options: Array<{ onSuccess?: (result: { contentBase64: string; filename: string }) => void; onError?: () => void }> = [];
 const row = { id: 1, name: "Maya", email: "maya@example.com", birthDate: "1990-04-12", birthTime: "08:30", birthCity: "Berlin", birthCountry: "Germany", language: "English", addon: 0, totalUsd: 25, paymentStatus: "finished", status: "new", adminNote: null, createdAt: new Date("2026-01-01T00:00:00Z"), natalPdfUrl: null, natalPdfName: null };
@@ -23,6 +24,7 @@ vi.mock("@/lib/trpc", () => ({
       updateBooking: { useMutation: () => ({ mutate: updateMutate, isPending: false, isSuccess: false }) },
       exportCsv: { useMutation: (config: typeof options[number]) => { options[0] = config; return { mutate: exportCsvMutate, isPending: false }; } },
       exportPdf: { useMutation: (config: typeof options[number]) => { options[1] = config; return { mutate: exportPdfMutate, isPending: false }; } },
+      sendNatalPdf: { useMutation: (config: typeof options[number]) => { options[3] = config; return { mutate: sendPdfMutate, isPending: false }; } },
       attachNatalPdf: { useMutation: (config: typeof options[number]) => { options[2] = config; return { mutateAsync: attachMutateAsync, isPending: false }; } },
     },
   },
@@ -37,6 +39,7 @@ describe("Admin interactions", () => {
     updateMutate.mockReset();
     exportCsvMutate.mockReset();
     exportPdfMutate.mockReset();
+    sendPdfMutate.mockReset();
     attachMutateAsync.mockClear();
     Object.defineProperty(URL, "createObjectURL", { configurable: true, value: vi.fn(() => "blob:test") });
     Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: vi.fn() });
@@ -62,6 +65,24 @@ describe("Admin interactions", () => {
       options[1].onSuccess?.({ contentBase64: "JVBERi0x", filename: "bookings.pdf" });
     });
     expect(anchorClick).toHaveBeenCalledTimes(2);
+  });
+
+  it("invokes PDF delivery for a booking with an attached chart", () => {
+    Object.assign(queryData[0], { natalPdfKey: "natal-charts/1/chart.pdf", natalPdfUrl: "/manus-storage/chart.pdf", natalPdfName: "chart.pdf", deliveryStatus: "not_sent" });
+    render(<Admin />);
+    fireEvent.click(screen.getByRole("button", { name: "Email PDF to client" }));
+    expect(sendPdfMutate).toHaveBeenCalledWith({ bookingId: 1 });
+    Object.assign(queryData[0], { natalPdfKey: null, natalPdfUrl: null, natalPdfName: null, deliveryStatus: "not_sent" });
+  });
+
+  it("filters client history by search term and date range", () => {
+    render(<Admin />);
+    expect(screen.getByText("Maya")).toBeInTheDocument();
+    fireEvent.change(screen.getByRole("textbox", { name: "Search clients" }), { target: { value: "unknown" } });
+    expect(screen.getByText("No requests match this filter.")).toBeInTheDocument();
+    fireEvent.change(screen.getByRole("textbox", { name: "Search clients" }), { target: { value: "Maya" } });
+    fireEvent.change(screen.getByLabelText("From date"), { target: { value: "2027-01-01" } });
+    expect(screen.getByText("No requests match this filter.")).toBeInTheDocument();
   });
 
   it("shows Russian success feedback after switching locale and completing PDF upload", async () => {

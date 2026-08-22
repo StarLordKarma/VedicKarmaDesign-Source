@@ -141,6 +141,13 @@ export async function updateBookingPaymentStatus(input: {
   return { previousStatus, isConfirmed };
 }
 
+export async function getBookingRequestById(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const result = await db.select().from(bookingRequests).where(eq(bookingRequests.id, id)).limit(1);
+  return result[0];
+}
+
 export async function getAllBookingRequests() {
   const db = await getDb();
   if (!db) {
@@ -160,6 +167,15 @@ export async function attachNatalPdf(input: { id: number; key: string; url: stri
     natalPdfUploadedAt: new Date(),
     natalPdfUploadedBy: input.uploadedBy,
   }).where(eq(bookingRequests.id, input.id));
+  const result = await db.select().from(bookingRequests).where(eq(bookingRequests.id, input.id)).limit(1);
+  if (!result[0]) throw new Error("Booking request not found");
+  return result[0];
+}
+
+export async function updateBookingDelivery(input: { id: number; deliveryStatus: "sending" | "sent" | "failed"; deliveryError?: string | null; deliveredBy?: string | null }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.update(bookingRequests).set({ deliveryStatus: input.deliveryStatus, deliveryError: input.deliveryError ?? null, ...(input.deliveryStatus === "sent" ? { deliveredAt: new Date(), deliveredBy: input.deliveredBy ?? null } : {}) }).where(eq(bookingRequests.id, input.id));
   const result = await db.select().from(bookingRequests).where(eq(bookingRequests.id, input.id)).limit(1);
   if (!result[0]) throw new Error("Booking request not found");
   return result[0];

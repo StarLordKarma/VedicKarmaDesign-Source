@@ -60,3 +60,20 @@
 - [x] Assert CSV/PDF export success callbacks trigger blob download behavior
 - [x] Assert successful PDF upload mutation callback shows localized success feedback
 - [x] Assert successful PDF upload shows Russian success feedback after admin locale switch
+- [x] Add German public-site translations
+- [x] Add Spanish public-site translations
+- [x] Persist selected public language across sessions for EN/RU/DE/ES
+- [x] Add secure admin mutation to email attached natal-chart PDF to the client
+- [x] Add email delivery status/error feedback and audit metadata
+- [x] Add searchable client history filtering in admin
+- [x] Add admin date-range filters for booking history
+- [x] Add tests for DE/ES localization and language persistence
+- [x] Add tests for PDF email delivery authorization, attachment, and failure handling
+- [x] Add tests for admin search and date-range filtering
+- [x] Verify public/admin responsive UI and end-to-end delivery/filter flows
+- [x] Add router/procedure test proving sendNatalPdf rejects unauthenticated and non-admin callers
+- [x] Perform fresh desktop/mobile browser verification for DE/ES public and admin search/date UI
+- [x] Exercise or document the real admin PDF delivery flow with a production attached PDF
+- [ ] Perform authenticated browser verification of admin search and date-range controls
+- [x] Verify DE/ES public experience on a mobile viewport
+- [ ] Document admin search/date UI verification at desktop and mobile sizes

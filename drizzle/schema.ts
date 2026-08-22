@@ -49,6 +49,10 @@ export const bookingRequests = mysqlTable("booking_requests", {
   natalPdfName: varchar("natalPdfName", { length: 255 }),
   natalPdfUploadedAt: timestamp("natalPdfUploadedAt"),
   natalPdfUploadedBy: varchar("natalPdfUploadedBy", { length: 64 }),
+  deliveryStatus: varchar("deliveryStatus", { length: 32 }).default("not_sent").notNull(),
+  deliveryError: text("deliveryError"),
+  deliveredAt: timestamp("deliveredAt"),
+  deliveredBy: varchar("deliveredBy", { length: 64 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 

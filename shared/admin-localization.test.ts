@@ -28,6 +28,18 @@ describe("admin updates and localization", () => {
     expect(validatePdfSelection({ type: "application/pdf", name: "chart.pdf", size: 12 * 1024 * 1024 + 1 })).toBe("tooLarge");
   });
 
+  it("contains complete English, Russian, German, and Spanish public copy", () => {
+    for (const locale of ["en", "ru", "de", "es"] as const) {
+      expect(COPY[locale].heroTitle.length).toBeGreaterThan(10);
+      expect(COPY[locale].basicTitle.length).toBeGreaterThan(10);
+      expect(COPY[locale].faqs).toHaveLength(4);
+      expect(COPY[locale].languageOptions).toHaveLength(4);
+      expect(COPY[locale].checkoutSuccess(25)).toContain("25");
+    }
+    expect(COPY.de.heroTitle).toContain("klarere");
+    expect(COPY.es.heroTitle).toContain("claro");
+  });
+
   it("contains selectable English and Russian public copy", () => {
     expect(COPY.en.book).toBe("Book a reading");
     expect(COPY.ru.book).toBe("Заказать чтение");
