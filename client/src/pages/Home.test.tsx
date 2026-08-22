@@ -53,6 +53,22 @@ describe("Home booking payment UX", () => {
     pricingData.numerologyAddonUsd = 10;
   });
 
+  it("shows a detailed checkout price breakdown and keeps the total mathematically consistent", () => {
+    pricingData.basicUsd = 25;
+    pricingData.numerologyAddonUsd = 10;
+    render(<Home />);
+    expect(screen.getByRole("group", { name: "Price breakdown" })).toHaveTextContent("Basic reading");
+    expect(screen.getByRole("group", { name: "Price breakdown" })).toHaveTextContent("$25");
+    expect(screen.getByRole("group", { name: "Price breakdown" })).toHaveTextContent("Not selected");
+    expect(screen.getByRole("group", { name: "Price breakdown" })).toHaveTextContent("$0");
+    expect(screen.getByRole("group", { name: "Price breakdown" })).toHaveTextContent("$25");
+    fireEvent.click(screen.getByRole("checkbox"));
+    const breakdown = screen.getByRole("group", { name: "Price breakdown" });
+    expect(breakdown).toHaveTextContent("Indian numerology add-on");
+    expect(breakdown).toHaveTextContent("+$10");
+    expect(breakdown).toHaveTextContent("$35");
+  });
+
   it("persists the selected German language and resolves it on a later session", () => {
     const view = render(<Home />);
     const selector = screen.getAllByRole("combobox", { name: "Language" })[0];

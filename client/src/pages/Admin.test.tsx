@@ -288,10 +288,15 @@ describe("Admin interactions", () => {
     expect(updatePricingMutate).not.toHaveBeenCalled();
     expect(screen.getByRole("alertdialog")).toBeInTheDocument();
     expect(screen.getByText("Save these pricing changes?")).toBeInTheDocument();
+    expect(screen.getByRole("alertdialog")).toHaveTextContent("USD");
+    expect(screen.getByRole("alertdialog")).toHaveTextContent("$40");
+    expect(screen.getByRole("alertdialog")).toHaveTextContent("$15");
+    expect(screen.getByRole("alertdialog")).toHaveTextContent("$55");
     fireEvent.click(screen.getByRole("button", { name: "Save prices" }));
     expect(updatePricingMutate).toHaveBeenCalledWith({ currency: "USD", basicUsd: 40, numerologyAddonUsd: 15 });
     act(() => options[7].onSuccess?.({ basicUsd: 40, numerologyAddonUsd: 15 }));
     expect(screen.getByRole("status")).toHaveTextContent("Prices updated.");
+    expect(screen.getByRole("status")).toHaveClass("bg-emerald-50");
     expect(screen.getByText("Pricing change history")).toBeInTheDocument();
     expect(screen.getByText("Interface language: EN")).toBeInTheDocument();
     expect(screen.getByText("Formatting locale: en-US")).toBeInTheDocument();

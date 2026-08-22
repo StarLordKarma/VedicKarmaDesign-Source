@@ -211,3 +211,8 @@
 - [x] Run full validation, responsive verification, and save a smoke journal export checkpoint
 - [x] Investigate and correct public price mismatch showing $41.16 instead of configured $25 basic + $10 add-on
 - [x] Add regression coverage for the corrected public pricing display and checkout total
+- [x] Add explicit confirmation dialog before applying admin pricing changes
+- [x] Add detailed line-item pricing breakdown to public checkout
+- [x] Add visible success feedback after saving new admin prices
+- [x] Add regression tests for pricing confirmation, breakdown, success feedback, and edge-case logic
+- [x] Run full error, logic, responsive, and build validation for pricing changes
