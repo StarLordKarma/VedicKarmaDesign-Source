@@ -10,6 +10,7 @@ const updateMutate = vi.fn();
 const exportCsvMutate = vi.fn();
 const exportPdfMutate = vi.fn();
 const sendPdfMutate = vi.fn();
+const bulkSendPdfMutate = vi.fn();
 const attachMutateAsync = vi.fn().mockResolvedValue(undefined);
 const options: Array<{ onSuccess?: (result: { contentBase64: string; filename: string }) => void; onError?: () => void }> = [];
 const row = { id: 1, name: "Maya", email: "maya@example.com", birthDate: "1990-04-12", birthTime: "08:30", birthCity: "Berlin", birthCountry: "Germany", language: "English", addon: 0, totalUsd: 25, paymentStatus: "finished", status: "new", adminNote: null, createdAt: new Date("2026-01-01T00:00:00Z"), natalPdfUrl: null, natalPdfName: null };
@@ -27,15 +28,18 @@ vi.mock("@/lib/trpc", () => ({
       exportCsv: { useMutation: (config: typeof options[number]) => { options[0] = config; return { mutate: exportCsvMutate, isPending: false }; } },
       exportPdf: { useMutation: (config: typeof options[number]) => { options[1] = config; return { mutate: exportPdfMutate, isPending: false }; } },
       sendNatalPdf: { useMutation: (config: typeof options[number]) => { options[3] = config; return { mutate: sendPdfMutate, isPending: false }; } },
+      bulkSendNatalPdf: { useMutation: (config: { onSuccess?: (result: { sent: number; failed: number }) => void; onError?: () => void }) => { options[4] = config as typeof options[number]; return { mutate: bulkSendPdfMutate, isPending: false }; } },
       attachNatalPdf: { useMutation: (config: typeof options[number]) => { options[2] = config; return { mutateAsync: attachMutateAsync, isPending: false }; } },
     },
   },
 }));
 
 describe("Admin interactions", () => {
-  afterEach(() => cleanup());
+  afterEach(() => { cleanup(); queryData.splice(1); Object.assign(queryData[0], { natalPdfKey: null, natalPdfUrl: null, natalPdfName: null, deliveryStatus: "not_sent" }); });
 
   beforeEach(() => {
+    queryData.splice(1);
+    Object.assign(queryData[0], { natalPdfKey: null, natalPdfUrl: null, natalPdfName: null, deliveryStatus: "not_sent" });
     localStorage.clear();
     authState.user = { role: "admin" };
     startLoginMock.mockReset();
@@ -44,6 +48,7 @@ describe("Admin interactions", () => {
     exportCsvMutate.mockReset();
     exportPdfMutate.mockReset();
     sendPdfMutate.mockReset();
+    bulkSendPdfMutate.mockReset();
     attachMutateAsync.mockClear();
     Object.defineProperty(URL, "createObjectURL", { configurable: true, value: vi.fn(() => "blob:test") });
     Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: vi.fn() });
@@ -100,6 +105,36 @@ describe("Admin interactions", () => {
     render(<Admin />);
     fireEvent.click(screen.getByRole("button", { name: "Email PDF to client" }));
     expect(sendPdfMutate).toHaveBeenCalledWith({ bookingId: 1 });
+    Object.assign(queryData[0], { natalPdfKey: null, natalPdfUrl: null, natalPdfName: null, deliveryStatus: "not_sent" });
+  });
+
+  it("paginates client history and navigates between pages", () => {
+    queryData.push(...Array.from({ length: 10 }, (_, index) => ({ ...row, id: index + 2, name: `Client ${index + 2}`, createdAt: new Date(`2026-01-${String(index + 2).padStart(2, "0")}T00:00:00Z`) })));
+    render(<Admin />);
+    expect(screen.getByText("Page 1 of 2")).toBeInTheDocument();
+    expect(screen.getByText("Client 11")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    expect(screen.getByText("Page 2 of 2")).toBeInTheDocument();
+    expect(screen.getByText("Maya")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Previous" }));
+    expect(screen.getByText("Page 1 of 2")).toBeInTheDocument();
+    queryData.splice(1);
+  });
+
+  it("opens the attached PDF in a preview dialog", () => {
+    Object.assign(queryData[0], { natalPdfKey: "natal-charts/1/chart.pdf", natalPdfUrl: "/manus-storage/chart.pdf", natalPdfName: "chart.pdf", deliveryStatus: "sent" });
+    render(<Admin />);
+    fireEvent.click(screen.getByRole("button", { name: "Preview PDF" }));
+    expect(screen.getByTitle("Preview PDF: Maya")).toBeInTheDocument();
+    Object.assign(queryData[0], { natalPdfKey: null, natalPdfUrl: null, natalPdfName: null, deliveryStatus: "not_sent" });
+  });
+
+  it("selects clients with PDFs and invokes bulk delivery", () => {
+    Object.assign(queryData[0], { natalPdfKey: "natal-charts/1/chart.pdf", natalPdfUrl: "/manus-storage/chart.pdf", natalPdfName: "chart.pdf", deliveryStatus: "not_sent" });
+    render(<Admin />);
+    fireEvent.click(screen.getByRole("checkbox", { name: "Select client: Maya" }));
+    fireEvent.click(screen.getByRole("button", { name: "Email selected PDFs" }));
+    expect(bulkSendPdfMutate).toHaveBeenCalledWith({ bookingIds: [1] });
     Object.assign(queryData[0], { natalPdfKey: null, natalPdfUrl: null, natalPdfName: null, deliveryStatus: "not_sent" });
   });
 

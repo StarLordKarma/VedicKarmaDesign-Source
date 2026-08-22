@@ -99,4 +99,12 @@
 - [x] Add visual PDF delivery-status badges with localized labels
 - [x] Add tests for CSV history label, sorting, and delivery badges
 - [x] Run full verification and save a new checkpoint
-- [ ] Save a new checkpoint containing CSV history export label, admin sorting controls, PDF delivery badges, and related tests/build results
+- [x] Save a new checkpoint containing CSV history export label, admin sorting controls, PDF delivery badges, and related tests/build results
+- [x] Add paginated client history with page size and navigation controls
+- [x] Add modal PDF preview from client rows without exposing new storage bytes
+- [x] Add owner-only bulk natal-PDF delivery mutation with per-client results
+- [x] Add multi-select and bulk-send feedback in admin UI
+- [x] Add tests for pagination, preview modal, and bulk delivery
+- [x] Run full verification and save a new checkpoint
+- [x] Add Admin UI pagination test with more than PAGE_SIZE rows and next/previous navigation
+- [x] Save a checkpoint after pagination behavior test and final full verification

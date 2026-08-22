@@ -19,5 +19,6 @@ export const attachNatalPdfSchema = z.object({
 
 export const exportFormatSchema = z.enum(["csv", "pdf"]);
 export const sendNatalPdfSchema = z.object({ bookingId: z.number().int().positive() });
+export const bulkSendNatalPdfSchema = z.object({ bookingIds: z.array(z.number().int().positive()).min(1).max(50) }).superRefine((input, context) => { if (new Set(input.bookingIds).size !== input.bookingIds.length) context.addIssue({ code: z.ZodIssueCode.custom, message: "Duplicate booking IDs are not allowed." }); });
 
 export type UpdateBookingAdminInput = z.infer<typeof updateBookingAdminSchema>;

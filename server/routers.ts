@@ -4,7 +4,7 @@ import { systemRouter } from "./_core/systemRouter";
 import { adminProcedure, publicProcedure, router } from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { bookingSchema, getBookingTotal } from "@shared/booking";
-import { attachNatalPdfSchema, sendNatalPdfSchema, updateBookingAdminSchema } from "@shared/admin";
+import { attachNatalPdfSchema, bulkSendNatalPdfSchema, sendNatalPdfSchema, updateBookingAdminSchema } from "@shared/admin";
 import { createBookingRequest, getBookingRequestById, updateBookingDelivery, updateBookingPayment } from "./db";
 import { notifyOwner } from "./_core/notification";
 import { createCheckoutForBooking } from "./payment-flow";
@@ -52,6 +52,25 @@ export const appRouter = router({
         await updateBookingDelivery({ id: booking.id, deliveryStatus: "failed", deliveryError: message.slice(0, 1000) });
         throw error;
       }
+    }),
+    bulkSendNatalPdf: adminProcedure.input(bulkSendNatalPdfSchema).mutation(async ({ input, ctx }) => {
+      const results: Array<{ bookingId: number; success: boolean; error?: string }> = [];
+      for (const bookingId of input.bookingIds) {
+        const booking = await getBookingRequestById(bookingId);
+        if (!booking) { results.push({ bookingId, success: false, error: "Booking request not found." }); continue; }
+        if (!booking.natalPdfKey || !booking.natalPdfName) { results.push({ bookingId, success: false, error: "No natal-chart PDF attached." }); continue; }
+        await updateBookingDelivery({ id: booking.id, deliveryStatus: "sending", deliveryError: null });
+        try {
+          const result = await sendClientNatalPdf({ email: booking.email, name: booking.name, pdfKey: booking.natalPdfKey, pdfName: booking.natalPdfName, language: booking.language });
+          await updateBookingDelivery({ id: booking.id, deliveryStatus: "sent", deliveryError: null, deliveredBy: ctx.user.openId });
+          results.push({ bookingId, success: true, ...(result.id ? { error: result.id } : {}) });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Email delivery failed.";
+          await updateBookingDelivery({ id: booking.id, deliveryStatus: "failed", deliveryError: message.slice(0, 1000) });
+          results.push({ bookingId, success: false, error: message.slice(0, 200) });
+        }
+      }
+      return { results, sent: results.filter((result) => result.success).length, failed: results.filter((result) => !result.success).length } as const;
     }),
   }),
   booking: router({
