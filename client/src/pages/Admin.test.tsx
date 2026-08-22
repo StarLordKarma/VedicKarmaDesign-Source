@@ -5,7 +5,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import Admin, { draftStorageKey, getBulkDeliveryOutcome, matchesClientSearch, sortBookingRows } from "./Admin";
 
-const { authState, startLoginMock } = vi.hoisted(() => ({ authState: { user: { role: "admin" } as { role: string } | null }, startLoginMock: vi.fn() }));
+const { authState, startLoginMock, toastSuccess } = vi.hoisted(() => ({ authState: { user: { role: "admin" } as { role: string } | null }, startLoginMock: vi.fn(), toastSuccess: vi.fn() }));
 const updateMutate = vi.fn();
 const exportCsvMutate = vi.fn();
 const exportPdfMutate = vi.fn();
@@ -21,6 +21,7 @@ const historyData: Array<{ id: number; bookingId: number; changedBy: string; cha
 vi.mock("@/components/DashboardLayout", () => ({ default: ({ children }: { children: React.ReactNode }) => <>{children}</> }));
 vi.mock("@/_core/hooks/useAuth", () => ({ useAuth: () => ({ user: authState.user, loading: false }) }));
 vi.mock("@/const", () => ({ startLogin: startLoginMock }));
+vi.mock("sonner", () => ({ toast: { success: toastSuccess } }));
 vi.mock("@/lib/trpc", () => ({
   trpc: {
     useUtils: () => ({ admin: { bookingList: { invalidate: vi.fn() } } }),
@@ -48,7 +49,7 @@ describe("Admin interactions", () => {
     historyData.splice(0);
     localStorage.clear();
     authState.user = { role: "admin" };
-    startLoginMock.mockReset();
+    startLoginMock.mockReset(); toastSuccess.mockReset();
     options.length = 0;
     updateMutate.mockReset();
     exportCsvMutate.mockReset();
@@ -201,6 +202,7 @@ describe("Admin interactions", () => {
     fireEvent.click(screen.getByRole("button", { name: "Preview PDF" }));
     expect(screen.getByDisplayValue("Maya Draft")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Discard draft" }));
+    expect(toastSuccess).toHaveBeenCalledWith("Draft discarded");
     expect(localStorage.getItem(draftStorageKey(1))).toBeNull();
     expect(screen.getByDisplayValue("Maya")).toBeInTheDocument();
     Object.assign(queryData[0], { natalPdfKey: null, natalPdfUrl: null, natalPdfName: null, deliveryStatus: "not_sent" });
@@ -213,6 +215,10 @@ describe("Admin interactions", () => {
     fireEvent.click(screen.getByRole("button", { name: "Preview PDF" }));
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Maya Draft" } });
     await waitFor(() => expect(JSON.parse(localStorage.getItem("admin-client-draft:1") ?? "{}").name).toBe("Maya Draft"));
+    expect(toastSuccess).toHaveBeenCalledWith("Draft saved automatically");
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    fireEvent.click(screen.getByRole("button", { name: "Preview PDF" }));
+    expect(screen.getByDisplayValue("Maya Draft")).toBeInTheDocument();
     expect(screen.getByText("Change history")).toBeInTheDocument();
     expect(screen.getByText(/owner-123/)).toBeInTheDocument();
     expect(screen.getByText(/name: Maya → Maya Updated/)).toBeInTheDocument();

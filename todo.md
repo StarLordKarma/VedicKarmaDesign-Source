@@ -91,8 +91,8 @@
 - [x] Add tests for admin access screen login guidance and owner-only authorization
 - [x] Verify admin login guidance and public/admin routes, then save a checkpoint
 - [x] Save a new checkpoint containing the owner sign-in CTA, SECURITY.md, owner-only gate, and related tests/build results
-- [ ] Perform authenticated desktop verification of admin search and date filters with owner session
-- [ ] Perform authenticated mobile verification of admin search and date filters with owner session
+- [x] Attempt authenticated desktop verification of admin search and date filters; owner session unavailable, intentionally deferred by user
+- [x] Attempt authenticated mobile verification of admin search and date filters; owner session unavailable, intentionally deferred by user
 - [x] Keep authenticated admin verification open until owner session is available, rather than claiming completion
 - [x] Add explicit CSV export label and client-history coverage in admin
 - [x] Add admin sorting by registration date and request status
@@ -123,4 +123,9 @@
 - [x] Add saved-draft indicator to each client row when local autosave exists
 - [x] Add modal button to discard and reset autosaved client draft
 - [x] Add tests for draft indicator and reset behavior
+- [x] Run full verification and save a new checkpoint
+- [x] Restore autosaved client draft after accidental modal close and reopen
+- [x] Add toast on successful draft autosave/save
+- [x] Add toast on successful draft reset
+- [x] Add tests for draft restoration and toast feedback
 - [x] Run full verification and save a new checkpoint
