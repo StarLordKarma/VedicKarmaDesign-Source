@@ -302,3 +302,18 @@
 - [x] Create a one-page PDF style prototype using the supplied cosmology background asset
 - [x] Add PDF prototype regression coverage for layout, Unicode text, background handling, and disclaimer
 - [x] Validate the migration, PDF artifact, tests, and preview, then save a checkpoint
+
+# Report Studio — deterministic calculation adapter
+- [ ] Audit calculation adapter requirements and current Report Studio integration boundaries
+- [ ] Research authoritative engines/modules/APIs for Lahiri sidereal, Vimshottari, D1 and D9, including license constraints
+- [ ] Select an adapter and document the reproducible calculation contract and engine provenance
+- [ ] Implement the server-side adapter with validation and reference calculations
+- [ ] Add regression tests for timezone conversion, Lahiri settings, Vimshottari, D1/D9 package behavior, and determinism
+- [ ] Document integration and validate the adapter before saving a checkpoint
+
+# Calculation engine alternatives — permissive licenses
+- [x] Define MIT/Apache-compatible requirements for the natal-chart calculation stack
+- [x] Research permissive astronomy/ephemeris libraries and Vedic rules libraries from official sources
+- [x] Verify official licenses, Lahiri support, D1/D9, Vimshottari, timezone handling, maturity, and accuracy claims
+- [x] Compare candidates against Swiss Ephemeris and identify a safe adapter path
+- [x] Document the recommendation and any remaining legal/technical validation before production use
