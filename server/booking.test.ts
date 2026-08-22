@@ -29,6 +29,11 @@ describe("booking validation", () => {
     expect(result.success).toBe(false);
   });
 
+  it("defaults missing currency to USD and rejects unsupported currencies", () => {
+    expect(bookingSchema.parse(validBooking).currency).toBe("USD");
+    expect(bookingSchema.safeParse({ ...validBooking, currency: "JPY" }).success).toBe(false);
+  });
+
   it("calculates Basic and Add-on totals", () => {
     expect(getBookingTotal(false)).toBe(25);
     expect(getBookingTotal(true)).toBe(35);

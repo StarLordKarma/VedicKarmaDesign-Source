@@ -3,6 +3,7 @@ import { createNowPaymentsInvoice, NowPaymentsInvoice } from "./nowpayments";
 export async function createCheckoutForBooking(input: {
   bookingId: number;
   totalUsd: number;
+  priceCurrency?: string;
   addon: boolean;
   origin: string;
   createInvoice?: typeof createNowPaymentsInvoice;
@@ -13,6 +14,7 @@ export async function createCheckoutForBooking(input: {
   try {
     const invoice: NowPaymentsInvoice = await createInvoice({
       priceAmount: input.totalUsd,
+      priceCurrency: input.priceCurrency,
       orderId: `booking-${input.bookingId}`,
       orderDescription: `Vedic astrology reading${input.addon ? " + Indian numerology add-on" : ""}`,
       callbackUrl: `${input.origin}/api/nowpayments/ipn`,

@@ -64,6 +64,20 @@
       "when": 1787417272712,
       "tag": "0008_closed_jamie_braddock",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "5",
+      "when": 1787418680441,
+      "tag": "0009_serious_patriot",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1787418724255,
+      "tag": "0010_fair_xorn",
+      "breakpoints": true
     }
   ]
 }

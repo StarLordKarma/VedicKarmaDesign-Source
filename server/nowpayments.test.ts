@@ -24,6 +24,10 @@ describe("NOWPayments integration helpers", () => {
     });
   });
 
+  it("uses the selected fiat currency for the hosted invoice", () => {
+    expect(buildInvoicePayload({ priceAmount: 32, priceCurrency: "EUR", orderId: "booking-eur", orderDescription: "Reading", callbackUrl: "https://example.com/ipn", successUrl: "https://example.com/success", cancelUrl: "https://example.com/cancel" }).price_currency).toBe("eur");
+  });
+
   it("accepts a valid IPN signature and rejects a tampered one", () => {
     const body = JSON.stringify({ order_id: "booking-42", payment_status: "finished" });
     const secret = process.env.NOWPAYMENTS_IPN_SECRET ?? "test-secret";

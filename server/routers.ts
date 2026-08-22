@@ -4,8 +4,8 @@ import { systemRouter } from "./_core/systemRouter";
 import { adminProcedure, publicProcedure, router } from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { bookingSchema } from "@shared/booking";
-import { activityDateRangeSchema, attachNatalPdfSchema, bulkSendNatalPdfSchema, clientHistorySchema, editBookingClientSchema, sendNatalPdfSchema, servicePricingSchema, updateBookingAdminSchema } from "@shared/admin";
-import { createBookingRequest, getAdminActivityEvents, getAdminActivitySummary, getBookingRequestById, getClientChangeHistory, getServicePricing, updateBookingClient, updateBookingDelivery, updateBookingPayment, updateServicePricing } from "./db";
+import { activityDateRangeSchema, attachNatalPdfSchema, bulkSendNatalPdfSchema, clientHistorySchema, editBookingClientSchema, pricingCurrencySchema, sendNatalPdfSchema, servicePricingSchema, updateBookingAdminSchema } from "@shared/admin";
+import { createBookingRequest, getAdminActivityEvents, getAdminActivitySummary, getBookingRequestById, getClientChangeHistory, getPricingHistory, getServicePricing, listServicePricing, updateBookingClient, updateBookingDelivery, updateBookingPayment, updateServicePricing } from "./db";
 import { notifyOwner } from "./_core/notification";
 import { createCheckoutForBooking } from "./payment-flow";
 import { applyAdminBookingUpdate } from "./admin-update-flow";
@@ -29,7 +29,8 @@ export const appRouter = router({
   }),
   admin: router({
     bookingList: adminProcedure.query(() => getAllBookingRequests()),
-    pricing: adminProcedure.query(() => getServicePricing()),
+    pricing: adminProcedure.query(() => listServicePricing()),
+    pricingHistory: adminProcedure.query(() => getPricingHistory()),
     updatePricing: adminProcedure.input(servicePricingSchema).mutation(({ input, ctx }) => updateServicePricing({ ...input, updatedBy: ctx.user.openId })),
     activitySummary: adminProcedure.input(activityDateRangeSchema.optional()).query(({ input }) => getAdminActivitySummary(input ?? {})),
     clientHistory: adminProcedure.input(clientHistorySchema).query(({ input }) => getClientChangeHistory(input.bookingId)),
@@ -80,11 +81,11 @@ export const appRouter = router({
     }),
   }),
   pricing: router({
-    current: publicProcedure.query(() => getServicePricing()),
+    current: publicProcedure.input(pricingCurrencySchema.optional()).query(({ input }) => getServicePricing(input?.currency)),
   }),
   booking: router({
     submit: publicProcedure.input(bookingSchema).mutation(async ({ input, ctx }) => {
-      const pricing = await getServicePricing();
+      const pricing = await getServicePricing(input.currency);
       const totalUsd = pricing.basicUsd + (input.addon ? pricing.numerologyAddonUsd : 0);
       const result = await createBookingRequest({
         name: input.name,
@@ -96,6 +97,7 @@ export const appRouter = router({
         language: input.language,
         addon: input.addon ? 1 : 0,
         totalUsd,
+        currency: input.currency,
         interest: input.interest || null,
         status: "new",
         paymentStatus: "creating",
@@ -109,6 +111,7 @@ export const appRouter = router({
         const invoice = await createCheckoutForBooking({
           bookingId: result.id,
           totalUsd,
+          priceCurrency: input.currency,
           addon: input.addon,
           origin,
           savePayment: updateBookingPayment,

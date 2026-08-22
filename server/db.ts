@@ -1,6 +1,6 @@
 import { desc, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { ClientChangeHistory, InsertBookingRequest, InsertUser, bookingRequests, clientChangeHistory, servicePricing, users } from "../drizzle/schema";
+import { ClientChangeHistory, InsertBookingRequest, InsertUser, bookingRequests, clientChangeHistory, servicePricing, servicePricingCurrencies, servicePricingHistory, users } from "../drizzle/schema";
 import { READING_PRICES } from "@shared/pricing";
 import { ENV } from './_core/env';
 
@@ -90,20 +90,51 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
+export type SupportedCurrency = "USD" | "EUR" | "GBP";
+export const SUPPORTED_CURRENCIES: SupportedCurrency[] = ["USD", "EUR", "GBP"];
 export type ServicePricingConfig = { basicUsd: number; numerologyAddonUsd: number };
+export type CurrencyPricingConfig = ServicePricingConfig & { currency: SupportedCurrency; updatedAt?: Date; updatedBy?: string };
 
-export async function getServicePricing(): Promise<ServicePricingConfig> {
+function normalizeCurrency(currency?: string): SupportedCurrency { const normalized = (currency ?? "USD").toUpperCase(); return SUPPORTED_CURRENCIES.includes(normalized as SupportedCurrency) ? normalized as SupportedCurrency : "USD"; }
+
+const defaultPricing = { basicUsd: READING_PRICES.basic, numerologyAddonUsd: READING_PRICES.numerologyAddon } as const;
+
+export async function getServicePricing(currency = "USD"): Promise<ServicePricingConfig> {
+  const normalized = normalizeCurrency(currency);
   const db = await getDb();
-  if (!db) return { basicUsd: READING_PRICES.basic, numerologyAddonUsd: READING_PRICES.numerologyAddon };
-  const result = await db.select({ basicUsd: servicePricing.basicUsd, numerologyAddonUsd: servicePricing.numerologyAddonUsd }).from(servicePricing).where(eq(servicePricing.id, 1)).limit(1);
-  return result[0] ?? { basicUsd: READING_PRICES.basic, numerologyAddonUsd: READING_PRICES.numerologyAddon };
+  if (!db) return defaultPricing;
+  const currencyResult = await db.select({ basicUsd: servicePricingCurrencies.basicAmount, numerologyAddonUsd: servicePricingCurrencies.numerologyAddonAmount }).from(servicePricingCurrencies).where(eq(servicePricingCurrencies.currency, normalized)).limit(1);
+  if (currencyResult[0]) return currencyResult[0];
+  if (normalized === "USD") {
+    const legacy = await db.select({ basicUsd: servicePricing.basicUsd, numerologyAddonUsd: servicePricing.numerologyAddonUsd }).from(servicePricing).where(eq(servicePricing.id, 1)).limit(1);
+    if (legacy[0]) return legacy[0];
+  }
+  return defaultPricing;
 }
 
-export async function updateServicePricing(input: ServicePricingConfig & { updatedBy: string }) {
+export async function listServicePricing(): Promise<CurrencyPricingConfig[]> {
+  const db = await getDb();
+  if (!db) return SUPPORTED_CURRENCIES.map((currency) => ({ currency, ...defaultPricing }));
+  const rows = await db.select({ currency: servicePricingCurrencies.currency, basicUsd: servicePricingCurrencies.basicAmount, numerologyAddonUsd: servicePricingCurrencies.numerologyAddonAmount, updatedAt: servicePricingCurrencies.updatedAt, updatedBy: servicePricingCurrencies.updatedBy }).from(servicePricingCurrencies);
+  return SUPPORTED_CURRENCIES.map((currency) => { const match = rows.find((row) => row.currency === currency); return match ? { ...match, currency } : { currency, ...defaultPricing }; });
+}
+
+export async function getPricingHistory(limit = 50) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(servicePricingHistory).orderBy(desc(servicePricingHistory.changedAt)).limit(limit);
+}
+
+export async function updateServicePricing(input: ServicePricingConfig & { currency?: string; updatedBy: string }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
-  await db.insert(servicePricing).values({ id: 1, basicUsd: input.basicUsd, numerologyAddonUsd: input.numerologyAddonUsd, updatedBy: input.updatedBy }).onDuplicateKeyUpdate({ set: { basicUsd: input.basicUsd, numerologyAddonUsd: input.numerologyAddonUsd, updatedBy: input.updatedBy, updatedAt: new Date() } });
-  return getServicePricing();
+  const currency = normalizeCurrency(input.currency);
+  const previous = await getServicePricing(currency);
+  await db.insert(servicePricingCurrencies).values({ currency, basicAmount: input.basicUsd, numerologyAddonAmount: input.numerologyAddonUsd, updatedBy: input.updatedBy }).onDuplicateKeyUpdate({ set: { basicAmount: input.basicUsd, numerologyAddonAmount: input.numerologyAddonUsd, updatedBy: input.updatedBy, updatedAt: new Date() } });
+  if (previous.basicUsd !== input.basicUsd || previous.numerologyAddonUsd !== input.numerologyAddonUsd) {
+    await db.insert(servicePricingHistory).values({ currency, oldBasicAmount: previous.basicUsd, oldNumerologyAddonAmount: previous.numerologyAddonUsd, newBasicAmount: input.basicUsd, newNumerologyAddonAmount: input.numerologyAddonUsd, changedBy: input.updatedBy });
+  }
+  return { basicUsd: input.basicUsd, numerologyAddonUsd: input.numerologyAddonUsd };
 }
 
 export async function createBookingRequest(input: InsertBookingRequest) {

@@ -9,6 +9,8 @@ describe("reading prices", () => {
     expect(servicePricingSchema.safeParse({ basicUsd: 0, numerologyAddonUsd: 10 }).success).toBe(false);
     expect(servicePricingSchema.safeParse({ basicUsd: 10.5, numerologyAddonUsd: 10 }).success).toBe(false);
     expect(servicePricingSchema.safeParse({ basicUsd: 10001, numerologyAddonUsd: 10 }).success).toBe(false);
+    expect(servicePricingSchema.parse({ basicUsd: 25, numerologyAddonUsd: 10 }).currency).toBe("USD");
+    expect(servicePricingSchema.safeParse({ currency: "JPY", basicUsd: 25, numerologyAddonUsd: 10 }).success).toBe(false);
   });
 
   it("uses the current Basic and add-on prices", () => {

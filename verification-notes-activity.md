@@ -19,3 +19,11 @@ Mobile full-page preview at 390x844 shows the activity controls stacking without
 ## Pricing editor verification — 2026-08-22
 
 The desktop public preview still renders the fallback/default Basic price of $25 before an owner changes the persisted configuration. The owner admin preview renders the new Service pricing section beside Display preferences with Basic reading price and Numerology add-on price inputs initialized to 25 and 10, plus the Save prices action. The layout remains readable at 1280x900.
+
+## Pricing history and currency verification — 2026-08-22
+
+The mobile public page remains readable with the existing responsive navigation and no visible horizontal overflow. The admin mobile preview preserves the stacked dashboard cards and compact navigation; pricing controls are below the initial viewport and remain part of the scrollable workspace. Desktop validation was covered by production build and the existing admin preview layout; the pricing editor contains the currency selector, draft checkout total preview, and scrollable pricing history.
+
+## Pricing history, preview, and currency responsive verification — 2026-08-22
+
+Fresh full-page desktop preview confirmed the public checkout exposes a Currency selector and dynamically renders the selected pricing context. The owner admin preview showed the Service pricing editor with USD selector, draft Checkout preview, Save prices action, and scrollable Pricing change history. The responsive layout remained intact without visible clipping; the admin settings column stacks appropriately on narrow screens.

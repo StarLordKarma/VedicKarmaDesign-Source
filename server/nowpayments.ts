@@ -43,6 +43,7 @@ async function nowpaymentsRequest<T>(path: string, init: RequestInit): Promise<T
 
 export function buildInvoicePayload(input: {
   priceAmount: number;
+  priceCurrency?: string;
   orderId: string;
   orderDescription: string;
   callbackUrl: string;
@@ -51,7 +52,7 @@ export function buildInvoicePayload(input: {
 }) {
   return {
     price_amount: input.priceAmount,
-    price_currency: "usd",
+    price_currency: (input.priceCurrency ?? "USD").toLowerCase(),
     order_id: input.orderId,
     order_description: input.orderDescription,
     ipn_callback_url: input.callbackUrl,
@@ -62,6 +63,7 @@ export function buildInvoicePayload(input: {
 
 export async function createNowPaymentsInvoice(input: {
   priceAmount: number;
+  priceCurrency?: string;
   orderId: string;
   orderDescription: string;
   callbackUrl: string;
@@ -76,6 +78,7 @@ export async function createNowPaymentsInvoice(input: {
 
 export async function createNowPaymentsPayment(input: {
   priceAmount: number;
+  priceCurrency?: string;
   orderId: string;
   orderDescription: string;
   callbackUrl: string;
@@ -86,7 +89,7 @@ export async function createNowPaymentsPayment(input: {
     method: "POST",
     body: JSON.stringify({
       price_amount: input.priceAmount,
-      price_currency: "usd",
+      price_currency: (input.priceCurrency ?? "USD").toLowerCase(),
       pay_currency: "usdttrc20",
       order_id: input.orderId,
       order_description: input.orderDescription,

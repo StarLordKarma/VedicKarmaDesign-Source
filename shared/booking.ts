@@ -10,6 +10,7 @@ export const bookingSchema = z.object({
   birthCountry: z.string().trim().min(2, "Birth country is required."),
   language: z.enum(["English", "Русский", "Deutsch", "Español"]),
   addon: z.boolean(),
+  currency: z.enum(["USD", "EUR", "GBP"]).default("USD"),
   interest: z.string().trim().max(1000).optional(),
 });
 

@@ -3,7 +3,7 @@ import { appRouter } from "./routers";
 import { notifyOwner } from "./_core/notification";
 import type { TrpcContext } from "./_core/context";
 import { ENV } from "./_core/env";
-import { getServicePricing, updateServicePricing } from "./db";
+import { getPricingHistory, getServicePricing, updateServicePricing } from "./db";
 
 function context(role: "user" | "admin", openId = "test-owner"): TrpcContext {
   const now = new Date();
@@ -42,7 +42,7 @@ describe("owner notifications and admin access", () => {
     const caller = appRouter.createCaller(context("admin", ENV.ownerOpenId));
     const summary = await caller.admin.activitySummary({ from: "2020-01-01", to: "2099-12-31" });
     const pricing = await caller.admin.pricing();
-    expect(pricing).toEqual(expect.objectContaining({ basicUsd: expect.any(Number), numerologyAddonUsd: expect.any(Number) }));
+    expect(pricing).toEqual(expect.arrayContaining([expect.objectContaining({ currency: "USD", basicUsd: expect.any(Number), numerologyAddonUsd: expect.any(Number) })]));
     expect(summary).toEqual(expect.objectContaining({
       deliveryFailureCount: expect.any(Number),
       pendingPaymentCount: expect.any(Number),
@@ -55,14 +55,26 @@ describe("owner notifications and admin access", () => {
 
   it("persists owner pricing updates and reads them back", async () => {
     const caller = appRouter.createCaller(context("admin", ENV.ownerOpenId));
-    const original = await getServicePricing();
+    const original = await getServicePricing("USD");
     try {
-      const updated = await caller.admin.updatePricing({ basicUsd: 41, numerologyAddonUsd: 16 });
-      expect(updated).toEqual({ basicUsd: 41, numerologyAddonUsd: 16 });
-      await expect(caller.admin.pricing()).resolves.toEqual({ basicUsd: 41, numerologyAddonUsd: 16 });
+      const updated = await caller.admin.updatePricing({ currency: "USD", basicUsd: 42, numerologyAddonUsd: 17 });
+      expect(updated).toEqual({ basicUsd: 42, numerologyAddonUsd: 17 });
+      await expect(caller.admin.pricing()).resolves.toEqual(expect.arrayContaining([expect.objectContaining({ currency: "USD", basicUsd: 42, numerologyAddonUsd: 17 })]));
+      const history = await getPricingHistory();
+      expect(history).toEqual(expect.arrayContaining([expect.objectContaining({ currency: "USD", oldBasicAmount: original.basicUsd, oldNumerologyAddonAmount: original.numerologyAddonUsd, newBasicAmount: 42, newNumerologyAddonAmount: 17, changedBy: ENV.ownerOpenId, changedAt: expect.any(Date) })]));
     } finally {
-      await updateServicePricing({ ...original, updatedBy: ENV.ownerOpenId });
+      await updateServicePricing({ ...original, currency: "USD", updatedBy: ENV.ownerOpenId });
     }
+  });
+
+  it("rejects unsupported currencies and defaults missing public currency to USD", async () => {
+    const owner = appRouter.createCaller(context("admin", ENV.ownerOpenId));
+    const publicCaller = appRouter.createCaller(context("user"));
+    await expect(owner.admin.updatePricing({ currency: "JPY" as never, basicUsd: 40, numerologyAddonUsd: 15 })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    await expect(publicCaller.pricing.current({ currency: "JPY" as never })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    const defaultPublicPricing = await publicCaller.pricing.current();
+    const explicitUsdPricing = await getServicePricing("USD");
+    expect(defaultPublicPricing).toEqual(explicitUsdPricing);
   });
 
   it("rejects invalid activity ranges before querying activity data", async () => {

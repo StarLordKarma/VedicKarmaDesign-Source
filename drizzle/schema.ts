@@ -36,6 +36,7 @@ export const bookingRequests = mysqlTable("booking_requests", {
   language: varchar("language", { length: 32 }).notNull(),
   addon: int("addon").default(0).notNull(),
   totalUsd: int("totalUsd").notNull(),
+  currency: varchar("currency", { length: 3 }).default("USD").notNull(),
   interest: text("interest"),
   paymentId: varchar("paymentId", { length: 128 }),
   paymentUrl: text("paymentUrl"),
@@ -79,3 +80,28 @@ export const servicePricing = mysqlTable("service_pricing", {
 
 export type ServicePricing = typeof servicePricing.$inferSelect;
 export type InsertServicePricing = typeof servicePricing.$inferInsert;
+
+export const servicePricingCurrencies = mysqlTable("service_pricing_currencies", {
+  currency: varchar("currency", { length: 3 }).primaryKey(),
+  basicAmount: int("basicAmount").notNull(),
+  numerologyAddonAmount: int("numerologyAddonAmount").notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedBy: varchar("updatedBy", { length: 64 }).notNull(),
+});
+
+export type ServicePricingCurrency = typeof servicePricingCurrencies.$inferSelect;
+export type InsertServicePricingCurrency = typeof servicePricingCurrencies.$inferInsert;
+
+export const servicePricingHistory = mysqlTable("service_pricing_history", {
+  id: int("id").autoincrement().primaryKey(),
+  currency: varchar("currency", { length: 3 }).notNull(),
+  oldBasicAmount: int("oldBasicAmount").notNull(),
+  oldNumerologyAddonAmount: int("oldNumerologyAddonAmount").notNull(),
+  newBasicAmount: int("newBasicAmount").notNull(),
+  newNumerologyAddonAmount: int("newNumerologyAddonAmount").notNull(),
+  changedAt: timestamp("changedAt").defaultNow().notNull(),
+  changedBy: varchar("changedBy", { length: 64 }).notNull(),
+});
+
+export type ServicePricingHistory = typeof servicePricingHistory.$inferSelect;
+export type InsertServicePricingHistory = typeof servicePricingHistory.$inferInsert;

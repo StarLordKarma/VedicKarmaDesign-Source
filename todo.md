@@ -165,3 +165,11 @@
 - [x] Run migration, full validation, responsive verification, and save a pricing checkpoint
 - [x] Add owner-context integration test for persisted admin pricing round-trip
 - [x] Add booking submit regression test proving checkout uses persisted non-default pricing
+- [x] Add owner-only pricing change history with old/new prices, timestamp, and editor identity
+- [x] Add pre-save public checkout price preview for draft pricing
+- [x] Add per-currency pricing configuration with safe currency defaults
+- [x] Apply selected currency pricing consistently to public checkout and payment creation
+- [x] Add tests for pricing history, preview, currency validation, persistence, and authorization
+- [x] Run migrations, full validation, responsive verification, and save a pricing checkpoint
+- [x] Add automated tests rejecting unsupported currency in admin pricing updates and booking submit
+- [x] Add regression tests proving missing currency defaults to USD and unsupported currency is rejected across query, submit, and payment payload

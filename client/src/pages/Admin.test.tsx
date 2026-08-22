@@ -11,7 +11,8 @@ const exportCsvMutate = vi.fn();
 const exportPdfMutate = vi.fn();
 const exportActivityMutate = vi.fn();
 const updatePricingMutate = vi.fn();
-const pricingData = { basicUsd: 25, numerologyAddonUsd: 10 };
+const pricingData = [{ currency: "USD", basicUsd: 25, numerologyAddonUsd: 10 }, { currency: "EUR", basicUsd: 23, numerologyAddonUsd: 9 }, { currency: "GBP", basicUsd: 20, numerologyAddonUsd: 8 }];
+const pricingHistoryData = [{ id: 1, currency: "USD", oldBasicAmount: 25, oldNumerologyAddonAmount: 10, newBasicAmount: 40, newNumerologyAddonAmount: 15, changedAt: new Date("2026-08-22T12:00:00Z"), changedBy: "owner-123" }];
 const sendPdfMutate = vi.fn();
 const bulkSendPdfMutate = vi.fn();
 const editClientMutate = vi.fn();
@@ -28,11 +29,12 @@ vi.mock("@/const", () => ({ startLogin: startLoginMock }));
 vi.mock("sonner", () => ({ toast: { success: toastSuccess } }));
 vi.mock("@/lib/trpc", () => ({
   trpc: {
-    useUtils: () => ({ admin: { bookingList: { invalidate: vi.fn() }, activitySummary: { invalidate: vi.fn() }, pricing: { invalidate: vi.fn() } } }),
+    useUtils: () => ({ admin: { bookingList: { invalidate: vi.fn() }, activitySummary: { invalidate: vi.fn() }, pricing: { invalidate: vi.fn() }, pricingHistory: { invalidate: vi.fn() } } }),
     admin: {
       bookingList: { useQuery: () => ({ data: queryData, isLoading: false, error: null }) },
       activitySummary: { useQuery: (_input: unknown) => ({ data: activityData, isLoading: false, error: null }) },
       pricing: { useQuery: () => ({ data: pricingData, isLoading: false, error: null }) },
+      pricingHistory: { useQuery: () => ({ data: pricingHistoryData, isLoading: false, error: null }) },
       clientHistory: { useQuery: () => ({ data: historyData, isLoading: false, error: null }) },
       updateBooking: { useMutation: () => ({ mutate: updateMutate, isPending: false, isSuccess: false }) },
       updatePricing: { useMutation: (config: typeof options[number]) => { options[7] = config; return { mutate: updatePricingMutate, isPending: false }; } },
@@ -66,7 +68,7 @@ describe("Admin interactions", () => {
     exportPdfMutate.mockReset();
     exportActivityMutate.mockReset();
     updatePricingMutate.mockReset();
-    pricingData.basicUsd = 25; pricingData.numerologyAddonUsd = 10;
+    pricingData[0].basicUsd = 25; pricingData[0].numerologyAddonUsd = 10; pricingData[1].basicUsd = 23; pricingData[1].numerologyAddonUsd = 9; pricingData[2].basicUsd = 20; pricingData[2].numerologyAddonUsd = 8;
     sendPdfMutate.mockReset();
     bulkSendPdfMutate.mockReset();
     editClientMutate.mockReset();
@@ -265,9 +267,14 @@ describe("Admin interactions", () => {
     fireEvent.change(screen.getByRole("spinbutton", { name: "Basic reading price" }), { target: { value: "40" } });
     fireEvent.change(screen.getByRole("spinbutton", { name: "Numerology add-on price" }), { target: { value: "15" } });
     fireEvent.click(screen.getByRole("button", { name: "Save prices" }));
-    expect(updatePricingMutate).toHaveBeenCalledWith({ basicUsd: 40, numerologyAddonUsd: 15 });
+    expect(updatePricingMutate).toHaveBeenCalledWith({ currency: "USD", basicUsd: 40, numerologyAddonUsd: 15 });
     act(() => options[7].onSuccess?.({ basicUsd: 40, numerologyAddonUsd: 15 }));
+    expect(screen.getByText("Pricing change history")).toBeInTheDocument();
+    expect(screen.getAllByText(/owner-123/).length).toBeGreaterThan(0);
     expect(screen.getByRole("status")).toHaveTextContent("Prices updated.");
+    fireEvent.change(screen.getByRole("combobox", { name: "Currency" }), { target: { value: "EUR" } });
+    expect(screen.getByRole("spinbutton", { name: "Basic reading price" })).toHaveValue(23);
+    expect(screen.getByText("€32")).toBeInTheDocument();
   });
 
   it("formats admin dates in UTC ISO format", () => {
@@ -311,7 +318,7 @@ describe("Admin interactions", () => {
     fireEvent.change(screen.getByRole("combobox", { name: "Autosave interval" }), { target: { value: "2000" } });
     expect(localStorage.getItem(autosaveIntervalStorageKey())).toBe("2000");
     expect(screen.getByText("Change history")).toBeInTheDocument();
-    expect(screen.getByText(/owner-123/)).toBeInTheDocument();
+    expect(screen.getAllByText(/owner-123/).length).toBeGreaterThan(0);
     expect(screen.getByText(/name: Maya → Maya Updated/)).toBeInTheDocument();
     Object.assign(queryData[0], { natalPdfKey: null, natalPdfUrl: null, natalPdfName: null, deliveryStatus: "not_sent", interest: null, language: "English" });
     historyData.splice(0);
