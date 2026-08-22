@@ -1,6 +1,6 @@
 import { desc, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertBookingRequest, InsertUser, bookingRequests, users } from "../drizzle/schema";
+import { ClientChangeHistory, InsertBookingRequest, InsertUser, bookingRequests, clientChangeHistory, users } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -172,14 +172,28 @@ export async function attachNatalPdf(input: { id: number; key: string; url: stri
   return result[0];
 }
 
-export async function updateBookingClient(input: { id: number; name?: string; email?: string; birthDate?: string; birthTime?: string; birthCity?: string; birthCountry?: string; language?: string; interest?: string | null }) {
+export async function updateBookingClient(input: { id: number; changedBy: string; name?: string; email?: string; birthDate?: string; birthTime?: string; birthCity?: string; birthCountry?: string; language?: string; interest?: string | null }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
-  const { id, ...fields } = input;
-  await db.update(bookingRequests).set(fields).where(eq(bookingRequests.id, id));
+  const { id, changedBy, ...fields } = input;
+  const current = await db.select().from(bookingRequests).where(eq(bookingRequests.id, id)).limit(1);
+  if (!current[0]) throw new Error("Booking request not found");
+  const changedFields = Object.entries(fields).reduce<Record<string, { from: unknown; to: unknown }>>((accumulator, [key, value]) => {
+    if (value !== undefined && current[0][key as keyof typeof current[0]] !== value) accumulator[key] = { from: current[0][key as keyof typeof current[0]], to: value };
+    return accumulator;
+  }, {});
+  if (Object.keys(changedFields).length > 0) {
+    await db.update(bookingRequests).set(fields).where(eq(bookingRequests.id, id));
+    await db.insert(clientChangeHistory).values({ bookingId: id, changedBy, changes: JSON.stringify(changedFields) });
+  }
   const result = await db.select().from(bookingRequests).where(eq(bookingRequests.id, id)).limit(1);
-  if (!result[0]) throw new Error("Booking request not found");
-  return result[0];
+  return { booking: result[0], changed: Object.keys(changedFields).length > 0 };
+}
+
+export async function getClientChangeHistory(bookingId: number): Promise<ClientChangeHistory[]> {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  return db.select().from(clientChangeHistory).where(eq(clientChangeHistory.bookingId, bookingId)).orderBy(desc(clientChangeHistory.changedAt));
 }
 
 export async function updateBookingDelivery(input: { id: number; deliveryStatus: "sending" | "sent" | "failed"; deliveryError?: string | null; deliveredBy?: string | null }) {

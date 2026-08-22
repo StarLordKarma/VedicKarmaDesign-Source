@@ -114,3 +114,9 @@
 - [x] Add localized success, partial-failure, and failure notifications for bulk PDF delivery
 - [x] Add tests for modal editing, name/email search, and bulk outcome feedback
 - [x] Run full verification and save a new checkpoint
+- [x] Add autosave draft persistence for client modal edits
+- [x] Add admin filters by client language and interests
+- [x] Add persistent client change-history records with owner and timestamp
+- [x] Add admin history view for each client
+- [x] Add tests for draft autosave, language/interest filters, and change history
+- [x] Run full verification and save a new checkpoint

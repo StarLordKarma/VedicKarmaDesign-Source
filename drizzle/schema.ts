@@ -58,3 +58,13 @@ export const bookingRequests = mysqlTable("booking_requests", {
 
 export type BookingRequest = typeof bookingRequests.$inferSelect;
 export type InsertBookingRequest = typeof bookingRequests.$inferInsert;
+
+export const clientChangeHistory = mysqlTable("client_change_history", {
+  id: int("id").autoincrement().primaryKey(),
+  bookingId: int("bookingId").notNull(),
+  changedBy: varchar("changedBy", { length: 64 }).notNull(),
+  changedAt: timestamp("changedAt").defaultNow().notNull(),
+  changes: text("changes").notNull(),
+});
+
+export type ClientChangeHistory = typeof clientChangeHistory.$inferSelect;
