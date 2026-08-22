@@ -9,3 +9,9 @@ Automated validation at this checkpoint: `pnpm check` passed; `pnpm test` passed
 Final responsive verification after the viewport-aware branch: desktop `/admin` shows the Activity overview and Display preferences side by side. The 390x844 viewport shows the mobile header and stacked cards without horizontal overflow; the quick delivery queue remains below the first viewport by design and is rendered only when `useIsMobile()` detects the mobile breakpoint. The full-page mobile capture earlier confirmed the queue placement.
 
 Final code validation after the responsive correction: `pnpm check` passed, `pnpm test` passed with 55 tests and 1 optional credential test skipped, and `pnpm build` passed.
+
+## Activity tools verification — 2026-08-22
+
+Desktop preview at 1280x900 shows the Activity overview with date-from/date-to inputs, Clear range control, and Export activity CSV button aligned above the three metric cards. The owner dashboard remains readable with the existing Display preferences panel beside it.
+
+Mobile full-page preview at 390x844 shows the activity controls stacking without horizontal overflow, the compact Quick delivery queue remaining visible below Display preferences, and the existing client request controls continuing below. The current database has no rows, so failure retry and quick PDF action rows are represented by empty states rather than executable live actions.

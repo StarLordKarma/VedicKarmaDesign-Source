@@ -9,6 +9,7 @@ const { authState, startLoginMock, toastSuccess } = vi.hoisted(() => ({ authStat
 const updateMutate = vi.fn();
 const exportCsvMutate = vi.fn();
 const exportPdfMutate = vi.fn();
+const exportActivityMutate = vi.fn();
 const sendPdfMutate = vi.fn();
 const bulkSendPdfMutate = vi.fn();
 const editClientMutate = vi.fn();
@@ -25,14 +26,15 @@ vi.mock("@/const", () => ({ startLogin: startLoginMock }));
 vi.mock("sonner", () => ({ toast: { success: toastSuccess } }));
 vi.mock("@/lib/trpc", () => ({
   trpc: {
-    useUtils: () => ({ admin: { bookingList: { invalidate: vi.fn() } } }),
+    useUtils: () => ({ admin: { bookingList: { invalidate: vi.fn() }, activitySummary: { invalidate: vi.fn() } } }),
     admin: {
       bookingList: { useQuery: () => ({ data: queryData, isLoading: false, error: null }) },
-      activitySummary: { useQuery: () => ({ data: activityData, isLoading: false, error: null }) },
+      activitySummary: { useQuery: (_input: unknown) => ({ data: activityData, isLoading: false, error: null }) },
       clientHistory: { useQuery: () => ({ data: historyData, isLoading: false, error: null }) },
       updateBooking: { useMutation: () => ({ mutate: updateMutate, isPending: false, isSuccess: false }) },
       exportCsv: { useMutation: (config: typeof options[number]) => { options[0] = config; return { mutate: exportCsvMutate, isPending: false }; } },
       exportPdf: { useMutation: (config: typeof options[number]) => { options[1] = config; return { mutate: exportPdfMutate, isPending: false }; } },
+      exportActivityCsv: { useMutation: (config: typeof options[number]) => { options[6] = config; return { mutate: exportActivityMutate, isPending: false }; } },
       sendNatalPdf: { useMutation: (config: typeof options[number]) => { options[3] = config; return { mutate: sendPdfMutate, isPending: false }; } },
       bulkSendNatalPdf: { useMutation: (config: { onSuccess?: (result: { sent: number; failed: number }) => void; onError?: () => void }) => { options[4] = config as typeof options[number]; return { mutate: bulkSendPdfMutate, isPending: false }; } },
       editBookingClient: { useMutation: (config: { onSuccess?: (result: typeof row) => void; onError?: () => void }) => { options[5] = config as typeof options[number]; return { mutate: editClientMutate, isPending: false }; } },
@@ -58,6 +60,7 @@ describe("Admin interactions", () => {
     updateMutate.mockReset();
     exportCsvMutate.mockReset();
     exportPdfMutate.mockReset();
+    exportActivityMutate.mockReset();
     sendPdfMutate.mockReset();
     bulkSendPdfMutate.mockReset();
     editClientMutate.mockReset();
@@ -210,7 +213,7 @@ describe("Admin interactions", () => {
 
   it("renders owner activity metrics, persists display preferences, and supports mobile quick delivery", () => {
     Object.assign(queryData[0], { natalPdfKey: "natal-charts/1/chart.pdf", natalPdfUrl: "/manus-storage/chart.pdf", natalPdfName: "chart.pdf", deliveryStatus: "failed" });
-    activityData.deliveryFailures.push({ id: 1, name: "Maya", email: "maya@example.com", deliveryError: "Mailbox rejected", createdAt: new Date("2026-01-01T00:00:00Z") });
+    activityData.deliveryFailures.push({ id: 1, name: "Maya", email: "maya@example.com", deliveryError: "Mailbox rejected", createdAt: new Date("2026-01-01T00:00:00Z") }, { id: 4, name: "Nina", email: "nina@example.com", deliveryError: "Temporary provider failure", createdAt: new Date("2026-01-04T00:00:00Z") });
     activityData.pendingPayments.push({ id: 2, name: "Leo", email: "leo@example.com", totalUsd: 35, paymentStatus: "waiting", createdAt: new Date("2026-01-02T00:00:00Z") });
     activityData.recentlyEditedClients.push({ id: 3, bookingId: 1, name: "Maya", email: "maya@example.com", changedBy: "owner-123", changedAt: new Date("2026-01-03T00:00:00Z"), changes: "{}" });
     activityData.deliveryFailureCount = 9; activityData.pendingPaymentCount = 11; activityData.recentlyEditedClientCount = 13;
@@ -219,10 +222,21 @@ describe("Admin interactions", () => {
     expect(screen.getByText("Activity overview")).toBeInTheDocument();
     expect(screen.getByText("Quick delivery queue").closest("section")).toHaveClass("sm:hidden");
     expect(screen.getByText(/Mailbox rejected/)).toBeInTheDocument();
+    expect(screen.getByText(/Temporary provider failure/)).toBeInTheDocument();
     expect(screen.getByText("Pending payments")).toBeInTheDocument();
     expect(screen.getByText("9")).toBeInTheDocument();
     expect(screen.getByText("11")).toBeInTheDocument();
     expect(screen.getByText("13")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Retry PDF delivery: Maya/ }));
+    expect(sendPdfMutate).toHaveBeenCalledWith({ bookingId: 1 });
+    fireEvent.click(screen.getByRole("button", { name: /Retry PDF delivery: Nina/ }));
+    expect(sendPdfMutate).toHaveBeenCalledWith({ bookingId: 4 });
+    fireEvent.change(screen.getByLabelText("Activity from"), { target: { value: "2026-01-01" } });
+    fireEvent.change(screen.getByLabelText("Activity to"), { target: { value: "2026-01-31" } });
+    fireEvent.click(screen.getByRole("button", { name: "Export activity CSV" }));
+    expect(exportActivityMutate).toHaveBeenCalledWith({ from: "2026-01-01", to: "2026-01-31" });
+    act(() => options[6].onSuccess?.({ contentBase64: btoa("Event type,Booking ID"), filename: "activity.csv" }));
+    expect(screen.getByRole("status")).toHaveTextContent("Activity CSV exported.");
     fireEvent.change(screen.getByRole("combobox", { name: "Timezone" }), { target: { value: "UTC" } });
     fireEvent.change(screen.getByRole("combobox", { name: "Date format" }), { target: { value: "iso" } });
     expect(localStorage.getItem("admin-timezone")).toBe("UTC");

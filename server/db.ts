@@ -205,6 +205,7 @@ export async function updateBookingDelivery(input: { id: number; deliveryStatus:
   return result[0];
 }
 
+export type AdminActivityFilters = { from?: string; to?: string };
 export type AdminActivitySummary = {
   deliveryFailureCount: number;
   pendingPaymentCount: number;
@@ -213,25 +214,43 @@ export type AdminActivitySummary = {
   pendingPayments: Array<{ id: number; name: string; email: string; totalUsd: number; paymentStatus: string | null; createdAt: Date }>;
   recentlyEditedClients: Array<{ id: number; bookingId: number; name: string; email: string; changedBy: string; changedAt: Date; changes: string }>;
 };
+export type AdminActivityEvents = Pick<AdminActivitySummary, "deliveryFailures" | "pendingPayments" | "recentlyEditedClients">;
 
-export async function getAdminActivitySummary(): Promise<AdminActivitySummary> {
+function isWithinActivityRange(value: Date, filters: AdminActivityFilters) {
+  const timestamp = value.getTime();
+  const from = filters.from ? Date.parse(`${filters.from}T00:00:00.000Z`) : Number.NEGATIVE_INFINITY;
+  const to = filters.to ? Date.parse(`${filters.to}T23:59:59.999Z`) : Number.POSITIVE_INFINITY;
+  return timestamp >= from && timestamp <= to;
+}
+
+async function getAdminActivityEvents(filters: AdminActivityFilters = {}): Promise<AdminActivityEvents> {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   const bookings = await db.select().from(bookingRequests).orderBy(desc(bookingRequests.createdAt));
   const allHistories = await db.select().from(clientChangeHistory).orderBy(desc(clientChangeHistory.changedAt));
-  const histories = allHistories.slice(0, 8);
-  const failedBookings = bookings.filter((booking) => booking.deliveryStatus === "failed");
-  const pendingBookings = bookings.filter((booking) => ["waiting", "creating"].includes(booking.paymentStatus ?? ""));
+  const failedBookings = bookings.filter((booking) => booking.deliveryStatus === "failed" && isWithinActivityRange(booking.createdAt, filters));
+  const pendingBookings = bookings.filter((booking) => ["waiting", "creating"].includes(booking.paymentStatus ?? "") && isWithinActivityRange(booking.createdAt, filters));
   const bookingById = new Map(bookings.map((booking) => [booking.id, booking]));
   return {
-    deliveryFailureCount: failedBookings.length,
-    pendingPaymentCount: pendingBookings.length,
-    recentlyEditedClientCount: allHistories.length,
-    deliveryFailures: failedBookings.slice(0, 8).map((booking) => ({ id: booking.id, name: booking.name, email: booking.email, deliveryError: booking.deliveryError, createdAt: booking.createdAt })),
-    pendingPayments: pendingBookings.slice(0, 8).map((booking) => ({ id: booking.id, name: booking.name, email: booking.email, totalUsd: booking.totalUsd, paymentStatus: booking.paymentStatus, createdAt: booking.createdAt })),
-    recentlyEditedClients: histories.map((history) => { const booking = bookingById.get(history.bookingId); return { id: history.id, bookingId: history.bookingId, name: booking?.name ?? `Booking #${history.bookingId}`, email: booking?.email ?? "", changedBy: history.changedBy, changedAt: history.changedAt, changes: history.changes }; }),
+    deliveryFailures: failedBookings.map((booking) => ({ id: booking.id, name: booking.name, email: booking.email, deliveryError: booking.deliveryError, createdAt: booking.createdAt })),
+    pendingPayments: pendingBookings.map((booking) => ({ id: booking.id, name: booking.name, email: booking.email, totalUsd: booking.totalUsd, paymentStatus: booking.paymentStatus, createdAt: booking.createdAt })),
+    recentlyEditedClients: allHistories.filter((history) => isWithinActivityRange(history.changedAt, filters)).map((history) => { const booking = bookingById.get(history.bookingId); return { id: history.id, bookingId: history.bookingId, name: booking?.name ?? `Booking #${history.bookingId}`, email: booking?.email ?? "", changedBy: history.changedBy, changedAt: history.changedAt, changes: history.changes }; }),
   };
 }
+
+export async function getAdminActivitySummary(filters: AdminActivityFilters = {}): Promise<AdminActivitySummary> {
+  const events = await getAdminActivityEvents(filters);
+  return {
+    deliveryFailureCount: events.deliveryFailures.length,
+    pendingPaymentCount: events.pendingPayments.length,
+    recentlyEditedClientCount: events.recentlyEditedClients.length,
+    deliveryFailures: events.deliveryFailures.slice(0, 8),
+    pendingPayments: events.pendingPayments.slice(0, 8),
+    recentlyEditedClients: events.recentlyEditedClients.slice(0, 8),
+  };
+}
+
+export { getAdminActivityEvents };
 
 export async function updateBookingAdmin(input: { id: number; status?: "new" | "in_progress" | "completed" | "cancelled"; adminNote?: string | null; statusUpdatedBy?: string }) {
   const db = await getDb();

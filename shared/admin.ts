@@ -21,6 +21,10 @@ export const exportFormatSchema = z.enum(["csv", "pdf"]);
 export const sendNatalPdfSchema = z.object({ bookingId: z.number().int().positive() });
 export const bulkSendNatalPdfSchema = z.object({ bookingIds: z.array(z.number().int().positive()).min(1).max(50) }).superRefine((input, context) => { if (new Set(input.bookingIds).size !== input.bookingIds.length) context.addIssue({ code: z.ZodIssueCode.custom, message: "Duplicate booking IDs are not allowed." }); });
 export const clientHistorySchema = z.object({ bookingId: z.number().int().positive() });
+export const activityDateRangeSchema = z.object({
+  from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+}).refine((input) => !input.from || !input.to || input.from <= input.to, { message: "The activity date range is invalid." });
 export const editBookingClientSchema = z.object({
   id: z.number().int().positive(),
   name: z.string().trim().min(1).max(160).optional(),

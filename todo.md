@@ -152,3 +152,10 @@
 - [x] Add owner-only and mobile workflow access-control regression tests
 - [x] Run full validation and save a checkpoint for the test/settings update
 - [x] Save a fresh checkpoint after the admin test/settings update with final validation results
+- [x] Add owner-only retry action for failed PDF deliveries from Activity overview
+- [x] Add date-range filters to the owner activity dashboard and server summary query
+- [x] Add owner-only CSV export for filtered activity events
+- [x] Add automated tests for activity filtering, retry authorization, CSV output, and dashboard interactions
+- [x] Run full validation and save a checkpoint for the activity tools update
+- [x] Add per-row retry controls for every failed-delivery activity preview item
+- [x] Save a fresh checkpoint after the activity retry/date-range/CSV update

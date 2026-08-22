@@ -39,7 +39,7 @@ describe("owner notifications and admin access", () => {
 
   it("loads the activity summary for the configured owner", async () => {
     const caller = appRouter.createCaller(context("admin", ENV.ownerOpenId));
-    const summary = await caller.admin.activitySummary();
+    const summary = await caller.admin.activitySummary({ from: "2020-01-01", to: "2099-12-31" });
     expect(summary).toEqual(expect.objectContaining({
       deliveryFailureCount: expect.any(Number),
       pendingPaymentCount: expect.any(Number),
@@ -48,6 +48,18 @@ describe("owner notifications and admin access", () => {
       pendingPayments: expect.any(Array),
       recentlyEditedClients: expect.any(Array),
     }));
+  });
+
+  it("rejects invalid activity ranges before querying activity data", async () => {
+    const caller = appRouter.createCaller(context("admin", ENV.ownerOpenId));
+    await expect(caller.admin.activitySummary({ from: "2026-02-01", to: "2026-01-01" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+  });
+
+  it("exports the owner activity CSV for the configured owner", async () => {
+    const caller = appRouter.createCaller(context("admin", ENV.ownerOpenId));
+    const result = await caller.admin.exportActivityCsv({ from: "2020-01-01", to: "2099-12-31" });
+    expect(result.filename).toMatch(/^jyotish-activity-\d{4}-\d{2}-\d{2}\.csv$/);
+    expect(Buffer.from(result.contentBase64, "base64").toString("utf8")).toContain("Event type");
   });
 
   it("rejects an admin-role user whose identity is not the configured owner", async () => {
@@ -61,6 +73,7 @@ describe("owner notifications and admin access", () => {
     await expect(caller.admin.updateBooking({ id: 1, status: "completed" })).rejects.toMatchObject({ code: "FORBIDDEN" });
     await expect(caller.admin.exportCsv()).rejects.toMatchObject({ code: "FORBIDDEN" });
     await expect(caller.admin.exportPdf()).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(caller.admin.exportActivityCsv()).rejects.toMatchObject({ code: "FORBIDDEN" });
     await expect(caller.admin.attachNatalPdf({ bookingId: 1, fileName: "chart.pdf", contentBase64: "JVBERi0xLjQ=" })).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 

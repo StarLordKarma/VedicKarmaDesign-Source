@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildBookingsCsv, decodePdfBase64, sanitizePdfName } from "./export";
+import { buildActivityCsv, buildBookingsCsv, decodePdfBase64, sanitizePdfName } from "./export";
 import { attachNatalPdfSchema } from "@shared/admin";
 import type { BookingRequest } from "../drizzle/schema";
 
@@ -37,6 +37,21 @@ describe("admin exports and PDF validation", () => {
     expect(csv).toContain("maya@example.com");
     expect(csv).toContain("chart.pdf");
     expect(csv).toContain("completed");
+  });
+
+  it("exports owner activity events as a quoted UTF-8 CSV", () => {
+    const csv = buildActivityCsv({
+      deliveryFailures: [{ id: 7, name: "Maya Test", email: "maya@example.com", deliveryError: 'Mailbox "rejected"', createdAt: new Date("2026-01-01T00:00:00Z") }],
+      pendingPayments: [{ id: 8, name: "Leo Test", email: "leo@example.com", totalUsd: 35, paymentStatus: "waiting", createdAt: new Date("2026-01-02T00:00:00Z") }],
+      recentlyEditedClients: [{ id: 11, bookingId: 7, name: "Maya Test", email: "maya@example.com", changedBy: "owner-123", changedAt: new Date("2026-01-03T00:00:00Z"), changes: '{"name":{"from":"Maya","to":"Maya Test"}}' }],
+    });
+    expect(csv.startsWith("\uFEFF")).toBe(true);
+    expect(csv).toContain("delivery_failure");
+    expect(csv).toContain("pending_payment");
+    expect(csv).toContain("client_edited");
+    expect(csv).toContain('Mailbox ""rejected""');
+    expect(csv).toContain("owner-123");
+    expect(csv).toContain("2026-01-03T00:00:00.000Z");
   });
 
   it("accepts a PDF signature and rejects non-PDF data", () => {

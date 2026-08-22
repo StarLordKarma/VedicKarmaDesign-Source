@@ -1,9 +1,20 @@
 import PDFDocument from "pdfkit";
 import type { BookingRequest } from "../drizzle/schema";
+import type { AdminActivityEvents } from "./db";
 
 function escapeCsv(value: unknown) {
   const text = value == null ? "" : String(value);
   return `"${text.replace(/"/g, '""')}"`;
+}
+
+export function buildActivityCsv(events: AdminActivityEvents) {
+  const headers = ["Event type", "Booking ID", "Client", "Email", "Status", "Amount USD", "Details", "Changed by", "Occurred at"];
+  const rows = [
+    ...events.deliveryFailures.map((event) => ["delivery_failure", event.id, event.name, event.email, "failed", "", event.deliveryError ?? "", "", event.createdAt.toISOString()]),
+    ...events.pendingPayments.map((event) => ["pending_payment", event.id, event.name, event.email, event.paymentStatus ?? "waiting", event.totalUsd, "", "", event.createdAt.toISOString()]),
+    ...events.recentlyEditedClients.map((event) => ["client_edited", event.bookingId, event.name, event.email, "edited", "", event.changes, event.changedBy, event.changedAt.toISOString()]),
+  ];
+  return `\uFEFF${headers.map(escapeCsv).join(",")}\n${rows.map((row) => row.map(escapeCsv).join(",")).join("\n")}`;
 }
 
 export function buildBookingsCsv(rows: BookingRequest[]) {
