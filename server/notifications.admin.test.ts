@@ -69,6 +69,11 @@ describe("owner notifications and admin access", () => {
     }
   });
 
+  it("allows the manual smoke launcher only for the configured owner", async () => {
+    const nonOwner = appRouter.createCaller(context("admin", "another-admin"));
+    await expect(nonOwner.admin.runManualSmokeTest()).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
   it("exports pricing history CSV only for the configured owner", async () => {
     const owner = appRouter.createCaller(context("admin", ENV.ownerOpenId));
     const nonOwner = appRouter.createCaller(context("admin", "another-admin"));

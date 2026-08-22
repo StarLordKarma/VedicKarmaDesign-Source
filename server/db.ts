@@ -158,6 +158,12 @@ export async function createSmokeTestRun(runId: string) {
   return { id: Number(result[0].insertId), runId };
 }
 
+export async function updateSmokeTestRunProgress(runId: string, result: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.update(smokeTestRuns).set({ result }).where(eq(smokeTestRuns.runId, runId));
+}
+
 export async function finishSmokeTestRun(input: { runId: string; status: "succeeded" | "failed"; result: string; durationMs: number }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");

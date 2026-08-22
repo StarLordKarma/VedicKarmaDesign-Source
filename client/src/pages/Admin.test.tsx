@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
 import "@testing-library/jest-dom/vitest";
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import Admin, { autosaveIntervalStorageKey, draftSavedAtStorageKey, draftStorageKey, formatAdminDate, formatAutosaveTimestamp, getBulkDeliveryOutcome, matchesClientSearch, sortBookingRows } from "./Admin";
 import { formatCurrency, roundCurrencyAmount } from "@shared/currency";
@@ -13,6 +13,7 @@ const exportPdfMutate = vi.fn();
 const exportActivityMutate = vi.fn();
 const exportPricingHistoryMutate = vi.fn();
 const updatePricingMutate = vi.fn();
+const runManualSmokeTestMutate = vi.fn();
 const pricingData = [{ currency: "USD", basicUsd: 25, numerologyAddonUsd: 10 }, { currency: "EUR", basicUsd: 23, numerologyAddonUsd: 9 }, { currency: "GBP", basicUsd: 20, numerologyAddonUsd: 8 }];
 const pricingHistoryData = { items: [{ id: 1, currency: "USD", oldBasicAmount: 25, oldNumerologyAddonAmount: 10, newBasicAmount: 40, newNumerologyAddonAmount: 15, changedAt: new Date("2026-08-22T12:00:00Z"), changedBy: "owner-123", changedByName: "Anika Jyotish" }], total: 11, page: 1, pageSize: 10, totalPages: 2 };
 const smokeTestRunsData = [{ runId: "production-smoke-1724320000000", status: "succeeded", result: JSON.stringify({ ok: true, checkoutCurrency: "EUR" }), startedAt: new Date("2026-08-22T12:00:00Z"), finishedAt: new Date("2026-08-22T12:00:01Z"), durationMs: 1000 }];
@@ -38,7 +39,8 @@ vi.mock("@/lib/trpc", () => ({
       activitySummary: { useQuery: (_input: unknown) => ({ data: activityData, isLoading: false, error: null }) },
       pricing: { useQuery: () => ({ data: pricingData, isLoading: false, error: null }) },
       pricingHistory: { useQuery: () => ({ data: pricingHistoryData, isLoading: false, error: null }) },
-      smokeTestRuns: { useQuery: () => ({ data: smokeTestRunsData, isLoading: false, error: null }) },
+      smokeTestRuns: { useQuery: () => ({ data: smokeTestRunsData, isLoading: false, error: null, refetch: vi.fn() }) },
+      runManualSmokeTest: { useMutation: (config: typeof options[number]) => { options[9] = config; return { mutate: runManualSmokeTestMutate, isPending: false }; } },
       clientHistory: { useQuery: () => ({ data: historyData, isLoading: false, error: null }) },
       updateBooking: { useMutation: () => ({ mutate: updateMutate, isPending: false, isSuccess: false }) },
       updatePricing: { useMutation: (config: typeof options[number]) => { options[7] = config; return { mutate: updatePricingMutate, isPending: false }; } },
@@ -285,7 +287,12 @@ describe("Admin interactions", () => {
     expect(screen.getAllByText(/Anika Jyotish/).length).toBeGreaterThan(0);
     expect(screen.getByText(/Smoke-test run journal|Журнал запусков smoke-тестов/)).toBeInTheDocument();
     expect(screen.getByText(/Succeeded|Успешно/)).toBeInTheDocument();
-    expect(screen.getByText(/checkoutCurrency/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "View full JSON" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "View full JSON" }));
+    expect(screen.getByRole("dialog")).toHaveTextContent('"checkoutCurrency": "EUR"');
+    fireEvent.click(within(screen.getByRole("dialog")).getAllByRole("button", { name: "Close" })[0]);
+    fireEvent.click(screen.getByRole("button", { name: "Run smoke-test" }));
+    expect(runManualSmokeTestMutate).toHaveBeenCalledOnce();
     expect(screen.getByRole("button", { name: /Next history page|Следующая страница истории/ })).toBeEnabled();
     fireEvent.click(screen.getByRole("button", { name: /Next history page|Следующая страница истории/ }));
     fireEvent.click(screen.getByRole("button", { name: "Export pricing history CSV" }));
