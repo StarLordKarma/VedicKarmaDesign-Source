@@ -129,3 +129,9 @@
 - [x] Add toast on successful draft reset
 - [x] Add tests for draft restoration and toast feedback
 - [x] Run full verification and save a new checkpoint
+- [x] Add confirmation dialog before discarding an autosaved client draft
+- [x] Add admin-configurable autosave interval with persisted preference
+- [x] Show exact last autosave time in the client edit modal
+- [x] Add tests for confirmation, interval setting, and autosave timestamp
+- [x] Run full verification and save a new checkpoint
+- [x] Display autosave timestamp with second-level precision and record the final checkpoint after this refinement

@@ -3,7 +3,7 @@ import React from "react";
 import "@testing-library/jest-dom/vitest";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import Admin, { draftStorageKey, getBulkDeliveryOutcome, matchesClientSearch, sortBookingRows } from "./Admin";
+import Admin, { autosaveIntervalStorageKey, draftSavedAtStorageKey, draftStorageKey, formatAutosaveTimestamp, getBulkDeliveryOutcome, matchesClientSearch, sortBookingRows } from "./Admin";
 
 const { authState, startLoginMock, toastSuccess } = vi.hoisted(() => ({ authState: { user: { role: "admin" } as { role: string } | null }, startLoginMock: vi.fn(), toastSuccess: vi.fn() }));
 const updateMutate = vi.fn();
@@ -196,14 +196,19 @@ describe("Admin interactions", () => {
 
   it("shows a saved-draft badge and clears the draft from the modal", () => {
     Object.assign(queryData[0], { natalPdfKey: "natal-charts/1/chart.pdf", natalPdfUrl: "/manus-storage/chart.pdf", natalPdfName: "chart.pdf", deliveryStatus: "sent" });
-    localStorage.setItem(draftStorageKey(1), JSON.stringify({ name: "Maya Draft" }));
+    localStorage.setItem(draftStorageKey(1), JSON.stringify({ name: "Maya Draft" })); localStorage.setItem(draftSavedAtStorageKey(1), String(new Date("2026-08-22T12:34:56Z").getTime()));
     render(<Admin />);
     expect(screen.getByText("Unsaved draft")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Preview PDF" }));
     expect(screen.getByDisplayValue("Maya Draft")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Discard draft" }));
+    expect(screen.getByText("Discard this draft?")).toBeInTheDocument();
+    expect(localStorage.getItem(draftStorageKey(1))).not.toBeNull();
+    const discardActions = screen.getAllByRole("button", { name: "Discard draft" });
+    fireEvent.click(discardActions[discardActions.length - 1]);
     expect(toastSuccess).toHaveBeenCalledWith("Draft discarded");
     expect(localStorage.getItem(draftStorageKey(1))).toBeNull();
+    expect(localStorage.getItem(draftSavedAtStorageKey(1))).toBeNull();
     expect(screen.getByDisplayValue("Maya")).toBeInTheDocument();
     Object.assign(queryData[0], { natalPdfKey: null, natalPdfUrl: null, natalPdfName: null, deliveryStatus: "not_sent" });
   });
@@ -219,6 +224,12 @@ describe("Admin interactions", () => {
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
     fireEvent.click(screen.getByRole("button", { name: "Preview PDF" }));
     expect(screen.getByDisplayValue("Maya Draft")).toBeInTheDocument();
+    const savedAt = Number(localStorage.getItem(draftSavedAtStorageKey(1)));
+    expect(savedAt).toBeGreaterThan(0);
+    expect(screen.getByText((content) => content.includes(formatAutosaveTimestamp(savedAt)))).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Autosave interval" })).toHaveValue("1000");
+    fireEvent.change(screen.getByRole("combobox", { name: "Autosave interval" }), { target: { value: "2000" } });
+    expect(localStorage.getItem(autosaveIntervalStorageKey())).toBe("2000");
     expect(screen.getByText("Change history")).toBeInTheDocument();
     expect(screen.getByText(/owner-123/)).toBeInTheDocument();
     expect(screen.getByText(/name: Maya → Maya Updated/)).toBeInTheDocument();
