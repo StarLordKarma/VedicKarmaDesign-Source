@@ -3,12 +3,12 @@ import { appRouter } from "./routers";
 import { notifyOwner } from "./_core/notification";
 import type { TrpcContext } from "./_core/context";
 
-function context(role: "user" | "admin"): TrpcContext {
+function context(role: "user" | "admin", openId = "test-owner"): TrpcContext {
   const now = new Date();
   return {
     user: {
       id: 1,
-      openId: "test-owner",
+      openId,
       email: "owner@example.com",
       name: "Owner",
       loginMethod: "manus",
@@ -34,6 +34,19 @@ describe("owner notifications and admin access", () => {
   it("rejects a non-admin from the booking list", async () => {
     const caller = appRouter.createCaller(context("user"));
     await expect(caller.admin.bookingList()).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("rejects an admin-role user whose identity is not the configured owner", async () => {
+    const caller = appRouter.createCaller(context("admin", "another-admin-open-id"));
+    await expect(caller.admin.bookingList()).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("rejects a non-owner from every admin write/export action", async () => {
+    const caller = appRouter.createCaller(context("admin", "another-admin-open-id"));
+    await expect(caller.admin.updateBooking({ id: 1, status: "completed" })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(caller.admin.exportCsv()).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(caller.admin.exportPdf()).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(caller.admin.attachNatalPdf({ bookingId: 1, fileName: "chart.pdf", contentBase64: "JVBERi0xLjQ=" })).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 
   it("rejects a non-admin and unauthenticated caller from PDF delivery", async () => {

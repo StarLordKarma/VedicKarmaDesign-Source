@@ -77,3 +77,17 @@
 - [ ] Perform authenticated browser verification of admin search and date-range controls
 - [x] Verify DE/ES public experience on a mobile viewport
 - [ ] Document admin search/date UI verification at desktop and mobile sizes
+- [x] Restrict all admin procedures to OWNER_OPEN_ID, not merely role=admin
+- [x] Add owner-only authorization tests for admin data, settings, exports, uploads, delivery, and status actions
+- [x] Verify PDF email delivery with mocked provider/storage and document real-send safety limitation
+- [x] Verify client search and date filters through UI tests and rendered admin access path
+- [x] Add explicit owner-only rejection tests for updateBooking, exportCsv, exportPdf, and attachNatalPdf
+- [x] Attempt authenticated browser verification of admin dashboard search and from/to date filters; owner session unavailable, limitation documented
+- [x] Document authenticated admin filter verification limitation on desktop and mobile viewports; owner session unavailable
+- [x] Add clear owner sign-in instructions and a login CTA on the admin access screen
+- [x] Preserve OWNER_OPEN_ID owner-only server authorization for all admin procedures
+- [x] Add security setup documentation for OAuth owner access and recommended 2FA
+- [x] Evaluate whether app-level password/token auth is safe and necessary without weakening OAuth
+- [x] Add tests for admin access screen login guidance and owner-only authorization
+- [x] Verify admin login guidance and public/admin routes, then save a checkpoint
+- [ ] Save a new checkpoint containing the owner sign-in CTA, SECURITY.md, owner-only gate, and related tests/build results

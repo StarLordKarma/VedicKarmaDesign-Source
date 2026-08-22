@@ -5,6 +5,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import Admin from "./Admin";
 
+const { authState, startLoginMock } = vi.hoisted(() => ({ authState: { user: { role: "admin" } as { role: string } | null }, startLoginMock: vi.fn() }));
 const updateMutate = vi.fn();
 const exportCsvMutate = vi.fn();
 const exportPdfMutate = vi.fn();
@@ -15,7 +16,8 @@ const row = { id: 1, name: "Maya", email: "maya@example.com", birthDate: "1990-0
 const queryData = [row];
 
 vi.mock("@/components/DashboardLayout", () => ({ default: ({ children }: { children: React.ReactNode }) => <>{children}</> }));
-vi.mock("@/_core/hooks/useAuth", () => ({ useAuth: () => ({ user: { role: "admin" }, loading: false }) }));
+vi.mock("@/_core/hooks/useAuth", () => ({ useAuth: () => ({ user: authState.user, loading: false }) }));
+vi.mock("@/const", () => ({ startLogin: startLoginMock }));
 vi.mock("@/lib/trpc", () => ({
   trpc: {
     useUtils: () => ({ admin: { bookingList: { invalidate: vi.fn() } } }),
@@ -35,6 +37,8 @@ describe("Admin interactions", () => {
 
   beforeEach(() => {
     localStorage.clear();
+    authState.user = { role: "admin" };
+    startLoginMock.mockReset();
     options.length = 0;
     updateMutate.mockReset();
     exportCsvMutate.mockReset();
@@ -43,6 +47,14 @@ describe("Admin interactions", () => {
     attachMutateAsync.mockClear();
     Object.defineProperty(URL, "createObjectURL", { configurable: true, value: vi.fn(() => "blob:test") });
     Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: vi.fn() });
+  });
+
+  it("shows an OAuth login action when the owner is not signed in", () => {
+    authState.user = null;
+    render(<Admin />);
+    expect(screen.getByText("Admin access required")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Sign in as owner" }));
+    expect(startLoginMock).toHaveBeenCalledOnce();
   });
 
   it("toggles RU/EN labels and persists admin-locale", () => {
