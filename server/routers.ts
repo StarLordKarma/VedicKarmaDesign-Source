@@ -5,7 +5,7 @@ import { adminProcedure, publicProcedure, router } from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { bookingSchema, isProductionSmokeTestBooking } from "@shared/booking";
-import { activityDateRangeSchema, attachNatalPdfSchema, bulkSendNatalPdfSchema, clientHistorySchema, editBookingClientSchema, pricingCurrencySchema, pricingHistoryFilterSchema, pricingHistoryPageSchema, receiptEmailHistoryPageSchema, sendNatalPdfSchema, servicePricingSchema, smokeTestRunsPageSchema, updateBookingAdminSchema } from "@shared/admin";
+import { activityDateRangeSchema, attachNatalPdfSchema, bulkSendNatalPdfSchema, clientHistorySchema, editBookingClientSchema, pricingCurrencySchema, pricingHistoryFilterSchema, pricingHistoryPageSchema, receiptEmailHistoryPageSchema, sendNatalPdfSchema, servicePricingSchema, smokeTestRunsPageSchema, updateBookingAdminSchema, reportRunSchema, reportApprovalSchema } from "@shared/admin";
 import { createBookingRequest, createSmokeTestRun, deleteBookingRequest, finishSmokeTestRun, getAdminActivityEvents, getAdminActivitySummary, getBookingRequestById, getClientChangeHistory, getPricingHistory, getPricingHistoryPage, getServicePricing, getSmokeTestRuns, getSmokeTestRunsForExport, getSmokeTestRunsPage, getReceiptRetentionHours, cleanupExpiredReceiptFiles, listServicePricing, getReceiptEmailHistoryPage, getLatestReceiptEmailAttempt, createReceiptEmailAttempt, finishReceiptEmailAttempt, normalizeReceiptEmail, isReceiptEmailCoolingDown, recordReceiptEmailFailureAlert, RECEIPT_EMAIL_COOLDOWN_MS, updateBookingClient, updateBookingDelivery, updateBookingPayment, updateReceiptRetentionHours, updateServicePricing } from "./db";
 import { notifyOwner } from "./_core/notification";
 import { buildCheckoutBreakdownPdf, buildSmokeTestRunsCsv } from "./export";
@@ -17,6 +17,7 @@ import { sendClientNatalPdf, sendClientReceiptPdf } from "./client-delivery";
 import { storagePut } from "./storage";
 import { buildActivityCsv, buildBookingsCsv, buildBookingsPdf, buildPricingHistoryCsv, decodePdfBase64, sanitizePdfName } from "./export";
 import { ENV } from "./_core/env";
+import { approveReportVersion, enqueueReportJobForBooking, getReportReviewJob, listReportReviewJobs, processReportJob } from "./report-studio-db";
 
 async function cleanupSmokeTestBooking(input: Parameters<typeof isProductionSmokeTestBooking>[0], bookingId: number, reason: "success" | "failure") {
   if (!isProductionSmokeTestBooking(input)) return false;
@@ -101,6 +102,12 @@ export const appRouter = router({
       }
       return { results, sent: results.filter((result) => result.success).length, failed: results.filter((result) => !result.success).length } as const;
     }),
+  }),
+  reportStudio: router({
+    queue: adminProcedure.query(() => listReportReviewJobs()),
+    getJob: adminProcedure.input(z.object({ reportJobId: z.number().int().positive() })).query(({ input }) => getReportReviewJob(input.reportJobId)),
+    runCalculation: adminProcedure.input(reportRunSchema).mutation(({ input, ctx }) => processReportJob({ ...input, actorId: ctx.user.openId })),
+    approve: adminProcedure.input(reportApprovalSchema).mutation(({ input, ctx }) => approveReportVersion({ ...input, actorId: ctx.user.openId })),
   }),
   pricing: router({
     current: publicProcedure.input(pricingCurrencySchema.optional()).query(({ input }) => getServicePricing(input?.currency)),

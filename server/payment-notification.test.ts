@@ -5,9 +5,11 @@ describe("payment notification processor", () => {
   it("notifies once when payment transitions to confirmed", async () => {
     const sendNotification = vi.fn(async () => true);
     const updateStatus = vi.fn(async () => ({ previousStatus: "waiting", isConfirmed: true }));
-    const result = await processPaymentNotification({ bookingId: 7, paymentId: 99, paymentStatus: "finished", updateStatus, sendNotification });
+    const enqueueJob = vi.fn(async () => ({ created: true, jobId: 42, idempotencyKey: "7:1:hash:template" }));
+    const result = await processPaymentNotification({ bookingId: 7, paymentId: 99, paymentStatus: "finished", updateStatus, sendNotification, enqueueJob });
     expect(result.notified).toBe(true);
     expect(sendNotification).toHaveBeenCalledOnce();
+    expect(enqueueJob).toHaveBeenCalledWith(7, "system");
   });
 
   it("ignores callbacks for a booking already cleaned up by a smoke test", async () => {
@@ -19,10 +21,12 @@ describe("payment notification processor", () => {
 
   it("does not notify on repeated or non-confirmed statuses", async () => {
     const sendNotification = vi.fn(async () => true);
-    const repeated = await processPaymentNotification({ bookingId: 7, paymentStatus: "finished", updateStatus: vi.fn(async () => ({ previousStatus: "finished", isConfirmed: true })), sendNotification });
-    const waiting = await processPaymentNotification({ bookingId: 7, paymentStatus: "waiting", updateStatus: vi.fn(async () => ({ previousStatus: "waiting", isConfirmed: false })), sendNotification });
+    const enqueueJob = vi.fn(async () => ({ created: true, jobId: 42, idempotencyKey: "7:1:hash:template" }));
+    const repeated = await processPaymentNotification({ bookingId: 7, paymentStatus: "finished", updateStatus: vi.fn(async () => ({ previousStatus: "finished", isConfirmed: true })), sendNotification, enqueueJob });
+    const waiting = await processPaymentNotification({ bookingId: 7, paymentStatus: "waiting", updateStatus: vi.fn(async () => ({ previousStatus: "waiting", isConfirmed: false })), sendNotification, enqueueJob });
     expect(repeated.notified).toBe(false);
     expect(waiting.notified).toBe(false);
     expect(sendNotification).not.toHaveBeenCalled();
+    expect(enqueueJob).not.toHaveBeenCalled();
   });
 });

@@ -335,3 +335,10 @@
 - [x] Run typecheck, tests, and production build for the calculation adapter and save a checkpoint
 
 - [x] Remove mandatory AGPL legal-review wording from Report Studio documentation and release-status messaging while retaining technical license notices
+
+- [x] Enqueue an idempotent Report Studio report_job after verified successful payment
+- [x] Process queued report_jobs through the deterministic calculation worker without automatic client delivery
+- [x] Add owner-only Report Studio queue and report review screen with PDF preview
+- [x] Add owner-only report edit/approval actions and approval audit metadata before delivery
+- [x] Add queue, authorization, review, preview, approval, and UI regression tests
+- [x] Run full validation, responsive admin verification, and save a checkpoint
