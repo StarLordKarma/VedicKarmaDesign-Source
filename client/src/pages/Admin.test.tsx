@@ -3,7 +3,7 @@ import React from "react";
 import "@testing-library/jest-dom/vitest";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import Admin, { getBulkDeliveryOutcome, matchesClientSearch, sortBookingRows } from "./Admin";
+import Admin, { draftStorageKey, getBulkDeliveryOutcome, matchesClientSearch, sortBookingRows } from "./Admin";
 
 const { authState, startLoginMock } = vi.hoisted(() => ({ authState: { user: { role: "admin" } as { role: string } | null }, startLoginMock: vi.fn() }));
 const updateMutate = vi.fn();
@@ -191,6 +191,19 @@ describe("Admin interactions", () => {
     fireEvent.change(screen.getByRole("textbox", { name: "Interest contains" }), { target: { value: "health" } });
     expect(screen.getByText("No requests match this filter.")).toBeInTheDocument();
     Object.assign(queryData[0], { language: "English", interest: null });
+  });
+
+  it("shows a saved-draft badge and clears the draft from the modal", () => {
+    Object.assign(queryData[0], { natalPdfKey: "natal-charts/1/chart.pdf", natalPdfUrl: "/manus-storage/chart.pdf", natalPdfName: "chart.pdf", deliveryStatus: "sent" });
+    localStorage.setItem(draftStorageKey(1), JSON.stringify({ name: "Maya Draft" }));
+    render(<Admin />);
+    expect(screen.getByText("Unsaved draft")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Preview PDF" }));
+    expect(screen.getByDisplayValue("Maya Draft")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Discard draft" }));
+    expect(localStorage.getItem(draftStorageKey(1))).toBeNull();
+    expect(screen.getByDisplayValue("Maya")).toBeInTheDocument();
+    Object.assign(queryData[0], { natalPdfKey: null, natalPdfUrl: null, natalPdfName: null, deliveryStatus: "not_sent" });
   });
 
   it("autosaves client modal drafts and renders change history", async () => {

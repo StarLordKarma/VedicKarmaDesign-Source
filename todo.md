@@ -120,3 +120,7 @@
 - [x] Add admin history view for each client
 - [x] Add tests for draft autosave, language/interest filters, and change history
 - [x] Run full verification and save a new checkpoint
+- [x] Add saved-draft indicator to each client row when local autosave exists
+- [x] Add modal button to discard and reset autosaved client draft
+- [x] Add tests for draft indicator and reset behavior
+- [x] Run full verification and save a new checkpoint
