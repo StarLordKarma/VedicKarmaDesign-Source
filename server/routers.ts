@@ -15,6 +15,16 @@ import { storagePut } from "./storage";
 import { buildActivityCsv, buildBookingsCsv, buildBookingsPdf, buildPricingHistoryCsv, decodePdfBase64, sanitizePdfName } from "./export";
 import { ENV } from "./_core/env";
 
+async function cleanupSmokeTestBooking(input: Parameters<typeof isProductionSmokeTestBooking>[0], bookingId: number, reason: "success" | "failure") {
+  if (!isProductionSmokeTestBooking(input)) return false;
+  try {
+    await deleteBookingRequest(bookingId);
+  } catch (cleanupError) {
+    console.error(`[SmokeTest] Failed to clean up ${reason} test booking`, cleanupError);
+  }
+  return true;
+}
+
 export const appRouter = router({
     // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
   system: systemRouter,
@@ -119,16 +129,11 @@ export const appRouter = router({
           savePayment: updateBookingPayment,
           markFailed: async (id) => updateBookingPayment({ id, paymentStatus: "failed" }),
         });
-        const shouldCleanupSmokeTest = isProductionSmokeTestBooking(input);
-        if (shouldCleanupSmokeTest) {
-          try { await deleteBookingRequest(result.id); } catch (cleanupError) { console.error("[SmokeTest] Failed to clean up test booking", cleanupError); }
-        }
+        const shouldCleanupSmokeTest = await cleanupSmokeTestBooking(input, result.id, "success");
         return { ...result, totalUsd, invoiceUrl: invoice.invoice_url, paymentId: invoice.id, smokeTestCleanup: shouldCleanupSmokeTest ? "completed" : undefined };
       } catch (error) {
         console.error("[Payments] Failed to create NOWPayments invoice", error);
-        if (isProductionSmokeTestBooking(input)) {
-          try { await deleteBookingRequest(result.id); } catch (cleanupError) { console.error("[SmokeTest] Failed to clean up failed test booking", cleanupError); }
-        }
+        await cleanupSmokeTestBooking(input, result.id, "failure");
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "We could not create the crypto checkout. Please try again." });
       }
     }),
