@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildActivityCsv, buildBookingsCsv, buildCheckoutBreakdownPdf, buildPricingHistoryCsv, buildSmokeTestRunsCsv, decodePdfBase64, sanitizePdfName } from "./export";
+import { buildActivityCsv, buildBookingsCsv, buildCheckoutBreakdownPdf, buildReportStylePreviewPdf, buildPricingHistoryCsv, buildSmokeTestRunsCsv, decodePdfBase64, sanitizePdfName } from "./export";
 import { attachNatalPdfSchema } from "@shared/admin";
 import type { BookingRequest } from "../drizzle/schema";
 
@@ -80,6 +80,14 @@ describe("admin exports and PDF validation", () => {
     const pdf = await buildCheckoutBreakdownPdf({ currency: "EUR", locale: "ru-RU", basicUsd: 25, numerologyAddonUsd: 10, addon: true, labels: { title: "Разбивка стоимости", currency: "Валюта", basic: "Базовое чтение", addon: "Индийская нумерология", addonNotSelected: "Не выбрано", total: "Итого", generated: "Сформировано" } });
     expect(pdf.subarray(0, 8).toString("ascii")).toContain("%PDF");
     expect(pdf.length).toBeGreaterThan(500);
+  });
+
+  it("builds a one-page localized report style prototype with a background image", async () => {
+    const background = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64");
+    const pdf = await buildReportStylePreviewPdf({ background, locale: "ru", packageType: "basic", fontPath: "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf" });
+    expect(pdf.subarray(0, 8).toString("ascii")).toContain("%PDF");
+    expect(pdf.length).toBeGreaterThan(2000);
+    expect(pdf.toString("latin1")).toContain("/Count 1");
   });
 
   it("accepts a PDF signature and rejects non-PDF data", () => {

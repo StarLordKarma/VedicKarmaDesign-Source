@@ -294,3 +294,11 @@
 - [x] Define deterministic astrology calculation inputs, report sections, Parasara Light 9-inspired visual language, and AI-assisted narrative boundaries
 - [x] Define security, privacy, idempotency, retry, observability, retention, and rollback requirements
 - [x] Prepare implementation roadmap, risks, acceptance criteria, and owner decisions
+
+# Report Studio — первый кодовый срез
+- [x] Add Report Studio tables from the approved architecture to drizzle/schema.ts
+- [x] Generate and inspect a non-destructive Drizzle migration for the new tables
+- [x] Apply the migration and verify table structure in the database
+- [x] Create a one-page PDF style prototype using the supplied cosmology background asset
+- [x] Add PDF prototype regression coverage for layout, Unicode text, background handling, and disclaimer
+- [x] Validate the migration, PDF artifact, tests, and preview, then save a checkpoint

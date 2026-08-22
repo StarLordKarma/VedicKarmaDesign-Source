@@ -3,6 +3,77 @@ import type { BookingRequest, ServicePricingHistory } from "../drizzle/schema";
 import type { AdminActivityEvents } from "./db";
 import { formatCurrency, type SupportedCurrency } from "../shared/currency";
 
+export type ReportPreviewLocale = "ru" | "en" | "de";
+
+const reportPreviewCopy: Record<ReportPreviewLocale, { eyebrow: string; title: string; subtitle: string; packageLabel: string; settings: string; settingsValue: string; sampleHeading: string; sampleBody: string; disclaimer: string }> = {
+  ru: {
+    eyebrow: "ВЕДИЧЕСКАЯ АСТРОЛОГИЯ · JYOTISH",
+    title: "Ваша карта внутреннего неба",
+    subtitle: "Предварительный образ будущего подробного отчёта",
+    packageLabel: "Базовый отчёт · D1 / Рāśi",
+    settings: "Методика",
+    settingsValue: "Сидерический зодиак · Лахири · Vimshottari dasha",
+    sampleHeading: "Основные акценты карты",
+    sampleBody: "Этот демонстрационный разворот показывает светлую editorial-верстку отчёта. Фактические положения планет и интерпретационный текст будут добавлены после детерминированного расчёта и проверки владельцем.",
+    disclaimer: "Демонстрационный макет. Астрологическая интерпретация носит информационный и рефлексивный характер, не является медицинской, психологической, юридической или финансовой консультацией и не гарантирует результат.",
+  },
+  en: {
+    eyebrow: "VEDIC ASTROLOGY · JYOTISH",
+    title: "A clearer map of your inner sky",
+    subtitle: "Preview of the future detailed report",
+    packageLabel: "Basic report · D1 / Rāśi",
+    settings: "Method",
+    settingsValue: "Sidereal zodiac · Lahiri · Vimshottari dasha",
+    sampleHeading: "Core chart themes",
+    sampleBody: "This demonstration spread presents the light editorial direction of the report. Actual planetary positions and interpretive text will be added after deterministic calculation and owner review.",
+    disclaimer: "Demonstration layout. Astrological interpretation is informational and reflective, is not medical, psychological, legal or financial advice, and does not guarantee any outcome.",
+  },
+  de: {
+    eyebrow: "VEDISCHE ASTROLOGIE · JYOTISH",
+    title: "Eine klarere Karte Ihres inneren Himmels",
+    subtitle: "Vorschau auf den späteren ausführlichen Bericht",
+    packageLabel: "Basisbericht · D1 / Rāśi",
+    settings: "Methode",
+    settingsValue: "Siderischer Tierkreis · Lahiri · Vimshottari-Dasha",
+    sampleHeading: "Zentrale Themen der Karte",
+    sampleBody: "Diese Demonstrationsseite zeigt die helle redaktionelle Gestaltung des Berichts. Tatsächliche Planetenpositionen und interpretative Texte werden nach der deterministischen Berechnung und der Prüfung durch die Inhaberin ergänzt.",
+    disclaimer: "Demonstrationslayout. Die astrologische Interpretation dient der Information und Reflexion, ist keine medizinische, psychologische, rechtliche oder finanzielle Beratung und garantiert kein Ergebnis.",
+  },
+};
+
+export async function buildReportStylePreviewPdf(input: { background: Buffer; locale?: ReportPreviewLocale; clientName?: string; packageType?: "basic" | "basic_plus"; fontPath?: string }) {
+  const locale = input.locale ?? "ru";
+  const copy = reportPreviewCopy[locale];
+  const packageLabel = input.packageType === "basic_plus" ? copy.packageLabel.replace(/Basic|Базовый|Basisbericht/gi, (match) => ({ Basic: "Basic+ report", "Базовый": "Расширенный отчёт", Basisbericht: "Plusbericht" }[match] ?? match)) : copy.packageLabel;
+  const doc = new PDFDocument({ size: "A4", margin: 0, info: { Title: copy.title, Subject: "Report Studio visual prototype" } });
+  const chunks: Buffer[] = [];
+  const result = new Promise<Buffer>((resolve, reject) => {
+    doc.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
+    doc.on("end", () => resolve(Buffer.concat(chunks)));
+    doc.on("error", reject);
+  });
+  const pageWidth = doc.page.width;
+  const pageHeight = doc.page.height;
+  const fontName = input.fontPath ? "ReportSans" : "Helvetica";
+  if (input.fontPath) doc.registerFont(fontName, input.fontPath);
+  doc.image(input.background, 0, 0, { width: pageWidth, height: pageHeight });
+  doc.fillOpacity(0.9).fillColor("#FBF6EC").roundedRect(42, 54, 390, 730, 18).fill();
+  doc.fillOpacity(1).fillColor("#A96346").fontSize(9).font(fontName).text(copy.eyebrow, 72, 94, { characterSpacing: 1.2 });
+  doc.fillColor("#302A25").font(fontName).fontSize(31).text(copy.title, 72, 145, { width: 300, lineGap: 4 });
+  doc.fillColor("#73685D").font(fontName).fontSize(12).text(copy.subtitle, 72, 270, { width: 290, lineGap: 4 });
+  doc.fillColor("#B47552").roundedRect(72, 336, 260, 28, 14).fill();
+  doc.fillColor("#FFF9F0").font(fontName).fontSize(9).text(packageLabel, 86, 346, { width: 232, align: "center" });
+  doc.fillColor("#302A25").font(fontName).fontSize(11).text(input.clientName ?? (locale === "ru" ? "Имя клиента" : locale === "de" ? "Name der Kundin / des Kunden" : "Client name"), 72, 404);
+  doc.fillColor("#73685D").font(fontName).fontSize(10).text(`${copy.settings}: ${copy.settingsValue}`, 72, 432, { width: 300, lineGap: 3 });
+  doc.moveTo(72, 490).lineTo(370, 490).lineWidth(0.7).strokeColor("#D8C8B4").stroke();
+  doc.fillColor("#302A25").font(fontName).fontSize(17).text(copy.sampleHeading, 72, 525, { width: 300 });
+  doc.fillColor("#514A43").font(fontName).fontSize(10.5).text(copy.sampleBody, 72, 566, { width: 300, lineGap: 5 });
+  doc.fillColor("#85776A").font(fontName).fontSize(7.5).text(copy.disclaimer, 72, 730, { width: 300, lineGap: 3 });
+  doc.fillColor("#A96346").font(fontName).fontSize(8).text("REPORT STUDIO · PREVIEW", 72, 812, { characterSpacing: 0.8 });
+  doc.end();
+  return result;
+}
+
 function escapeCsv(value: unknown) {
   const text = value == null ? "" : String(value);
   return `"${text.replace(/"/g, '""')}"`;
