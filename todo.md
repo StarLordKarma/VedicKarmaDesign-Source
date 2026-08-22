@@ -240,3 +240,8 @@
 - [x] Add localized Admin UI controls and save feedback for retention setting
 - [x] Add regression coverage for setting authorization, validation, persistence, and expiry calculations
 - [x] Run typecheck, full tests, build, responsive verification, and save a checkpoint
+- [x] Add owner-only manual cleanup mutation for expired receipt metadata with deleted-count feedback
+- [x] Add public receipt email delivery endpoint with validated recipient and PDF attachment
+- [x] Add localized Admin cleanup confirmation/feedback and checkout success email form
+- [x] Add regression coverage for cleanup authorization, email validation, delivery errors, and success states
+- [x] Run typecheck, full tests, build, responsive verification, and save a checkpoint

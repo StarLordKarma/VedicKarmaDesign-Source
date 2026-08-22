@@ -8,13 +8,15 @@ import Home from "./Home";
 
 const mutationState = { isPending: false, mutate: vi.fn() };
 const pdfMutationState = { isPending: false, mutate: vi.fn() };
+const emailMutationState = { isPending: false, mutate: vi.fn() };
 let mutationOptions: { onSuccess?: (result: { invoiceUrl: string }) => void } = {};
 let pdfMutationOptions: { onSuccess?: (result: { filename: string; contentBase64: string; url: string }) => void; onError?: (error: Error) => void } = {};
+let emailMutationOptions: { onSuccess?: () => void; onError?: () => void } = {};
 const pricingData = { basicUsd: 25, numerologyAddonUsd: 10 };
 
 vi.mock("@/lib/trpc", () => ({
   trpc: {
-    pricing: { current: { useQuery: () => ({ data: pricingData }) }, breakdownPdf: { useMutation: (options: typeof pdfMutationOptions) => { pdfMutationOptions = options; return pdfMutationState; } } },
+    pricing: { current: { useQuery: () => ({ data: pricingData }) }, breakdownPdf: { useMutation: (options: typeof pdfMutationOptions) => { pdfMutationOptions = options; return pdfMutationState; } }, emailBreakdownPdf: { useMutation: (options: typeof emailMutationOptions) => { emailMutationOptions = options; return emailMutationState; } } },
     booking: {
       submit: {
         useMutation: (options: typeof mutationOptions) => {
@@ -37,6 +39,8 @@ describe("Home booking payment UX", () => {
     mutationState.mutate.mockReset();
     pdfMutationState.isPending = false;
     pdfMutationState.mutate.mockReset();
+    emailMutationState.isPending = false;
+    emailMutationState.mutate.mockReset();
     Object.defineProperty(window.URL, "createObjectURL", { configurable: true, value: vi.fn(() => "blob:test") });
     Object.defineProperty(window.URL, "revokeObjectURL", { configurable: true, value: vi.fn() });
     Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: vi.fn().mockResolvedValue(undefined) } });
@@ -159,5 +163,30 @@ describe("Home booking payment UX", () => {
       vi.advanceTimersByTime(1800);
     });
     expect(assign).toHaveBeenCalledWith("https://checkout.example/invoice/1");
+  });
+
+  it("emails the generated receipt from the checkout success state and surfaces delivery errors", async () => {
+    const assign = vi.fn();
+    Object.defineProperty(window, "location", { configurable: true, value: { assign } });
+    render(<Home />);
+    fireEvent.change(screen.getByLabelText("Preferred name"), { target: { value: "Maya" } });
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "maya@example.com" } });
+    fireEvent.change(screen.getByLabelText("Date of birth"), { target: { value: "1990-04-12" } });
+    fireEvent.change(screen.getByLabelText("Exact time of birth"), { target: { value: "14:30" } });
+    fireEvent.change(screen.getByLabelText("City of birth"), { target: { value: "Delhi" } });
+    fireEvent.change(screen.getByLabelText("Country of birth"), { target: { value: "India" } });
+    fireEvent.click(screen.getByRole("button", { name: /Request my reading/i }));
+    await act(async () => { mutationOptions.onSuccess?.({ invoiceUrl: "https://checkout.example/invoice/2" }); });
+
+    const emailInput = screen.getByPlaceholderText("your@email.com");
+    expect(emailInput).toHaveValue("maya@example.com");
+    fireEvent.change(emailInput, { target: { value: "receipt@example.com" } });
+    fireEvent.submit(emailInput.closest("form") as HTMLFormElement);
+    expect(emailMutationState.mutate).toHaveBeenCalledWith(expect.objectContaining({ email: "receipt@example.com", currency: "USD", locale: "en", language: "English", labels: expect.objectContaining({ title: "Price breakdown", total: "Total" }) }));
+
+    await act(async () => { emailMutationOptions.onSuccess?.(); });
+    expect(screen.getByRole("status")).toHaveTextContent("Receipt sent by email.");
+    await act(async () => { emailMutationOptions.onError?.(); });
+    expect(screen.getByRole("alert")).toHaveTextContent("Could not send the receipt. Please try again.");
   });
 });

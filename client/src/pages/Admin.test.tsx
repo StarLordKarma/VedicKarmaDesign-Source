@@ -15,6 +15,7 @@ const exportPricingHistoryMutate = vi.fn();
 const exportSmokeRunsMutate = vi.fn();
 const updatePricingMutate = vi.fn();
 const updateReceiptRetentionMutate = vi.fn();
+const cleanupExpiredReceiptsMutate = vi.fn();
 const runManualSmokeTestMutate = vi.fn();
 const clipboardWriteText = vi.fn().mockResolvedValue(undefined);
 const receiptRetentionData = 48;
@@ -52,6 +53,7 @@ vi.mock("@/lib/trpc", () => ({
       updateBooking: { useMutation: () => ({ mutate: updateMutate, isPending: false, isSuccess: false }) },
       updatePricing: { useMutation: (config: typeof options[number]) => { options[7] = config; return { mutate: updatePricingMutate, isPending: false }; } },
       updateReceiptRetention: { useMutation: (config: typeof options[number]) => { options[11] = config; return { mutate: updateReceiptRetentionMutate, isPending: false }; } },
+      cleanupExpiredReceipts: { useMutation: (config: typeof options[number]) => { options[12] = config; return { mutate: cleanupExpiredReceiptsMutate, isPending: false }; } },
       exportCsv: { useMutation: (config: typeof options[number]) => { options[0] = config; return { mutate: exportCsvMutate, isPending: false }; } },
       exportPdf: { useMutation: (config: typeof options[number]) => { options[1] = config; return { mutate: exportPdfMutate, isPending: false }; } },
       exportActivityCsv: { useMutation: (config: typeof options[number]) => { options[6] = config; return { mutate: exportActivityMutate, isPending: false }; } },
@@ -91,6 +93,7 @@ describe("Admin interactions", () => {
     exportPricingHistoryMutate.mockReset();
     updatePricingMutate.mockReset();
     updateReceiptRetentionMutate.mockReset();
+    cleanupExpiredReceiptsMutate.mockReset();
     pricingData[0].basicUsd = 25; pricingData[0].numerologyAddonUsd = 10; pricingData[1].basicUsd = 23; pricingData[1].numerologyAddonUsd = 9; pricingData[2].basicUsd = 20; pricingData[2].numerologyAddonUsd = 8;
     sendPdfMutate.mockReset();
     bulkSendPdfMutate.mockReset();
@@ -433,6 +436,16 @@ describe("Admin interactions", () => {
     await waitFor(() => expect(attachMutateAsync).toHaveBeenCalledOnce());
     act(() => options[2].onSuccess?.({ contentBase64: "", filename: "" }));
     expect(screen.getByRole("status")).toHaveTextContent("PDF прикреплён.");
+  });
+
+  it("manually cleans expired receipts and reports the deleted count", async () => {
+    render(<Admin />);
+    fireEvent.click(screen.getByRole("button", { name: "Clean expired receipts" }));
+    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Clean receipts" }));
+    expect(cleanupExpiredReceiptsMutate).toHaveBeenCalledOnce();
+    act(() => options[12]?.onSuccess?.({ deleted: 3, retentionHours: 48 }));
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("3 expired receipts removed."));
   });
 
   it("accepts valid PDF upload and shows invalid/oversized feedback", async () => {
