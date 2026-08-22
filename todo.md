@@ -192,4 +192,4 @@
 - [x] Add an owner-only smoke-test run journal with status, results, and execution timestamps
 - [x] Add Admin UI pagination controls and smoke-test journal display
 - [x] Add regression/integration/UI tests for pagination and smoke-run journal authorization
-- [ ] Run full validation, production verification, responsive checks, and save a pricing checkpoint
+- [x] Run full validation, production verification, responsive checks, and save a pricing checkpoint
