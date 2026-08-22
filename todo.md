@@ -145,3 +145,10 @@
 - [x] Return accurate total counts alongside activity preview lists so metrics do not underreport beyond eight records
 - [x] Add breakpoint-aware mobile workflow test coverage for the compact quick-delivery queue
 - [x] Re-run final verification and save a fresh checkpoint after these corrections
+- [x] Add mock-data test cases for delivery failures, pending payments, and recently edited clients in the owner dashboard
+- [x] Add mock-data coverage for mobile PDF review and delivery actions
+- [x] Improve admin settings panel UI for timezone and date-format preferences with persistence feedback
+- [x] Add integration tests for the admin activity summary endpoint
+- [x] Add owner-only and mobile workflow access-control regression tests
+- [x] Run full validation and save a checkpoint for the test/settings update
+- [x] Save a fresh checkpoint after the admin test/settings update with final validation results

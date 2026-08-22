@@ -17,7 +17,7 @@ const options: Array<{ onSuccess?: (result: any) => void; onError?: () => void }
 const row = { id: 1, name: "Maya", email: "maya@example.com", birthDate: "1990-04-12", birthTime: "08:30", birthCity: "Berlin", birthCountry: "Germany", language: "English", addon: 0, totalUsd: 25, paymentStatus: "finished", status: "new", adminNote: null, createdAt: new Date("2026-01-01T00:00:00Z"), natalPdfUrl: null, natalPdfName: null };
 const queryData = [row];
 const historyData: Array<{ id: number; bookingId: number; changedBy: string; changedAt: Date; changes: string }> = [];
-const activityData = { deliveryFailures: [] as Array<{ id: number; name: string; email: string; deliveryError: string | null; createdAt: Date }>, pendingPayments: [] as Array<{ id: number; name: string; email: string; totalUsd: number; paymentStatus: string | null; createdAt: Date }>, recentlyEditedClients: [] as Array<{ id: number; bookingId: number; name: string; email: string; changedBy: string; changedAt: Date; changes: string }> };
+const activityData = { deliveryFailureCount: 0, pendingPaymentCount: 0, recentlyEditedClientCount: 0, deliveryFailures: [] as Array<{ id: number; name: string; email: string; deliveryError: string | null; createdAt: Date }>, pendingPayments: [] as Array<{ id: number; name: string; email: string; totalUsd: number; paymentStatus: string | null; createdAt: Date }>, recentlyEditedClients: [] as Array<{ id: number; bookingId: number; name: string; email: string; changedBy: string; changedAt: Date; changes: string }> };
 
 vi.mock("@/components/DashboardLayout", () => ({ default: ({ children }: { children: React.ReactNode }) => <>{children}</> }));
 vi.mock("@/_core/hooks/useAuth", () => ({ useAuth: () => ({ user: authState.user, loading: false }) }));
@@ -50,7 +50,7 @@ describe("Admin interactions", () => {
     queryData.splice(1);
     Object.assign(queryData[0], { natalPdfKey: null, natalPdfUrl: null, natalPdfName: null, deliveryStatus: "not_sent", interest: null, language: "English" });
     historyData.splice(0);
-    activityData.deliveryFailures.splice(0); activityData.pendingPayments.splice(0); activityData.recentlyEditedClients.splice(0);
+    activityData.deliveryFailureCount = 0; activityData.pendingPaymentCount = 0; activityData.recentlyEditedClientCount = 0; activityData.deliveryFailures.splice(0); activityData.pendingPayments.splice(0); activityData.recentlyEditedClients.splice(0);
     localStorage.clear();
     authState.user = { role: "admin" };
     startLoginMock.mockReset(); toastSuccess.mockReset();
@@ -70,13 +70,23 @@ describe("Admin interactions", () => {
     authState.user = null;
     render(<Admin />);
     expect(screen.getByText("Admin access required")).toBeInTheDocument();
+    expect(screen.queryByText("Activity overview")).not.toBeInTheDocument();
+    expect(screen.queryByText("Quick delivery queue")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Sign in as owner" }));
     expect(startLoginMock).toHaveBeenCalledOnce();
   });
 
+  it("blocks the mobile PDF workflow for authenticated non-admin users", () => {
+    authState.user = { role: "user" };
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
+    render(<Admin />);
+    expect(screen.getByText("Admin access required")).toBeInTheDocument();
+    expect(screen.queryByText("Quick delivery queue")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Send PDF" })).not.toBeInTheDocument();
+  });
+
   it("toggles RU/EN labels and persists admin-locale", () => {
     render(<Admin />);
-    expect(screen.getByRole("heading", { name: "Booking overview" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /LANGUAGE: RU/i }));
     expect(screen.getByRole("heading", { name: "Обзор заявок" })).toBeInTheDocument();
     expect(localStorage.getItem("admin-locale")).toBe("ru");
@@ -203,16 +213,21 @@ describe("Admin interactions", () => {
     activityData.deliveryFailures.push({ id: 1, name: "Maya", email: "maya@example.com", deliveryError: "Mailbox rejected", createdAt: new Date("2026-01-01T00:00:00Z") });
     activityData.pendingPayments.push({ id: 2, name: "Leo", email: "leo@example.com", totalUsd: 35, paymentStatus: "waiting", createdAt: new Date("2026-01-02T00:00:00Z") });
     activityData.recentlyEditedClients.push({ id: 3, bookingId: 1, name: "Maya", email: "maya@example.com", changedBy: "owner-123", changedAt: new Date("2026-01-03T00:00:00Z"), changes: "{}" });
+    activityData.deliveryFailureCount = 9; activityData.pendingPaymentCount = 11; activityData.recentlyEditedClientCount = 13;
     Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
     render(<Admin />);
     expect(screen.getByText("Activity overview")).toBeInTheDocument();
     expect(screen.getByText("Quick delivery queue").closest("section")).toHaveClass("sm:hidden");
     expect(screen.getByText(/Mailbox rejected/)).toBeInTheDocument();
     expect(screen.getByText("Pending payments")).toBeInTheDocument();
+    expect(screen.getByText("9")).toBeInTheDocument();
+    expect(screen.getByText("11")).toBeInTheDocument();
+    expect(screen.getByText("13")).toBeInTheDocument();
     fireEvent.change(screen.getByRole("combobox", { name: "Timezone" }), { target: { value: "UTC" } });
     fireEvent.change(screen.getByRole("combobox", { name: "Date format" }), { target: { value: "iso" } });
     expect(localStorage.getItem("admin-timezone")).toBe("UTC");
     expect(localStorage.getItem("admin-date-format")).toBe("iso");
+    expect(screen.getByText("Saved locally")).toBeInTheDocument();
     cleanup();
     render(<Admin />);
     expect(screen.getByRole("combobox", { name: "Timezone" })).toHaveValue("UTC");
