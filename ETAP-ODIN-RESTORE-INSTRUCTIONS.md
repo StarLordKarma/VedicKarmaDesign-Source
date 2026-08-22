@@ -262,3 +262,46 @@ pnpm build
 Для независимого запуска сохраните не только этот исходный архив. Нужны также зашифрованный database dump, отдельный backup S3 objects, список DNS/domain settings, OAuth application settings, NOWPayments callback configuration, Resend DNS verification, scheduler configuration и secret values в password manager. Никогда не объединяйте эти секреты с публичным source archive.
 
 Дата подготовки: 2026-08-23.
+
+
+## 15. Текущее состояние Report Studio
+
+Текущая реализация добавляет автоматическую цепочку `verified payment → report_jobs → geocoding → deterministic facts → AI narrative → PDF → owner review → approval → Resend delivery`. Сначала прочитайте `ETAP-ODIN-FULL-PROJECT-HISTORY.md`, `ETAP-DVA-REPORT-STUDIO-SPEC.md`, `ETAP-DVA-PDF-LAYOUT.md` и `docs/calculation-engine-research-notes.md`.
+
+Основные server files: `server/report-studio-db.ts`, `server/report-geocoding.ts`, `server/report-narrative.ts`, `server/vedic-astrology-calculator.ts`, `server/client-delivery.ts` и `server/export.ts`. Основной owner route — `/admin/report-studio`; его procedures находятся в `server/routers.ts` и защищены `adminProcedure`.
+
+## 16. Восстановление Report Studio
+
+После применения всех migrations проверьте наличие таблиц `report_jobs`, `calculation_snapshots`, `calculation_results`, `narrative_drafts`, `report_versions`, `report_sections`, `report_delivery_attempts`, `report_audit_events` и `report_studio_processing_settings`. Последняя таблица хранит `autoProcessEnabled`, `aiModel`, `maxTokens`, `maxSections`, `maxParagraphChars`, `updatedAt` и `updatedBy`; безопасные defaults — automatic processing OFF, `gpt-5-mini`, 5000 tokens, 6 sections и 1800 characters.
+
+Перед включением automatic processing убедитесь, что Maps proxy/geocoding credentials, database, S3 storage, Resend sender и deterministic calculation runtime доступны. При OFF jobs остаются queued и могут быть запущены владельцем из Report Studio. При ON первый verified payment асинхронно пытается запустить worker; ошибка worker не должна отменять или повторно ломать payment webhook.
+
+## 17. Расчёты и лицензированный runtime
+
+Расчётный adapter использует `sweph` на сервере и contract `vedic-report-calculation/v1`. Он рассчитывает sidereal Lahiri, D1/Rāśi, D9/Navāṁśa и Vimshottari. Не переносите вызов Swiss Ephemeris в browser bundle. Сохраняйте source/notice obligations и проверьте правила распространения выбранной AGPL/LGPL configuration в вашей deployment-модели.
+
+Для проверки выполните:
+
+```bash
+pnpm check
+pnpm test --run server/vedic-astrology-calculator.test.ts server/report-automation.test.ts server/export.test.ts
+pnpm build
+```
+
+## 18. AI model and limits
+
+AI narrative вызывается только server-side через `invokeLLM`. Allowlist текущего проекта: `gpt-5-nano`, `gpt-5-mini`, `gpt-5`, `claude-haiku-4-5`, `claude-sonnet-4-6` и `gemini-3-flash-preview`. Не принимайте произвольный model ID из browser или request body. Server router должен проверять model allowlist и limits: 1000–12000 tokens, 1–12 sections и 300–1800 characters per paragraph.
+
+Narrative prompt получает только validated calculation facts JSON. AI не должен рассчитывать планеты, менять chart facts, придумывать даты или давать medical/legal/financial guarantees. После ответа обязательны JSON Schema validation, fact-reference validation и prohibited-claims validation. Проверьте production model catalog перед тем, как добавлять новые IDs.
+
+## 19. PDF и delivery
+
+Worker генерирует 22 страницы для Basic и 25 страниц для Basic+. В отчёт входят vector panels D1 и, для Basic+, D9. PDF bytes сохраняются в S3-compatible storage; database содержит только metadata и storage key. Owner просматривает draft в iframe на `/admin/report-studio` и утверждает конкретную version.
+
+Approval запускает Resend только для approved version. Delivery attempts должны сохранять requested/completed timestamps, status, provider ID и error. Manual retry допустим только для `delivery_failed`; не добавляйте публичный retry endpoint и не разрешайте resend для `sent` версии.
+
+## 20. Универсальный порядок дальнейшего развития
+
+Сначала создайте staging deployment и заполните secrets через secret manager. Затем примените schema migrations, выполните typecheck/tests/build, проверьте OAuth owner access и private storage. После этого протестируйте geocoding на неоднозначных городах, deterministic chart snapshots на reference charts, AI narrative schema, PDF page count, approval transition и Resend delivery.
+
+Только после этого включайте auto-processing. Следующими практическими задачами являются расширенные benchmark fixtures, UI для редактирования narrative sections, полная история delivery attempts, retry backoff, timezone ambiguity confirmation и отдельный restore drill базы и S3 objects.

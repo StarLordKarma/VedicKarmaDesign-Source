@@ -365,3 +365,9 @@
 - [x] Apply selected model and limits to structured narrative generation without allowing prompt-controlled overrides
 - [x] Update Report Studio settings UI and add regression tests for charts, settings, and limits
 - [x] Run full validation, visual PDF checks, and save a checkpoint
+
+- [x] Create a complete step-by-step project formation history covering Stage One and current Report Studio work
+- [x] Create a universal AI restoration and continuation guide covering deployment, secrets, integrations, database, storage, tests, and remaining work
+- [x] Refresh the backup package index and README with current architecture, migrations, scripts, and version metadata
+- [x] Build an updated secret-free ZIP backup containing source, documentation, schema/migrations, and operational guides
+- [x] Verify archive integrity, exclude secrets/build artifacts, generate SHA-256 checksum, and deliver the package
