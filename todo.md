@@ -286,3 +286,11 @@
 - [x] Add implementation sequencing, dependencies, risks, acceptance criteria, and rollback guidance
 - [x] Add Stage Two plan to the unified ZIP archive and verify archive integrity
 - [x] Deliver the updated Stage One + Stage Two ZIP package
+
+# Следующая задача — автоматизированные натальные отчёты
+- [x] Audit current payment verification, booking data, PDF generation, storage, and delivery boundaries
+- [x] Compare an integrated site module with a separate owner-only report application
+- [x] Design a hybrid post-payment workflow with automatic calculation, report generation, review, edit, approval, and delivery states
+- [x] Define deterministic astrology calculation inputs, report sections, Parasara Light 9-inspired visual language, and AI-assisted narrative boundaries
+- [x] Define security, privacy, idempotency, retry, observability, retention, and rollback requirements
+- [x] Prepare implementation roadmap, risks, acceptance criteria, and owner decisions
