@@ -225,3 +225,7 @@
 - [x] Add client-side PDF download for the detailed checkout price breakdown
 - [x] Add regression coverage for birth-field tooltips and PDF breakdown download
 - [x] Run typecheck, tests, build, responsive verification, and save a checkpoint
+- [x] Localize PDF number and date formats for EN/RU/DE/ES according to selected user language
+- [x] Add secure receipt sharing links, messenger share actions, and copy-link feedback
+- [x] Add regression coverage for PDF locale formatting and sharing authorization/security behavior
+- [x] Run typecheck, full tests, build, responsive verification, and save a checkpoint

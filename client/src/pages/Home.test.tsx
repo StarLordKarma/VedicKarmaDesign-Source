@@ -9,7 +9,7 @@ import Home from "./Home";
 const mutationState = { isPending: false, mutate: vi.fn() };
 const pdfMutationState = { isPending: false, mutate: vi.fn() };
 let mutationOptions: { onSuccess?: (result: { invoiceUrl: string }) => void } = {};
-let pdfMutationOptions: { onSuccess?: (result: { filename: string; contentBase64: string }) => void; onError?: (error: Error) => void } = {};
+let pdfMutationOptions: { onSuccess?: (result: { filename: string; contentBase64: string; url: string }) => void; onError?: (error: Error) => void } = {};
 const pricingData = { basicUsd: 25, numerologyAddonUsd: 10 };
 
 vi.mock("@/lib/trpc", () => ({
@@ -39,6 +39,7 @@ describe("Home booking payment UX", () => {
     pdfMutationState.mutate.mockReset();
     Object.defineProperty(window.URL, "createObjectURL", { configurable: true, value: vi.fn(() => "blob:test") });
     Object.defineProperty(window.URL, "revokeObjectURL", { configurable: true, value: vi.fn() });
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: vi.fn().mockResolvedValue(undefined) } });
   });
 
   afterEach(() => {
@@ -95,14 +96,18 @@ describe("Home booking payment UX", () => {
     expect(screen.getByRole("button", { name: "Total" })).toBeInTheDocument();
   });
 
-  it("offers localized birth-field help and downloads the current detailed price breakdown as PDF", () => {
+  it("offers localized birth-field help, downloads the PDF, and shares its receipt link", async () => {
     render(<Home />);
     expect(screen.getByRole("button", { name: "Date of birth" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Exact time of birth" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Download price breakdown PDF" }));
     expect(pdfMutationState.mutate).toHaveBeenCalledWith(expect.objectContaining({ currency: "USD", locale: "en", addon: false, labels: expect.objectContaining({ title: "Price breakdown", basic: "Basic reading", total: "Total" }) }));
-    pdfMutationOptions.onSuccess?.({ filename: "price.pdf", contentBase64: btoa("%PDF-1.7") });
+    act(() => { pdfMutationOptions.onSuccess?.({ filename: "price.pdf", contentBase64: btoa("%PDF-1.7"), url: "/manus-storage/price-breakdowns/test.pdf" }); });
     expect(window.URL.createObjectURL).toHaveBeenCalled();
+    expect(screen.getByRole("link", { name: "WhatsApp" })).toHaveAttribute("href", expect.stringContaining(encodeURIComponent("http://localhost:3000/manus-storage/price-breakdowns/test.pdf")));
+    expect(screen.getByRole("link", { name: "Telegram" })).toHaveAttribute("href", expect.stringContaining(encodeURIComponent("http://localhost:3000/manus-storage/price-breakdowns/test.pdf")));
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Copy receipt link" })); });
+    expect(screen.getByRole("button", { name: "Receipt link copied" })).toBeInTheDocument();
   });
 
   it("persists the selected German language and resolves it on a later session", () => {
