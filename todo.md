@@ -159,3 +159,9 @@
 - [x] Run full validation and save a checkpoint for the activity tools update
 - [x] Add per-row retry controls for every failed-delivery activity preview item
 - [x] Save a fresh checkpoint after the activity retry/date-range/CSV update
+- [x] Add owner-only admin pricing editor for Basic and add-on service prices
+- [x] Persist validated pricing configuration and apply it to public UI and checkout totals
+- [x] Add pricing authorization, validation, persistence, display, and checkout regression tests
+- [x] Run migration, full validation, responsive verification, and save a pricing checkpoint
+- [x] Add owner-context integration test for persisted admin pricing round-trip
+- [x] Add booking submit regression test proving checkout uses persisted non-default pricing

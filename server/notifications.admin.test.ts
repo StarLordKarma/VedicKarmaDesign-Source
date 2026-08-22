@@ -3,6 +3,7 @@ import { appRouter } from "./routers";
 import { notifyOwner } from "./_core/notification";
 import type { TrpcContext } from "./_core/context";
 import { ENV } from "./_core/env";
+import { getServicePricing, updateServicePricing } from "./db";
 
 function context(role: "user" | "admin", openId = "test-owner"): TrpcContext {
   const now = new Date();
@@ -40,6 +41,8 @@ describe("owner notifications and admin access", () => {
   it("loads the activity summary for the configured owner", async () => {
     const caller = appRouter.createCaller(context("admin", ENV.ownerOpenId));
     const summary = await caller.admin.activitySummary({ from: "2020-01-01", to: "2099-12-31" });
+    const pricing = await caller.admin.pricing();
+    expect(pricing).toEqual(expect.objectContaining({ basicUsd: expect.any(Number), numerologyAddonUsd: expect.any(Number) }));
     expect(summary).toEqual(expect.objectContaining({
       deliveryFailureCount: expect.any(Number),
       pendingPaymentCount: expect.any(Number),
@@ -48,6 +51,18 @@ describe("owner notifications and admin access", () => {
       pendingPayments: expect.any(Array),
       recentlyEditedClients: expect.any(Array),
     }));
+  });
+
+  it("persists owner pricing updates and reads them back", async () => {
+    const caller = appRouter.createCaller(context("admin", ENV.ownerOpenId));
+    const original = await getServicePricing();
+    try {
+      const updated = await caller.admin.updatePricing({ basicUsd: 41, numerologyAddonUsd: 16 });
+      expect(updated).toEqual({ basicUsd: 41, numerologyAddonUsd: 16 });
+      await expect(caller.admin.pricing()).resolves.toEqual({ basicUsd: 41, numerologyAddonUsd: 16 });
+    } finally {
+      await updateServicePricing({ ...original, updatedBy: ENV.ownerOpenId });
+    }
   });
 
   it("rejects invalid activity ranges before querying activity data", async () => {
@@ -66,6 +81,8 @@ describe("owner notifications and admin access", () => {
     const caller = appRouter.createCaller(context("admin", "another-admin-open-id"));
     await expect(caller.admin.bookingList()).rejects.toMatchObject({ code: "FORBIDDEN" });
     await expect(caller.admin.activitySummary()).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(caller.admin.pricing()).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(caller.admin.updatePricing({ basicUsd: 40, numerologyAddonUsd: 15 })).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 
   it("rejects a non-owner from every admin write/export action", async () => {

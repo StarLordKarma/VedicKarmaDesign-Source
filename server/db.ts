@@ -1,6 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { ClientChangeHistory, InsertBookingRequest, InsertUser, bookingRequests, clientChangeHistory, users } from "../drizzle/schema";
+import { ClientChangeHistory, InsertBookingRequest, InsertUser, bookingRequests, clientChangeHistory, servicePricing, users } from "../drizzle/schema";
+import { READING_PRICES } from "@shared/pricing";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -87,6 +88,22 @@ export async function getUserByOpenId(openId: string) {
   const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
 
   return result.length > 0 ? result[0] : undefined;
+}
+
+export type ServicePricingConfig = { basicUsd: number; numerologyAddonUsd: number };
+
+export async function getServicePricing(): Promise<ServicePricingConfig> {
+  const db = await getDb();
+  if (!db) return { basicUsd: READING_PRICES.basic, numerologyAddonUsd: READING_PRICES.numerologyAddon };
+  const result = await db.select({ basicUsd: servicePricing.basicUsd, numerologyAddonUsd: servicePricing.numerologyAddonUsd }).from(servicePricing).where(eq(servicePricing.id, 1)).limit(1);
+  return result[0] ?? { basicUsd: READING_PRICES.basic, numerologyAddonUsd: READING_PRICES.numerologyAddon };
+}
+
+export async function updateServicePricing(input: ServicePricingConfig & { updatedBy: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.insert(servicePricing).values({ id: 1, basicUsd: input.basicUsd, numerologyAddonUsd: input.numerologyAddonUsd, updatedBy: input.updatedBy }).onDuplicateKeyUpdate({ set: { basicUsd: input.basicUsd, numerologyAddonUsd: input.numerologyAddonUsd, updatedBy: input.updatedBy, updatedAt: new Date() } });
+  return getServicePricing();
 }
 
 export async function createBookingRequest(input: InsertBookingRequest) {

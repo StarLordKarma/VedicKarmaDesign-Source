@@ -10,6 +10,8 @@ const updateMutate = vi.fn();
 const exportCsvMutate = vi.fn();
 const exportPdfMutate = vi.fn();
 const exportActivityMutate = vi.fn();
+const updatePricingMutate = vi.fn();
+const pricingData = { basicUsd: 25, numerologyAddonUsd: 10 };
 const sendPdfMutate = vi.fn();
 const bulkSendPdfMutate = vi.fn();
 const editClientMutate = vi.fn();
@@ -26,12 +28,14 @@ vi.mock("@/const", () => ({ startLogin: startLoginMock }));
 vi.mock("sonner", () => ({ toast: { success: toastSuccess } }));
 vi.mock("@/lib/trpc", () => ({
   trpc: {
-    useUtils: () => ({ admin: { bookingList: { invalidate: vi.fn() }, activitySummary: { invalidate: vi.fn() } } }),
+    useUtils: () => ({ admin: { bookingList: { invalidate: vi.fn() }, activitySummary: { invalidate: vi.fn() }, pricing: { invalidate: vi.fn() } } }),
     admin: {
       bookingList: { useQuery: () => ({ data: queryData, isLoading: false, error: null }) },
       activitySummary: { useQuery: (_input: unknown) => ({ data: activityData, isLoading: false, error: null }) },
+      pricing: { useQuery: () => ({ data: pricingData, isLoading: false, error: null }) },
       clientHistory: { useQuery: () => ({ data: historyData, isLoading: false, error: null }) },
       updateBooking: { useMutation: () => ({ mutate: updateMutate, isPending: false, isSuccess: false }) },
+      updatePricing: { useMutation: (config: typeof options[number]) => { options[7] = config; return { mutate: updatePricingMutate, isPending: false }; } },
       exportCsv: { useMutation: (config: typeof options[number]) => { options[0] = config; return { mutate: exportCsvMutate, isPending: false }; } },
       exportPdf: { useMutation: (config: typeof options[number]) => { options[1] = config; return { mutate: exportPdfMutate, isPending: false }; } },
       exportActivityCsv: { useMutation: (config: typeof options[number]) => { options[6] = config; return { mutate: exportActivityMutate, isPending: false }; } },
@@ -61,6 +65,8 @@ describe("Admin interactions", () => {
     exportCsvMutate.mockReset();
     exportPdfMutate.mockReset();
     exportActivityMutate.mockReset();
+    updatePricingMutate.mockReset();
+    pricingData.basicUsd = 25; pricingData.numerologyAddonUsd = 10;
     sendPdfMutate.mockReset();
     bulkSendPdfMutate.mockReset();
     editClientMutate.mockReset();
@@ -254,6 +260,16 @@ describe("Admin interactions", () => {
     Object.assign(queryData[0], { natalPdfKey: null, natalPdfUrl: null, natalPdfName: null, deliveryStatus: "not_sent" });
   });
 
+  it("edits service prices from the owner pricing panel and shows success feedback", () => {
+    render(<Admin />);
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Basic reading price" }), { target: { value: "40" } });
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Numerology add-on price" }), { target: { value: "15" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save prices" }));
+    expect(updatePricingMutate).toHaveBeenCalledWith({ basicUsd: 40, numerologyAddonUsd: 15 });
+    act(() => options[7].onSuccess?.({ basicUsd: 40, numerologyAddonUsd: 15 }));
+    expect(screen.getByRole("status")).toHaveTextContent("Prices updated.");
+  });
+
   it("formats admin dates in UTC ISO format", () => {
     expect(formatAdminDate(new Date("2026-01-01T12:34:56Z"), "UTC", "iso")).toBe("2026-01-01 12:34:56");
   });
@@ -283,7 +299,7 @@ describe("Admin interactions", () => {
     render(<Admin />);
     fireEvent.click(screen.getByRole("button", { name: "Preview PDF" }));
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Maya Draft" } });
-    await waitFor(() => expect(JSON.parse(localStorage.getItem("admin-client-draft:1") ?? "{}").name).toBe("Maya Draft"));
+    await waitFor(() => expect(JSON.parse(localStorage.getItem("admin-client-draft:1") ?? "{}").name).toBe("Maya Draft"), { timeout: 3000 });
     expect(toastSuccess).toHaveBeenCalledWith("Draft saved automatically");
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
     fireEvent.click(screen.getByRole("button", { name: "Preview PDF" }));

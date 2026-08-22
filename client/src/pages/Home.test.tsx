@@ -8,9 +8,11 @@ import Home from "./Home";
 
 const mutationState = { isPending: false, mutate: vi.fn() };
 let mutationOptions: { onSuccess?: (result: { invoiceUrl: string }) => void } = {};
+const pricingData = { basicUsd: 25, numerologyAddonUsd: 10 };
 
 vi.mock("@/lib/trpc", () => ({
   trpc: {
+    pricing: { current: { useQuery: () => ({ data: pricingData }) } },
     booking: {
       submit: {
         useMutation: (options: typeof mutationOptions) => {
@@ -34,6 +36,17 @@ describe("Home booking payment UX", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it("renders the current configured prices from the public pricing query", () => {
+    pricingData.basicUsd = 40;
+    pricingData.numerologyAddonUsd = 15;
+    render(<Home />);
+    expect(screen.getAllByText("$40").length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("checkbox"));
+    expect(screen.getAllByText("$55").length).toBeGreaterThan(0);
+    pricingData.basicUsd = 25;
+    pricingData.numerologyAddonUsd = 10;
   });
 
   it("persists the selected German language and resolves it on a later session", () => {

@@ -15,3 +15,7 @@ Final code validation after the responsive correction: `pnpm check` passed, `pnp
 Desktop preview at 1280x900 shows the Activity overview with date-from/date-to inputs, Clear range control, and Export activity CSV button aligned above the three metric cards. The owner dashboard remains readable with the existing Display preferences panel beside it.
 
 Mobile full-page preview at 390x844 shows the activity controls stacking without horizontal overflow, the compact Quick delivery queue remaining visible below Display preferences, and the existing client request controls continuing below. The current database has no rows, so failure retry and quick PDF action rows are represented by empty states rather than executable live actions.
+
+## Pricing editor verification — 2026-08-22
+
+The desktop public preview still renders the fallback/default Basic price of $25 before an owner changes the persisted configuration. The owner admin preview renders the new Service pricing section beside Display preferences with Basic reading price and Numerology add-on price inputs initialized to 25 and 10, plus the Save prices action. The layout remains readable at 1280x900.

@@ -3,9 +3,9 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { adminProcedure, publicProcedure, router } from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
-import { bookingSchema, getBookingTotal } from "@shared/booking";
-import { activityDateRangeSchema, attachNatalPdfSchema, bulkSendNatalPdfSchema, clientHistorySchema, editBookingClientSchema, sendNatalPdfSchema, updateBookingAdminSchema } from "@shared/admin";
-import { createBookingRequest, getAdminActivityEvents, getAdminActivitySummary, getBookingRequestById, getClientChangeHistory, updateBookingClient, updateBookingDelivery, updateBookingPayment } from "./db";
+import { bookingSchema } from "@shared/booking";
+import { activityDateRangeSchema, attachNatalPdfSchema, bulkSendNatalPdfSchema, clientHistorySchema, editBookingClientSchema, sendNatalPdfSchema, servicePricingSchema, updateBookingAdminSchema } from "@shared/admin";
+import { createBookingRequest, getAdminActivityEvents, getAdminActivitySummary, getBookingRequestById, getClientChangeHistory, getServicePricing, updateBookingClient, updateBookingDelivery, updateBookingPayment, updateServicePricing } from "./db";
 import { notifyOwner } from "./_core/notification";
 import { createCheckoutForBooking } from "./payment-flow";
 import { applyAdminBookingUpdate } from "./admin-update-flow";
@@ -29,6 +29,8 @@ export const appRouter = router({
   }),
   admin: router({
     bookingList: adminProcedure.query(() => getAllBookingRequests()),
+    pricing: adminProcedure.query(() => getServicePricing()),
+    updatePricing: adminProcedure.input(servicePricingSchema).mutation(({ input, ctx }) => updateServicePricing({ ...input, updatedBy: ctx.user.openId })),
     activitySummary: adminProcedure.input(activityDateRangeSchema.optional()).query(({ input }) => getAdminActivitySummary(input ?? {})),
     clientHistory: adminProcedure.input(clientHistorySchema).query(({ input }) => getClientChangeHistory(input.bookingId)),
     updateBooking: adminProcedure.input(updateBookingAdminSchema).mutation(({ input, ctx }) => applyAdminBookingUpdate({ ...input, adminOpenId: ctx.user.openId })),
@@ -77,9 +79,13 @@ export const appRouter = router({
       return { results, sent: results.filter((result) => result.success).length, failed: results.filter((result) => !result.success).length } as const;
     }),
   }),
+  pricing: router({
+    current: publicProcedure.query(() => getServicePricing()),
+  }),
   booking: router({
     submit: publicProcedure.input(bookingSchema).mutation(async ({ input, ctx }) => {
-      const totalUsd = getBookingTotal(input.addon);
+      const pricing = await getServicePricing();
+      const totalUsd = pricing.basicUsd + (input.addon ? pricing.numerologyAddonUsd : 0);
       const result = await createBookingRequest({
         name: input.name,
         email: input.email,

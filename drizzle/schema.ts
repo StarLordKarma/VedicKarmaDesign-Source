@@ -68,3 +68,14 @@ export const clientChangeHistory = mysqlTable("client_change_history", {
 });
 
 export type ClientChangeHistory = typeof clientChangeHistory.$inferSelect;
+
+export const servicePricing = mysqlTable("service_pricing", {
+  id: int("id").primaryKey(),
+  basicUsd: int("basicUsd").notNull(),
+  numerologyAddonUsd: int("numerologyAddonUsd").notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedBy: varchar("updatedBy", { length: 64 }).notNull(),
+});
+
+export type ServicePricing = typeof servicePricing.$inferSelect;
+export type InsertServicePricing = typeof servicePricing.$inferInsert;
