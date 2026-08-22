@@ -3,9 +3,9 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { adminProcedure, publicProcedure, router } from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
-import { bookingSchema } from "@shared/booking";
-import { activityDateRangeSchema, attachNatalPdfSchema, bulkSendNatalPdfSchema, clientHistorySchema, editBookingClientSchema, pricingCurrencySchema, sendNatalPdfSchema, servicePricingSchema, updateBookingAdminSchema } from "@shared/admin";
-import { createBookingRequest, getAdminActivityEvents, getAdminActivitySummary, getBookingRequestById, getClientChangeHistory, getPricingHistory, getServicePricing, listServicePricing, updateBookingClient, updateBookingDelivery, updateBookingPayment, updateServicePricing } from "./db";
+import { bookingSchema, isProductionSmokeTestBooking } from "@shared/booking";
+import { activityDateRangeSchema, attachNatalPdfSchema, bulkSendNatalPdfSchema, clientHistorySchema, editBookingClientSchema, pricingCurrencySchema, pricingHistoryFilterSchema, sendNatalPdfSchema, servicePricingSchema, updateBookingAdminSchema } from "@shared/admin";
+import { createBookingRequest, deleteBookingRequest, getAdminActivityEvents, getAdminActivitySummary, getBookingRequestById, getClientChangeHistory, getPricingHistory, getServicePricing, listServicePricing, updateBookingClient, updateBookingDelivery, updateBookingPayment, updateServicePricing } from "./db";
 import { notifyOwner } from "./_core/notification";
 import { createCheckoutForBooking } from "./payment-flow";
 import { applyAdminBookingUpdate } from "./admin-update-flow";
@@ -31,7 +31,7 @@ export const appRouter = router({
   admin: router({
     bookingList: adminProcedure.query(() => getAllBookingRequests()),
     pricing: adminProcedure.query(() => listServicePricing()),
-    pricingHistory: adminProcedure.query(async () => (await getPricingHistory()).map((entry) => ({ ...entry, changedByName: entry.changedBy === ENV.ownerOpenId ? ENV.ownerName : entry.changedBy }))),
+    pricingHistory: adminProcedure.input(pricingHistoryFilterSchema.optional()).query(async ({ input }) => (await getPricingHistory(50, input)).map((entry) => ({ ...entry, changedByName: entry.changedBy === ENV.ownerOpenId ? ENV.ownerName : entry.changedBy }))),
     updatePricing: adminProcedure.input(servicePricingSchema).mutation(({ input, ctx }) => updateServicePricing({ ...input, updatedBy: ctx.user.openId })),
     activitySummary: adminProcedure.input(activityDateRangeSchema.optional()).query(({ input }) => getAdminActivitySummary(input ?? {})),
     clientHistory: adminProcedure.input(clientHistorySchema).query(({ input }) => getClientChangeHistory(input.bookingId)),
@@ -39,7 +39,7 @@ export const appRouter = router({
     editBookingClient: adminProcedure.input(editBookingClientSchema).mutation(({ input, ctx }) => updateBookingClient({ ...input, changedBy: ctx.user.openId })),
     exportCsv: adminProcedure.mutation(async () => ({ filename: `jyotish-bookings-${new Date().toISOString().slice(0, 10)}.csv`, contentBase64: Buffer.from(buildBookingsCsv(await getAllBookingRequests()), "utf8").toString("base64") })),
     exportActivityCsv: adminProcedure.input(activityDateRangeSchema.optional()).mutation(async ({ input }) => ({ filename: `jyotish-activity-${new Date().toISOString().slice(0, 10)}.csv`, contentBase64: Buffer.from(buildActivityCsv(await getAdminActivityEvents(input ?? {})), "utf8").toString("base64") })),
-    exportPricingHistoryCsv: adminProcedure.mutation(async () => { const history = await getPricingHistory(); const namedHistory = history.map((entry) => ({ ...entry, changedByName: entry.changedBy === ENV.ownerOpenId ? ENV.ownerName : entry.changedBy })); return { filename: `jyotish-pricing-history-${new Date().toISOString().slice(0, 10)}.csv`, contentBase64: Buffer.from(buildPricingHistoryCsv(namedHistory), "utf8").toString("base64") }; }),
+    exportPricingHistoryCsv: adminProcedure.input(pricingHistoryFilterSchema.optional()).mutation(async ({ input }) => { const history = await getPricingHistory(500, input); const namedHistory = history.map((entry) => ({ ...entry, changedByName: entry.changedBy === ENV.ownerOpenId ? ENV.ownerName : entry.changedBy })); return { filename: `jyotish-pricing-history-${new Date().toISOString().slice(0, 10)}.csv`, contentBase64: Buffer.from(buildPricingHistoryCsv(namedHistory), "utf8").toString("base64") }; }),
     exportPdf: adminProcedure.mutation(async () => ({ filename: `jyotish-bookings-${new Date().toISOString().slice(0, 10)}.pdf`, contentBase64: (await buildBookingsPdf(await getAllBookingRequests())).toString("base64") })),
     attachNatalPdf: adminProcedure.input(attachNatalPdfSchema).mutation(async ({ input, ctx }) => {
       const buffer = decodePdfBase64(input.contentBase64);
@@ -119,9 +119,16 @@ export const appRouter = router({
           savePayment: updateBookingPayment,
           markFailed: async (id) => updateBookingPayment({ id, paymentStatus: "failed" }),
         });
-        return { ...result, totalUsd, invoiceUrl: invoice.invoice_url, paymentId: invoice.id };
+        const shouldCleanupSmokeTest = isProductionSmokeTestBooking(input);
+        if (shouldCleanupSmokeTest) {
+          try { await deleteBookingRequest(result.id); } catch (cleanupError) { console.error("[SmokeTest] Failed to clean up test booking", cleanupError); }
+        }
+        return { ...result, totalUsd, invoiceUrl: invoice.invoice_url, paymentId: invoice.id, smokeTestCleanup: shouldCleanupSmokeTest ? "completed" : undefined };
       } catch (error) {
         console.error("[Payments] Failed to create NOWPayments invoice", error);
+        if (isProductionSmokeTestBooking(input)) {
+          try { await deleteBookingRequest(result.id); } catch (cleanupError) { console.error("[SmokeTest] Failed to clean up failed test booking", cleanupError); }
+        }
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "We could not create the crypto checkout. Please try again." });
       }
     }),

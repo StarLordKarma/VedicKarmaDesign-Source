@@ -28,6 +28,11 @@ export const servicePricingSchema = z.object({
   basicUsd: z.number().int().min(1).max(10000),
   numerologyAddonUsd: z.number().int().min(0).max(10000),
 });
+export const pricingHistoryFilterSchema = z.object({
+  currency: currencySchema.optional(),
+  from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+}).refine((input) => !input.from || !input.to || input.from <= input.to, { message: "The pricing history date range is invalid." });
 
 export const activityDateRangeSchema = z.object({
   from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),

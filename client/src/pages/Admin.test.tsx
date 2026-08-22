@@ -283,6 +283,14 @@ describe("Admin interactions", () => {
     expect(screen.getAllByText(/Anika Jyotish/).length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("button", { name: "Export pricing history CSV" }));
     expect(exportPricingHistoryMutate).toHaveBeenCalledOnce();
+    fireEvent.change(screen.getByRole("combobox", { name: "Pricing history currency" }), { target: { value: "EUR" } });
+    fireEvent.change(screen.getByLabelText("Pricing history from"), { target: { value: "2026-08-01" } });
+    fireEvent.change(screen.getByLabelText("Pricing history to"), { target: { value: "2026-08-22" } });
+    fireEvent.click(screen.getByRole("button", { name: "Export pricing history CSV" }));
+    expect(exportPricingHistoryMutate).toHaveBeenLastCalledWith({ currency: "EUR", from: "2026-08-01", to: "2026-08-22" });
+    fireEvent.click(screen.getByRole("button", { name: "Clear history filters" }));
+    expect(screen.getByRole("combobox", { name: "Pricing history currency" })).toHaveValue("all");
+    expect(screen.getByLabelText("Pricing history from")).toHaveValue("");
     expect(screen.getByRole("status")).toHaveTextContent("Prices updated.");
     fireEvent.change(screen.getByRole("combobox", { name: "Currency" }), { target: { value: "EUR" } });
     expect(screen.getByRole("spinbutton", { name: "Basic reading price" })).toHaveValue(23);

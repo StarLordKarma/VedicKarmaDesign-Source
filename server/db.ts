@@ -1,5 +1,6 @@
 import { desc, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
+import { and, gte, lt } from "drizzle-orm";
 import { ClientChangeHistory, InsertBookingRequest, InsertUser, bookingRequests, clientChangeHistory, servicePricing, servicePricingCurrencies, servicePricingHistory, users } from "../drizzle/schema";
 import { READING_PRICES } from "@shared/pricing";
 import { ENV } from './_core/env';
@@ -119,10 +120,18 @@ export async function listServicePricing(): Promise<CurrencyPricingConfig[]> {
   return SUPPORTED_CURRENCIES.map((currency) => { const match = rows.find((row) => row.currency === currency); return match ? { ...match, currency } : { currency, ...defaultPricing }; });
 }
 
-export async function getPricingHistory(limit = 50) {
+export async function getPricingHistory(limit = 50, filters?: { currency?: "USD" | "EUR" | "GBP"; from?: string; to?: string }) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(servicePricingHistory).orderBy(desc(servicePricingHistory.changedAt)).limit(limit);
+  const conditions = [];
+  if (filters?.currency) conditions.push(eq(servicePricingHistory.currency, filters.currency));
+  if (filters?.from) conditions.push(gte(servicePricingHistory.changedAt, new Date(`${filters.from}T00:00:00.000Z`)));
+  if (filters?.to) {
+    const endExclusive = new Date(`${filters.to}T00:00:00.000Z`);
+    endExclusive.setUTCDate(endExclusive.getUTCDate() + 1);
+    conditions.push(lt(servicePricingHistory.changedAt, endExclusive));
+  }
+  return db.select().from(servicePricingHistory).where(conditions.length ? and(...conditions) : undefined).orderBy(desc(servicePricingHistory.changedAt)).limit(limit);
 }
 
 export async function updateServicePricing(input: ServicePricingConfig & { currency?: string; updatedBy: string }) {
@@ -145,6 +154,12 @@ export async function createBookingRequest(input: InsertBookingRequest) {
 
   const result = await db.insert(bookingRequests).values(input);
   return { id: Number(result[0].insertId) };
+}
+
+export async function deleteBookingRequest(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.delete(bookingRequests).where(eq(bookingRequests.id, id));
 }
 
 export async function updateBookingPayment(input: {
@@ -179,7 +194,8 @@ export async function updateBookingPaymentStatus(input: {
     .from(bookingRequests)
     .where(eq(bookingRequests.id, input.id))
     .limit(1);
-  const previousStatus = current[0]?.paymentStatus ?? null;
+  if (!current[0]) return { previousStatus: null, isConfirmed: false, missing: true };
+  const previousStatus = current[0].paymentStatus;
   const isConfirmed = ["finished", "confirmed", "partially_paid"].includes(input.paymentStatus);
   await db.update(bookingRequests).set({
     ...(input.paymentId ? { paymentId: input.paymentId } : {}),

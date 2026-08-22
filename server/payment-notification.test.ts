@@ -10,6 +10,13 @@ describe("payment notification processor", () => {
     expect(sendNotification).toHaveBeenCalledOnce();
   });
 
+  it("ignores callbacks for a booking already cleaned up by a smoke test", async () => {
+    const sendNotification = vi.fn(async () => true);
+    const result = await processPaymentNotification({ bookingId: 77, paymentId: 99, paymentStatus: "finished", updateStatus: vi.fn(async () => ({ previousStatus: null, isConfirmed: false, missing: true })), sendNotification });
+    expect(result).toEqual(expect.objectContaining({ notified: false, ignored: true, missing: true }));
+    expect(sendNotification).not.toHaveBeenCalled();
+  });
+
   it("does not notify on repeated or non-confirmed statuses", async () => {
     const sendNotification = vi.fn(async () => true);
     const repeated = await processPaymentNotification({ bookingId: 7, paymentStatus: "finished", updateStatus: vi.fn(async () => ({ previousStatus: "finished", isConfirmed: true })), sendNotification });

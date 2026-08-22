@@ -50,7 +50,9 @@ const checkout = await rpcPost("booking.submit", {
   addon: false,
   interest: "Automated production checkout verification",
   currency: "EUR",
+  smokeTest: true,
 });
 if (!checkout?.invoiceUrl || !checkout?.paymentId) throw new Error("Checkout response did not contain invoiceUrl and paymentId.");
+if (checkout.smokeTestCleanup !== "completed") throw new Error("Production smoke-test booking was not cleaned up automatically.");
 
 console.log(JSON.stringify({ ok: true, pricingCurrencies: currencies, checkoutCurrency: "EUR", bookingId: checkout.id, paymentId: checkout.paymentId, invoiceUrl: checkout.invoiceUrl }, null, 2));

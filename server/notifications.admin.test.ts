@@ -78,6 +78,15 @@ describe("owner notifications and admin access", () => {
     await expect(nonOwner.admin.exportPricingHistoryCsv()).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 
+  it("filters pricing history by currency and inclusive UTC date range", async () => {
+    const caller = appRouter.createCaller(context("admin", ENV.ownerOpenId));
+    const eurHistory = await caller.admin.pricingHistory({ currency: "EUR" });
+    expect(eurHistory.every((entry) => entry.currency === "EUR")).toBe(true);
+    const futureHistory = await caller.admin.pricingHistory({ from: "2099-01-01", to: "2099-12-31" });
+    expect(futureHistory).toHaveLength(0);
+    await expect(caller.admin.pricingHistory({ from: "2026-08-22", to: "2026-08-01" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+  });
+
   it("rejects unsupported currencies and defaults missing public currency to USD", async () => {
     const owner = appRouter.createCaller(context("admin", ENV.ownerOpenId));
     const publicCaller = appRouter.createCaller(context("user"));

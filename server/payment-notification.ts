@@ -16,6 +16,7 @@ export async function processPaymentNotification(input: {
     paymentId: input.paymentId ? String(input.paymentId) : undefined,
     paymentStatus: input.paymentStatus,
   });
+  if ("missing" in result && result.missing) return { notified: false, ignored: true, ...result };
   if (result.isConfirmed && shouldNotifyPayment(result.previousStatus, input.paymentStatus)) {
     await sendNotification({
       title: "Crypto payment confirmed",

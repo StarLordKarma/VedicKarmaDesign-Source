@@ -184,3 +184,7 @@
 - [x] Add owner-only CSV export for pricing change history
 - [x] Add a production smoke-test for currency selection and successful crypto checkout creation
 - [x] Run full validation, responsive verification, and save a pricing checkpoint
+- [x] Automatically clean up the booking created by each production smoke-test run using an explicit test marker
+- [x] Add owner-only pricing-history filters by currency and date range
+- [x] Add regression and integration tests for smoke-test cleanup safety and pricing-history filters
+- [ ] Run production smoke-test, full validation, responsive verification, and save a pricing checkpoint

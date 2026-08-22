@@ -12,9 +12,14 @@ export const bookingSchema = z.object({
   addon: z.boolean(),
   currency: z.enum(["USD", "EUR", "GBP"]).default("USD"),
   interest: z.string().trim().max(1000).optional(),
+  smokeTest: z.boolean().optional().default(false),
 });
 
 export type BookingInput = z.infer<typeof bookingSchema>;
+
+export function isProductionSmokeTestBooking(input: Pick<BookingInput, "email" | "interest" | "smokeTest">) {
+  return input.smokeTest === true && input.email.startsWith("production-smoke-") && input.interest === "Automated production checkout verification";
+}
 
 export function getBookingTotal(addon: boolean) {
   return READING_PRICES.basic + (addon ? READING_PRICES.numerologyAddon : 0);

@@ -4,13 +4,14 @@ const mocks = vi.hoisted(() => ({
   getServicePricing: vi.fn(async (currency = "USD") => ({ basicUsd: currency === "USD" ? 41 : 23, numerologyAddonUsd: currency === "USD" ? 16 : 9 })),
   createBookingRequest: vi.fn(async (input: Record<string, unknown>) => ({ id: 77, ...input, createdAt: new Date() })),
   updateBookingPayment: vi.fn(async () => undefined),
+  deleteBookingRequest: vi.fn(async () => undefined),
   createCheckoutForBooking: vi.fn(async (input: { totalUsd: number; addon: boolean; priceCurrency?: string }) => ({ id: "invoice-77", invoice_url: "https://checkout.test/invoice-77", totalUsd: input.totalUsd, addon: input.addon, priceCurrency: input.priceCurrency })),
   notifyOwner: vi.fn(),
 }));
 
 vi.mock("./db", async () => {
   const actual = await vi.importActual<typeof import("./db")>("./db");
-  return { ...actual, getServicePricing: mocks.getServicePricing, createBookingRequest: mocks.createBookingRequest, updateBookingPayment: mocks.updateBookingPayment };
+  return { ...actual, getServicePricing: mocks.getServicePricing, createBookingRequest: mocks.createBookingRequest, updateBookingPayment: mocks.updateBookingPayment, deleteBookingRequest: mocks.deleteBookingRequest };
 });
 vi.mock("./payment-flow", () => ({ createCheckoutForBooking: mocks.createCheckoutForBooking }));
 vi.mock("./_core/notification", () => ({ notifyOwner: mocks.notifyOwner }));
@@ -18,7 +19,7 @@ vi.mock("./_core/notification", () => ({ notifyOwner: mocks.notifyOwner }));
 import { appRouter } from "./routers";
 
 describe("booking pricing integration", () => {
-  beforeEach(() => { mocks.getServicePricing.mockClear(); mocks.createBookingRequest.mockClear(); mocks.createCheckoutForBooking.mockClear(); });
+  beforeEach(() => { mocks.getServicePricing.mockClear(); mocks.createBookingRequest.mockClear(); mocks.createCheckoutForBooking.mockReset(); mocks.createCheckoutForBooking.mockImplementation(async (input: { totalUsd: number; addon: boolean; priceCurrency?: string }) => ({ id: "invoice-77", invoice_url: "https://checkout.test/invoice-77", totalUsd: input.totalUsd, addon: input.addon, priceCurrency: input.priceCurrency })); mocks.deleteBookingRequest.mockClear(); });
 
   it("uses persisted non-default pricing for booking storage and checkout", async () => {
     const caller = appRouter.createCaller({
@@ -43,6 +44,21 @@ describe("booking pricing integration", () => {
     expect(mocks.getServicePricing).toHaveBeenCalledWith("USD");
     expect(mocks.createCheckoutForBooking).toHaveBeenCalledWith(expect.objectContaining({ bookingId: 77, totalUsd: 57, addon: true, priceCurrency: "USD", origin: "https://example.test" }));
     expect(result).toEqual(expect.objectContaining({ id: 77, totalUsd: 57, paymentId: "invoice-77", invoiceUrl: "https://checkout.test/invoice-77" }));
+    expect(mocks.deleteBookingRequest).not.toHaveBeenCalled();
+  });
+
+  it("cleans up a marked smoke-test booking after successful checkout creation", async () => {
+    const caller = appRouter.createCaller({ req: { protocol: "https", get: () => "example.test" } as never, res: {} as never, user: null });
+    const result = await caller.booking.submit({ name: "Smoke Test", email: "production-smoke-success@example.com", birthDate: "1990-04-12", birthTime: "08:30", birthCity: "Berlin", birthCountry: "Germany", language: "English", addon: false, interest: "Automated production checkout verification", smokeTest: true });
+    expect(result.smokeTestCleanup).toBe("completed");
+    expect(mocks.deleteBookingRequest).toHaveBeenCalledWith(77);
+  });
+
+  it("cleans up a marked smoke-test booking when checkout creation fails", async () => {
+    mocks.createCheckoutForBooking.mockRejectedValueOnce(new Error("provider unavailable"));
+    const caller = appRouter.createCaller({ req: { protocol: "https", get: () => "example.test" } as never, res: {} as never, user: null });
+    await expect(caller.booking.submit({ name: "Smoke Test", email: "production-smoke-failure@example.com", birthDate: "1990-04-12", birthTime: "08:30", birthCity: "Berlin", birthCountry: "Germany", language: "English", addon: false, interest: "Automated production checkout verification", smokeTest: true })).rejects.toMatchObject({ code: "INTERNAL_SERVER_ERROR" });
+    expect(mocks.deleteBookingRequest).toHaveBeenCalledWith(77);
   });
 
   it("rejects unsupported booking currency before creating an invoice", async () => {

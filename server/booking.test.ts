@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bookingSchema } from "@shared/booking";
-import { getBookingTotal } from "@shared/booking";
+import { bookingSchema, getBookingTotal, isProductionSmokeTestBooking } from "@shared/booking";
 
 describe("booking validation", () => {
   const validBooking = {
@@ -32,6 +31,13 @@ describe("booking validation", () => {
   it("defaults missing currency to USD and rejects unsupported currencies", () => {
     expect(bookingSchema.parse(validBooking).currency).toBe("USD");
     expect(bookingSchema.safeParse({ ...validBooking, currency: "JPY" }).success).toBe(false);
+  });
+
+  it("recognizes only explicitly marked production smoke-test bookings for cleanup", () => {
+    expect(isProductionSmokeTestBooking({ email: "production-smoke-123@example.com", interest: "Automated production checkout verification", smokeTest: true })).toBe(true);
+    expect(isProductionSmokeTestBooking({ email: "client@example.com", interest: "Automated production checkout verification", smokeTest: true })).toBe(false);
+    expect(isProductionSmokeTestBooking({ email: "production-smoke-123@example.com", interest: "Career themes", smokeTest: true })).toBe(false);
+    expect(isProductionSmokeTestBooking({ email: "production-smoke-123@example.com", interest: "Automated production checkout verification", smokeTest: false })).toBe(false);
   });
 
   it("calculates Basic and Add-on totals", () => {
