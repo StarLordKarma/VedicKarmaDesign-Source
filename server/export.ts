@@ -41,7 +41,7 @@ const reportPreviewCopy: Record<ReportPreviewLocale, { eyebrow: string; title: s
   },
 };
 
-export async function buildReportStylePreviewPdf(input: { background: Buffer; locale?: ReportPreviewLocale; clientName?: string; packageType?: "basic" | "basic_plus"; fontPath?: string }) {
+export async function buildReportStylePreviewPdf(input: { background: Buffer; locale?: ReportPreviewLocale; clientName?: string; packageType?: "basic" | "basic_plus"; fontPath?: string; narrativeSummary?: string }) {
   const locale = input.locale ?? "ru";
   const copy = reportPreviewCopy[locale];
   const packageLabel = input.packageType === "basic_plus" ? copy.packageLabel.replace(/Basic|Базовый|Basisbericht/gi, (match) => ({ Basic: "Basic+ report", "Базовый": "Расширенный отчёт", Basisbericht: "Plusbericht" }[match] ?? match)) : copy.packageLabel;
@@ -67,7 +67,7 @@ export async function buildReportStylePreviewPdf(input: { background: Buffer; lo
   doc.fillColor("#73685D").font(fontName).fontSize(10).text(`${copy.settings}: ${copy.settingsValue}`, 72, 432, { width: 300, lineGap: 3 });
   doc.moveTo(72, 490).lineTo(370, 490).lineWidth(0.7).strokeColor("#D8C8B4").stroke();
   doc.fillColor("#302A25").font(fontName).fontSize(17).text(copy.sampleHeading, 72, 525, { width: 300 });
-  doc.fillColor("#514A43").font(fontName).fontSize(10.5).text(copy.sampleBody, 72, 566, { width: 300, lineGap: 5 });
+  doc.fillColor("#514A43").font(fontName).fontSize(10.5).text(input.narrativeSummary ?? copy.sampleBody, 72, 566, { width: 300, lineGap: 5 });
   doc.fillColor("#85776A").font(fontName).fontSize(7.5).text(copy.disclaimer, 72, 730, { width: 300, lineGap: 3 });
   doc.fillColor("#A96346").font(fontName).fontSize(8).text("REPORT STUDIO · PREVIEW", 72, 812, { characterSpacing: 0.8 });
   doc.end();

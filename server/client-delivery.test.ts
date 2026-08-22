@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { sendClientNatalPdf, sendClientReceiptPdf } from "./client-delivery";
+import { sendClientNatalPdf, sendClientReceiptPdf, sendClientReportPdf } from "./client-delivery";
 
 const { signedUrl } = vi.hoisted(() => ({ signedUrl: vi.fn() }));
 vi.mock("./storage", () => ({ storageGetSignedUrl: signedUrl }));
@@ -14,6 +14,18 @@ describe("client natal PDF delivery", () => {
     expect(body.to).toEqual(["client@example.com"]);
     expect(body.attachments[0].filename).toBe("chart.pdf");
     expect(body.attachments[0].content).toBe(Buffer.from("%PDF-1.7").toString("base64"));
+    fetchMock.mockRestore();
+  });
+
+  it("sends an approved Report Studio PDF with the report-specific filename", async () => {
+    signedUrl.mockResolvedValue("https://storage.example/approved-report.pdf");
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("%PDF-1.7", { status: 200 })).mockResolvedValueOnce(new Response(JSON.stringify({ id: "report_email_1" }), { status: 200, headers: { "Content-Type": "application/json" } }));
+    const result = await sendClientReportPdf({ email: "client@example.com", name: "Maya", pdfKey: "report-studio/1/v1.pdf", pdfName: "vedic-report-1.pdf", language: "English" });
+    expect(result.id).toBe("report_email_1");
+    const body = JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body));
+    expect(body.to).toEqual(["client@example.com"]);
+    expect(body.attachments[0].filename).toBe("vedic-report-1.pdf");
+    expect(body.html).toContain("Your personalized Vedic astrology reading");
     fetchMock.mockRestore();
   });
 

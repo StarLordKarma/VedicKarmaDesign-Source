@@ -79,11 +79,5 @@ export type UpdateBookingAdminInput = z.infer<typeof updateBookingAdminSchema>;
 
 
 export const reportJobIdSchema = z.object({ reportJobId: z.number().int().positive() });
-export const reportRunSchema = z.object({
-  reportJobId: z.number().int().positive(),
-  latitude: z.number().min(-90).max(90),
-  longitude: z.number().min(-180).max(180),
-  timeZoneOffsetMinutes: z.number().int().min(-840).max(840),
-  timezone: z.string().trim().min(1).max(64),
-});
+export const reportRunSchema = z.object({ reportJobId: z.number().int().positive() });
 export const reportApprovalSchema = z.object({ reportJobId: z.number().int().positive(), versionId: z.number().int().positive(), summary: z.string().trim().max(1000).optional() });

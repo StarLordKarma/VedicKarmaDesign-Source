@@ -342,3 +342,11 @@
 - [x] Add owner-only report edit/approval actions and approval audit metadata before delivery
 - [x] Add queue, authorization, review, preview, approval, and UI regression tests
 - [x] Run full validation, responsive admin verification, and save a checkpoint
+
+- [x] Add city geocoding with validated latitude/longitude and IANA timezone resolution
+- [x] Persist geocoding provenance and quality flags in calculation snapshots
+- [x] Add structured AI narrative generation from validated facts JSON only
+- [x] Validate narrative schema, fact references, length, and prohibited claims before PDF rendering
+- [x] Add owner-only approval and idempotent Resend delivery for approved report versions
+- [x] Update Report Studio UI for geocode status, narrative generation, approval, and delivery
+- [x] Add integration/regression tests and run full validation before checkpoint

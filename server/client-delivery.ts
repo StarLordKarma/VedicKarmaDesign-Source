@@ -63,3 +63,26 @@ export async function sendClientReceiptPdf(input: { email: string; pdfKey: strin
   }
   return (await response.json()) as { id?: string };
 }
+
+
+export async function sendClientReportPdf(input: { email: string; name: string; pdfKey: string; pdfName: string; language: string }) {
+  if (!ENV.resendApiKey || !ENV.resendFromEmail) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Email delivery is not configured." });
+  const signedUrl = await storageGetSignedUrl(input.pdfKey);
+  const pdfResponse = await fetch(signedUrl, { signal: AbortSignal.timeout(20_000) });
+  if (!pdfResponse.ok) throw new TRPCError({ code: "BAD_GATEWAY", message: "Could not retrieve the approved report PDF from storage." });
+  const pdfBytes = new Uint8Array(await pdfResponse.arrayBuffer());
+  if (pdfBytes.length > 12 * 1024 * 1024) throw new TRPCError({ code: "PAYLOAD_TOO_LARGE", message: "The approved report PDF exceeds the delivery limit." });
+  const copy = getDeliveryCopy(input.language);
+  const safeName = escapeHtml(input.name);
+  const response = await fetch(RESEND_ENDPOINT, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${ENV.resendApiKey}`, "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ from: ENV.resendFromEmail, to: [input.email], subject: copy.subject, html: `<p>${copy.greeting} ${safeName},</p><p>${copy.body}</p><p style="font-size:12px;color:#635a52">${copy.disclaimer}</p><p>${copy.signoff},<br />Jyotish</p>`, attachments: [{ filename: input.pdfName || "vedic-report.pdf", content: bytesToBase64(pdfBytes) }] }),
+    signal: AbortSignal.timeout(20_000),
+  });
+  if (!response.ok) {
+    const detail = await response.text().catch(() => "");
+    throw new TRPCError({ code: "BAD_GATEWAY", message: `Email provider rejected the report delivery${detail ? `: ${detail.slice(0, 240)}` : "."}` });
+  }
+  return (await response.json()) as { id?: string };
+}
