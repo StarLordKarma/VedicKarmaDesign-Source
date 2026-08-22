@@ -216,3 +216,8 @@
 - [x] Add visible success feedback after saving new admin prices
 - [x] Add regression tests for pricing confirmation, breakdown, success feedback, and edge-case logic
 - [x] Run full error, logic, responsive, and build validation for pricing changes
+- [x] Localize checkout price-breakdown tooltips for EN/RU/DE/ES and verify language switching
+- [x] Add localized checkout price-breakdown tooltips for EN/RU/DE/ES and verify language switching
+- [x] Add smooth fade/slide-in and fade/slide-out animation for successful admin price-save feedback
+- [x] Add regression coverage for localized tooltip labels and feedback transition classes
+- [x] Run targeted/full tests, typecheck, production build, and desktop/mobile responsive verification

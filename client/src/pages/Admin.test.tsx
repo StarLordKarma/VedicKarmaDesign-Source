@@ -296,7 +296,7 @@ describe("Admin interactions", () => {
     expect(updatePricingMutate).toHaveBeenCalledWith({ currency: "USD", basicUsd: 40, numerologyAddonUsd: 15 });
     act(() => options[7].onSuccess?.({ basicUsd: 40, numerologyAddonUsd: 15 }));
     expect(screen.getByRole("status")).toHaveTextContent("Prices updated.");
-    expect(screen.getByRole("status")).toHaveClass("bg-emerald-50");
+    expect(screen.getByRole("status")).toHaveClass("bg-emerald-50", "transition-[opacity,transform]");
     expect(screen.getByText("Pricing change history")).toBeInTheDocument();
     expect(screen.getByText("Interface language: EN")).toBeInTheDocument();
     expect(screen.getByText("Formatting locale: en-US")).toBeInTheDocument();

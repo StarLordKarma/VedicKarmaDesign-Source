@@ -69,9 +69,28 @@ describe("Home booking payment UX", () => {
     expect(breakdown).toHaveTextContent("$35");
   });
 
+  it("keeps price-breakdown tooltip copy aligned with the selected language", () => {
+    render(<Home />);
+    expect(screen.getByRole("button", { name: "Basic reading" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Indian numerology add-on/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Total" })).toBeInTheDocument();
+    fireEvent.change(screen.getAllByRole("combobox", { name: "Language" })[0], { target: { value: "ru" } });
+    expect(screen.getByRole("button", { name: "Базовое чтение" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Дополнение: индийская нумерология/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Итого" })).toBeInTheDocument();
+    fireEvent.change(screen.getAllByRole("combobox", { name: "Язык" })[0], { target: { value: "de" } });
+    expect(screen.getByRole("button", { name: "Basisdeutung" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Zusatz: indische Numerologie/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Gesamtsumme" })).toBeInTheDocument();
+    fireEvent.change(screen.getAllByRole("combobox", { name: "Sprache" })[0], { target: { value: "es" } });
+    expect(screen.getByRole("button", { name: "Lectura básica" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Complemento de numerología india/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Total" })).toBeInTheDocument();
+  });
+
   it("persists the selected German language and resolves it on a later session", () => {
     const view = render(<Home />);
-    const selector = screen.getAllByRole("combobox", { name: "Language" })[0];
+    const selector = screen.getAllByRole("combobox")[0];
     fireEvent.change(selector, { target: { value: "de" } });
     expect(localStorage.getItem("public-locale")).toBe("de");
     expect(screen.getByText("Eine klarere Karte für Ihren inneren Himmel.")).toBeInTheDocument();
