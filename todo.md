@@ -333,3 +333,5 @@
 - [x] Keep production report delivery disabled until calculation benchmarks pass
 - [x] Add reproducible reference snapshots and benchmark/regression tests for the calculation adapter
 - [x] Run typecheck, tests, and production build for the calculation adapter and save a checkpoint
+
+- [x] Remove mandatory AGPL legal-review wording from Report Studio documentation and release-status messaging while retaining technical license notices
