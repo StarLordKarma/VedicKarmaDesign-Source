@@ -30,3 +30,8 @@ The admin procedure now requires three conditions: an authenticated user, the `a
 The PDF delivery path passed targeted tests for private-storage retrieval, base64 attachment construction, provider failure handling, and admin authorization. The actual provider call is server-side and uses Resend credentials; no real client email was sent during verification to avoid an unintended message.
 
 The admin UI passed interaction tests for client-name search, from-date filtering, PDF delivery button wiring, and localized success/error states. Manual authenticated admin inspection could not be completed because the browser session did not contain the project owner login.
+
+
+Post-checkpoint admin route check:
+
+The published `/admin` route loads and correctly blocks unauthenticated access. In the current browser response it still renders the earlier access copy without the new sign-in CTA, indicating the public domain may be serving a stale cached bundle or the latest checkpoint is not yet visible there. The source, tests, and checkpoint contain the OAuth CTA. No owner login, client email, or data mutation was performed.

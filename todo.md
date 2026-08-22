@@ -74,20 +74,29 @@
 - [x] Add router/procedure test proving sendNatalPdf rejects unauthenticated and non-admin callers
 - [x] Perform fresh desktop/mobile browser verification for DE/ES public and admin search/date UI
 - [x] Exercise or document the real admin PDF delivery flow with a production attached PDF
-- [ ] Perform authenticated browser verification of admin search and date-range controls
+- [x] Attempt authenticated browser verification of admin search and date-range controls; blocked by absent owner session and documented
 - [x] Verify DE/ES public experience on a mobile viewport
-- [ ] Document admin search/date UI verification at desktop and mobile sizes
+- [x] Document admin search/date UI verification limitation at desktop and mobile sizes; authenticated owner session unavailable
 - [x] Restrict all admin procedures to OWNER_OPEN_ID, not merely role=admin
 - [x] Add owner-only authorization tests for admin data, settings, exports, uploads, delivery, and status actions
 - [x] Verify PDF email delivery with mocked provider/storage and document real-send safety limitation
 - [x] Verify client search and date filters through UI tests and rendered admin access path
 - [x] Add explicit owner-only rejection tests for updateBooking, exportCsv, exportPdf, and attachNatalPdf
 - [x] Attempt authenticated browser verification of admin dashboard search and from/to date filters; owner session unavailable, limitation documented
-- [x] Document authenticated admin filter verification limitation on desktop and mobile viewports; owner session unavailable
+- [x] Document authenticated admin filter verification limitation on desktop and mobile viewports; owner session unavailable and documented; owner session unavailable
 - [x] Add clear owner sign-in instructions and a login CTA on the admin access screen
 - [x] Preserve OWNER_OPEN_ID owner-only server authorization for all admin procedures
 - [x] Add security setup documentation for OAuth owner access and recommended 2FA
 - [x] Evaluate whether app-level password/token auth is safe and necessary without weakening OAuth
 - [x] Add tests for admin access screen login guidance and owner-only authorization
 - [x] Verify admin login guidance and public/admin routes, then save a checkpoint
-- [ ] Save a new checkpoint containing the owner sign-in CTA, SECURITY.md, owner-only gate, and related tests/build results
+- [x] Save a new checkpoint containing the owner sign-in CTA, SECURITY.md, owner-only gate, and related tests/build results
+- [ ] Perform authenticated desktop verification of admin search and date filters with owner session
+- [ ] Perform authenticated mobile verification of admin search and date filters with owner session
+- [ ] Keep authenticated admin verification open until owner session is available, rather than claiming completion
+- [x] Add explicit CSV export label and client-history coverage in admin
+- [x] Add admin sorting by registration date and request status
+- [x] Add visual PDF delivery-status badges with localized labels
+- [x] Add tests for CSV history label, sorting, and delivery badges
+- [x] Run full verification and save a new checkpoint
+- [ ] Save a new checkpoint containing CSV history export label, admin sorting controls, PDF delivery badges, and related tests/build results

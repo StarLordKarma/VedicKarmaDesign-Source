@@ -3,7 +3,7 @@ import React from "react";
 import "@testing-library/jest-dom/vitest";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import Admin from "./Admin";
+import Admin, { sortBookingRows } from "./Admin";
 
 const { authState, startLoginMock } = vi.hoisted(() => ({ authState: { user: { role: "admin" } as { role: string } | null }, startLoginMock: vi.fn() }));
 const updateMutate = vi.fn();
@@ -65,10 +65,19 @@ describe("Admin interactions", () => {
     expect(localStorage.getItem("admin-locale")).toBe("ru");
   });
 
+  it("sorts clients by registration date and status", () => {
+    const records = [
+      { id: 1, createdAt: "2026-01-01T00:00:00Z", status: "completed" },
+      { id: 2, createdAt: "2026-02-01T00:00:00Z", status: "new" },
+    ];
+    expect(sortBookingRows(records, "date_desc").map((item) => item.id)).toEqual([2, 1]);
+    expect(sortBookingRows(records, "status_asc").map((item) => item.id)).toEqual([1, 2]);
+  });
+
   it("invokes both export mutations and handles blob downloads", () => {
     const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
     render(<Admin />);
-    fireEvent.click(screen.getByRole("button", { name: "Export CSV" }));
+    fireEvent.click(screen.getByRole("button", { name: "Export client history CSV" }));
     fireEvent.click(screen.getByRole("button", { name: "Export PDF" }));
     expect(exportCsvMutate).toHaveBeenCalledOnce();
     expect(exportPdfMutate).toHaveBeenCalledOnce();
@@ -77,6 +86,13 @@ describe("Admin interactions", () => {
       options[1].onSuccess?.({ contentBase64: "JVBERi0x", filename: "bookings.pdf" });
     });
     expect(anchorClick).toHaveBeenCalledTimes(2);
+  });
+
+  it("shows a visual badge for sent PDF delivery status", () => {
+    Object.assign(queryData[0], { natalPdfKey: "natal-charts/1/chart.pdf", natalPdfUrl: "/manus-storage/chart.pdf", natalPdfName: "chart.pdf", deliveryStatus: "sent" });
+    render(<Admin />);
+    expect(screen.getByText("Sent to client")).toBeInTheDocument();
+    Object.assign(queryData[0], { natalPdfKey: null, natalPdfUrl: null, natalPdfName: null, deliveryStatus: "not_sent" });
   });
 
   it("invokes PDF delivery for a booking with an attached chart", () => {

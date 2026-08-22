@@ -15,8 +15,8 @@ describe("admin updates and localization", () => {
   });
 
   it("contains selectable English and Russian admin copy", () => {
-    expect(ADMIN_COPY.en.exportCsv).toBe("Export CSV");
-    expect(ADMIN_COPY.ru.exportCsv).toBe("Экспорт CSV");
+    expect(ADMIN_COPY.en.exportCsv).toBe("Export client history CSV");
+    expect(ADMIN_COPY.ru.exportCsv).toBe("Экспорт истории клиентов CSV");
     expect(ADMIN_COPY.en.localeButton).toBe("RU");
     expect(ADMIN_COPY.ru.localeButton).toBe("EN");
     expect(ADMIN_COPY.ru.uploadTooLarge).toContain("12 МБ");
