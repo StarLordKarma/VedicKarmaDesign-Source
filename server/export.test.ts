@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildActivityCsv, buildBookingsCsv, buildPricingHistoryCsv, decodePdfBase64, sanitizePdfName } from "./export";
+import { buildActivityCsv, buildBookingsCsv, buildPricingHistoryCsv, buildSmokeTestRunsCsv, decodePdfBase64, sanitizePdfName } from "./export";
 import { attachNatalPdfSchema } from "@shared/admin";
 import type { BookingRequest } from "../drizzle/schema";
 
@@ -63,6 +63,17 @@ describe("admin exports and PDF validation", () => {
     expect(csv).toContain("25");
     expect(csv).toContain("Anika Jyotish");
     expect(csv).toContain("2026-08-22T12:00:00.000Z");
+  });
+
+  it("exports filtered smoke-test runs with status, timing, and JSON result", () => {
+    const csv = buildSmokeTestRunsCsv([{ runId: "run-succeeded", status: "succeeded", result: '{"ok":true,"currency":"EUR"}', startedAt: new Date("2026-08-22T12:00:00Z"), finishedAt: new Date("2026-08-22T12:00:01Z"), durationMs: 1000 }]);
+    expect(csv.startsWith("\uFEFF")).toBe(true);
+    expect(csv).toContain("Run ID");
+    expect(csv).toContain("run-succeeded");
+    expect(csv).toContain("succeeded");
+    expect(csv).toContain("1000");
+    expect(csv).toContain('{""ok"":true,""currency"":""EUR""}');
+    expect(csv).not.toContain("run-failed");
   });
 
   it("accepts a PDF signature and rejects non-PDF data", () => {

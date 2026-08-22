@@ -5,8 +5,9 @@ import { adminProcedure, publicProcedure, router } from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { bookingSchema, isProductionSmokeTestBooking } from "@shared/booking";
 import { activityDateRangeSchema, attachNatalPdfSchema, bulkSendNatalPdfSchema, clientHistorySchema, editBookingClientSchema, pricingCurrencySchema, pricingHistoryFilterSchema, pricingHistoryPageSchema, sendNatalPdfSchema, servicePricingSchema, smokeTestRunsPageSchema, updateBookingAdminSchema } from "@shared/admin";
-import { createBookingRequest, createSmokeTestRun, deleteBookingRequest, finishSmokeTestRun, getAdminActivityEvents, getAdminActivitySummary, getBookingRequestById, getClientChangeHistory, getPricingHistory, getPricingHistoryPage, getServicePricing, getSmokeTestRuns, getSmokeTestRunsPage, listServicePricing, updateBookingClient, updateBookingDelivery, updateBookingPayment, updateServicePricing } from "./db";
+import { createBookingRequest, createSmokeTestRun, deleteBookingRequest, finishSmokeTestRun, getAdminActivityEvents, getAdminActivitySummary, getBookingRequestById, getClientChangeHistory, getPricingHistory, getPricingHistoryPage, getServicePricing, getSmokeTestRuns, getSmokeTestRunsForExport, getSmokeTestRunsPage, listServicePricing, updateBookingClient, updateBookingDelivery, updateBookingPayment, updateServicePricing } from "./db";
 import { notifyOwner } from "./_core/notification";
+import { buildSmokeTestRunsCsv } from "./export";
 import { createCheckoutForBooking } from "./payment-flow";
 import { runManualSmokeTest } from "./manual-smoke-test";
 import { applyAdminBookingUpdate } from "./admin-update-flow";
@@ -44,6 +45,7 @@ export const appRouter = router({
     pricing: adminProcedure.query(() => listServicePricing()),
     pricingHistory: adminProcedure.input(pricingHistoryPageSchema.optional()).query(async ({ input }) => { const page = await getPricingHistoryPage(input?.page ?? 1, input?.pageSize ?? 10, input); return { ...page, items: page.items.map((entry) => ({ ...entry, changedByName: entry.changedBy === ENV.ownerOpenId ? ENV.ownerName : entry.changedBy })) }; }),
     smokeTestRuns: adminProcedure.input(smokeTestRunsPageSchema.optional()).query(({ input }) => getSmokeTestRunsPage(input ?? {})),
+    exportSmokeTestRunsCsv: adminProcedure.input(smokeTestRunsPageSchema.omit({ page: true, pageSize: true }).optional()).mutation(async ({ input }) => { const rows = await getSmokeTestRunsForExport(input ?? {}); return { filename: `smoke-test-runs-${new Date().toISOString().slice(0, 10)}.csv`, contentBase64: Buffer.from(buildSmokeTestRunsCsv(rows), "utf8").toString("base64") }; }),
     runManualSmokeTest: adminProcedure.mutation(({ ctx }) => runManualSmokeTest(`${ctx.req.protocol}://${ctx.req.get("host")}`)),
     updatePricing: adminProcedure.input(servicePricingSchema).mutation(({ input, ctx }) => updateServicePricing({ ...input, updatedBy: ctx.user.openId })),
     activitySummary: adminProcedure.input(activityDateRangeSchema.optional()).query(({ input }) => getAdminActivitySummary(input ?? {})),

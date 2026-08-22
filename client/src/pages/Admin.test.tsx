@@ -12,6 +12,7 @@ const exportCsvMutate = vi.fn();
 const exportPdfMutate = vi.fn();
 const exportActivityMutate = vi.fn();
 const exportPricingHistoryMutate = vi.fn();
+const exportSmokeRunsMutate = vi.fn();
 const updatePricingMutate = vi.fn();
 const runManualSmokeTestMutate = vi.fn();
 const clipboardWriteText = vi.fn().mockResolvedValue(undefined);
@@ -51,6 +52,7 @@ vi.mock("@/lib/trpc", () => ({
       exportPdf: { useMutation: (config: typeof options[number]) => { options[1] = config; return { mutate: exportPdfMutate, isPending: false }; } },
       exportActivityCsv: { useMutation: (config: typeof options[number]) => { options[6] = config; return { mutate: exportActivityMutate, isPending: false }; } },
       exportPricingHistoryCsv: { useMutation: (config: typeof options[number]) => { options[8] = config; return { mutate: exportPricingHistoryMutate, isPending: false }; } },
+      exportSmokeTestRunsCsv: { useMutation: (config: typeof options[number]) => { options[10] = config; return { mutate: exportSmokeRunsMutate, isPending: false }; } },
       sendNatalPdf: { useMutation: (config: typeof options[number]) => { options[3] = config; return { mutate: sendPdfMutate, isPending: false }; } },
       bulkSendNatalPdf: { useMutation: (config: { onSuccess?: (result: { sent: number; failed: number }) => void; onError?: () => void }) => { options[4] = config as typeof options[number]; return { mutate: bulkSendPdfMutate, isPending: false }; } },
       editBookingClient: { useMutation: (config: { onSuccess?: (result: typeof row) => void; onError?: () => void }) => { options[5] = config as typeof options[number]; return { mutate: editClientMutate, isPending: false }; } },
@@ -77,6 +79,7 @@ describe("Admin interactions", () => {
     authState.user = { role: "admin" };
     startLoginMock.mockReset(); toastSuccess.mockReset();
     options.length = 0;
+    exportSmokeRunsMutate.mockReset();
     updateMutate.mockReset();
     exportCsvMutate.mockReset();
     exportPdfMutate.mockReset();
@@ -304,9 +307,17 @@ describe("Admin interactions", () => {
     fireEvent.click(within(screen.getByRole("dialog")).getAllByRole("button", { name: "Close" })[0]);
     fireEvent.click(screen.getByRole("button", { name: "Run smoke-test" }));
     expect(runManualSmokeTestMutate).toHaveBeenCalledOnce();
+    fireEvent.change(screen.getByRole("combobox", { name: "Rows per page" }), { target: { value: "25" } });
+    expect(smokeQueryInputs.at(-1)).toEqual(expect.objectContaining({ page: 1, pageSize: 25 }));
+    fireEvent.click(screen.getByLabelText("Select visible runs"));
+    expect(screen.getByRole("button", { name: /Download selected JSON/ })).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: /Download selected JSON/ }));
+    expect(window.URL.createObjectURL).toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Export smoke CSV" }));
+    expect(exportSmokeRunsMutate).toHaveBeenCalledWith({ status: undefined, sort: "started_desc" });
     fireEvent.change(screen.getByRole("combobox", { name: /Status|Статус/ }), { target: { value: "succeeded" } });
     fireEvent.change(screen.getByRole("combobox", { name: /Sort runs|Сортировка запусков/ }), { target: { value: "duration_desc" } });
-    expect(smokeQueryInputs.at(-1)).toEqual(expect.objectContaining({ status: "succeeded", sort: "duration_desc", page: 1, pageSize: 10 }));
+    expect(smokeQueryInputs.at(-1)).toEqual(expect.objectContaining({ status: "succeeded", sort: "duration_desc", page: 1, pageSize: 25 }));
     const nextHistoryButtons = screen.getAllByRole("button", { name: /Next history page|Следующая страница истории/ });
     expect(nextHistoryButtons.length).toBeGreaterThanOrEqual(2);
     expect(nextHistoryButtons[nextHistoryButtons.length - 1]).toBeEnabled();

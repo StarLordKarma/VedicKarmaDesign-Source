@@ -32,6 +32,12 @@ export function buildPricingHistoryCsv(rows: Array<ServicePricingHistory & { cha
   return `\uFEFF${headers.map(escapeCsv).join(",")}\n${lines.join("\n")}`;
 }
 
+export function buildSmokeTestRunsCsv(rows: Array<{ runId: string; status: string; result: string | null; startedAt: Date; finishedAt: Date | null; durationMs: number | null }>) {
+  const headers = ["Run ID", "Status", "Started at", "Finished at", "Duration ms", "Result JSON"];
+  const lines = rows.map((row) => [row.runId, row.status, row.startedAt.toISOString(), row.finishedAt?.toISOString() ?? "", row.durationMs ?? "", row.result ?? ""].map(escapeCsv).join(","));
+  return `\uFEFF${headers.map(escapeCsv).join(",")}\n${lines.join("\n")}`;
+}
+
 export function buildBookingsCsv(rows: BookingRequest[]) {
   const headers = ["ID", "Name", "Email", "Birth date", "Birth time", "Birth city", "Birth country", "Language", "Add-on", "Total USD", "Request status", "Payment status", "Admin note", "Natal PDF", "Created at"];
   const lines = rows.map((row) => [

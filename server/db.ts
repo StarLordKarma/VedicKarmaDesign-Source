@@ -192,6 +192,16 @@ export async function getSmokeTestRunsPage(input: SmokeTestRunsPageInput = {}) {
   return { items, total, page, pageSize, totalPages };
 }
 
+export async function getSmokeTestRunsForExport(input: Omit<SmokeTestRunsPageInput, "page" | "pageSize"> = {}) {
+  const firstPage = await getSmokeTestRunsPage({ ...input, page: 1, pageSize: 50 });
+  const items = [...firstPage.items];
+  for (let page = 2; page <= firstPage.totalPages; page += 1) {
+    const nextPage = await getSmokeTestRunsPage({ ...input, page, pageSize: 50 });
+    items.push(...nextPage.items);
+  }
+  return items;
+}
+
 export async function updateServicePricing(input: ServicePricingConfig & { currency?: string; updatedBy: string }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");

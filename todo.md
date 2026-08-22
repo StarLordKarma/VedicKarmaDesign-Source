@@ -204,3 +204,8 @@
 - [x] Run full validation, responsive verification, and save a smoke journal checkpoint
 - [x] Add server assertions for smoke journal status filtering, both sort directions, and pagination metadata/results
 - [x] Add Admin assertions that status/sort changes update query inputs and pagination changes rendered data
+- [x] Add selectable smoke journal page sizes of 10, 25, and 50
+- [x] Add owner-only filtered smoke journal CSV export
+- [x] Add selection and bulk JSON download for smoke-test runs
+- [x] Add regression coverage for page size, CSV filters, selection, and bulk download
+- [x] Run full validation, responsive verification, and save a smoke journal export checkpoint
