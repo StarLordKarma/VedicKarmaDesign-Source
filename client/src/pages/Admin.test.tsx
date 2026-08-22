@@ -3,7 +3,7 @@ import React from "react";
 import "@testing-library/jest-dom/vitest";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import Admin, { sortBookingRows } from "./Admin";
+import Admin, { getBulkDeliveryOutcome, matchesClientSearch, sortBookingRows } from "./Admin";
 
 const { authState, startLoginMock } = vi.hoisted(() => ({ authState: { user: { role: "admin" } as { role: string } | null }, startLoginMock: vi.fn() }));
 const updateMutate = vi.fn();
@@ -11,8 +11,9 @@ const exportCsvMutate = vi.fn();
 const exportPdfMutate = vi.fn();
 const sendPdfMutate = vi.fn();
 const bulkSendPdfMutate = vi.fn();
+const editClientMutate = vi.fn();
 const attachMutateAsync = vi.fn().mockResolvedValue(undefined);
-const options: Array<{ onSuccess?: (result: { contentBase64: string; filename: string }) => void; onError?: () => void }> = [];
+const options: Array<{ onSuccess?: (result: any) => void; onError?: () => void }> = [];
 const row = { id: 1, name: "Maya", email: "maya@example.com", birthDate: "1990-04-12", birthTime: "08:30", birthCity: "Berlin", birthCountry: "Germany", language: "English", addon: 0, totalUsd: 25, paymentStatus: "finished", status: "new", adminNote: null, createdAt: new Date("2026-01-01T00:00:00Z"), natalPdfUrl: null, natalPdfName: null };
 const queryData = [row];
 
@@ -29,6 +30,7 @@ vi.mock("@/lib/trpc", () => ({
       exportPdf: { useMutation: (config: typeof options[number]) => { options[1] = config; return { mutate: exportPdfMutate, isPending: false }; } },
       sendNatalPdf: { useMutation: (config: typeof options[number]) => { options[3] = config; return { mutate: sendPdfMutate, isPending: false }; } },
       bulkSendNatalPdf: { useMutation: (config: { onSuccess?: (result: { sent: number; failed: number }) => void; onError?: () => void }) => { options[4] = config as typeof options[number]; return { mutate: bulkSendPdfMutate, isPending: false }; } },
+      editBookingClient: { useMutation: (config: { onSuccess?: (result: typeof row) => void; onError?: () => void }) => { options[5] = config as typeof options[number]; return { mutate: editClientMutate, isPending: false }; } },
       attachNatalPdf: { useMutation: (config: typeof options[number]) => { options[2] = config; return { mutateAsync: attachMutateAsync, isPending: false }; } },
     },
   },
@@ -49,6 +51,7 @@ describe("Admin interactions", () => {
     exportPdfMutate.mockReset();
     sendPdfMutate.mockReset();
     bulkSendPdfMutate.mockReset();
+    editClientMutate.mockReset();
     attachMutateAsync.mockClear();
     Object.defineProperty(URL, "createObjectURL", { configurable: true, value: vi.fn(() => "blob:test") });
     Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: vi.fn() });
@@ -68,6 +71,15 @@ describe("Admin interactions", () => {
     fireEvent.click(screen.getByRole("button", { name: /LANGUAGE: RU/i }));
     expect(screen.getByRole("heading", { name: "Обзор заявок" })).toBeInTheDocument();
     expect(localStorage.getItem("admin-locale")).toBe("ru");
+  });
+
+  it("matches client name and email search and classifies bulk outcomes", () => {
+    expect(matchesClientSearch({ id: 1, name: "Maya", email: "maya@example.com" }, "maya")).toBe(true);
+    expect(matchesClientSearch({ id: 1, name: "Maya", email: "maya@example.com" }, "EXAMPLE.COM")).toBe(true);
+    expect(matchesClientSearch({ id: 1, name: "Maya", email: "maya@example.com" }, "unknown")).toBe(false);
+    expect(getBulkDeliveryOutcome(2, 0)).toBe("success");
+    expect(getBulkDeliveryOutcome(1, 1)).toBe("partial");
+    expect(getBulkDeliveryOutcome(0, 2)).toBe("failed");
   });
 
   it("sorts clients by registration date and status", () => {
@@ -121,11 +133,35 @@ describe("Admin interactions", () => {
     queryData.splice(1);
   });
 
+  it("edits client details from the PDF preview modal", () => {
+    Object.assign(queryData[0], { natalPdfKey: "natal-charts/1/chart.pdf", natalPdfUrl: "/manus-storage/chart.pdf", natalPdfName: "chart.pdf", deliveryStatus: "sent", interest: "Career" });
+    render(<Admin />);
+    fireEvent.click(screen.getByRole("button", { name: "Preview PDF" }));
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Maya Updated" } });
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "updated@example.com" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save client details" }));
+    expect(editClientMutate).toHaveBeenCalledWith(expect.objectContaining({ id: 1, name: "Maya Updated", email: "updated@example.com" }));
+  });
+
   it("opens the attached PDF in a preview dialog", () => {
     Object.assign(queryData[0], { natalPdfKey: "natal-charts/1/chart.pdf", natalPdfUrl: "/manus-storage/chart.pdf", natalPdfName: "chart.pdf", deliveryStatus: "sent" });
     render(<Admin />);
     fireEvent.click(screen.getByRole("button", { name: "Preview PDF" }));
     expect(screen.getByTitle("Preview PDF: Maya")).toBeInTheDocument();
+    Object.assign(queryData[0], { natalPdfKey: null, natalPdfUrl: null, natalPdfName: null, deliveryStatus: "not_sent" });
+  });
+
+  it("shows distinct bulk delivery feedback for all, partial, and failed results", () => {
+    Object.assign(queryData[0], { natalPdfKey: "natal-charts/1/chart.pdf", natalPdfUrl: "/manus-storage/chart.pdf", natalPdfName: "chart.pdf", deliveryStatus: "not_sent" });
+    render(<Admin />);
+    fireEvent.click(screen.getByRole("checkbox", { name: "Select client: Maya" }));
+    fireEvent.click(screen.getByRole("button", { name: "Email selected PDFs" }));
+    act(() => options[4].onSuccess?.({ sent: 1, failed: 0 }));
+    expect(screen.getByRole("status")).toHaveTextContent("All selected PDFs were sent successfully.");
+    act(() => options[4].onSuccess?.({ sent: 1, failed: 1 }));
+    expect(screen.getByRole("status")).toHaveTextContent("Some PDFs were sent, but some deliveries failed.");
+    act(() => options[4].onSuccess?.({ sent: 0, failed: 1 }));
+    expect(screen.getByRole("status")).toHaveTextContent("No selected PDFs could be sent.");
     Object.assign(queryData[0], { natalPdfKey: null, natalPdfUrl: null, natalPdfName: null, deliveryStatus: "not_sent" });
   });
 
@@ -141,9 +177,9 @@ describe("Admin interactions", () => {
   it("filters client history by search term and date range", () => {
     render(<Admin />);
     expect(screen.getByText("Maya")).toBeInTheDocument();
-    fireEvent.change(screen.getByRole("textbox", { name: "Search clients" }), { target: { value: "unknown" } });
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search clients" }), { target: { value: "unknown" } });
     expect(screen.getByText("No requests match this filter.")).toBeInTheDocument();
-    fireEvent.change(screen.getByRole("textbox", { name: "Search clients" }), { target: { value: "Maya" } });
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search clients" }), { target: { value: "Maya" } });
     fireEvent.change(screen.getByLabelText("From date"), { target: { value: "2027-01-01" } });
     expect(screen.getByText("No requests match this filter.")).toBeInTheDocument();
   });

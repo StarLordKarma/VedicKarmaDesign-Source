@@ -172,6 +172,16 @@ export async function attachNatalPdf(input: { id: number; key: string; url: stri
   return result[0];
 }
 
+export async function updateBookingClient(input: { id: number; name?: string; email?: string; birthDate?: string; birthTime?: string; birthCity?: string; birthCountry?: string; language?: string; interest?: string | null }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const { id, ...fields } = input;
+  await db.update(bookingRequests).set(fields).where(eq(bookingRequests.id, id));
+  const result = await db.select().from(bookingRequests).where(eq(bookingRequests.id, id)).limit(1);
+  if (!result[0]) throw new Error("Booking request not found");
+  return result[0];
+}
+
 export async function updateBookingDelivery(input: { id: number; deliveryStatus: "sending" | "sent" | "failed"; deliveryError?: string | null; deliveredBy?: string | null }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");

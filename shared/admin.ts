@@ -20,5 +20,16 @@ export const attachNatalPdfSchema = z.object({
 export const exportFormatSchema = z.enum(["csv", "pdf"]);
 export const sendNatalPdfSchema = z.object({ bookingId: z.number().int().positive() });
 export const bulkSendNatalPdfSchema = z.object({ bookingIds: z.array(z.number().int().positive()).min(1).max(50) }).superRefine((input, context) => { if (new Set(input.bookingIds).size !== input.bookingIds.length) context.addIssue({ code: z.ZodIssueCode.custom, message: "Duplicate booking IDs are not allowed." }); });
+export const editBookingClientSchema = z.object({
+  id: z.number().int().positive(),
+  name: z.string().trim().min(1).max(160).optional(),
+  email: z.string().trim().email().max(320).optional(),
+  birthDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  birthTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  birthCity: z.string().trim().min(1).max(160).optional(),
+  birthCountry: z.string().trim().min(1).max(160).optional(),
+  language: z.string().trim().min(1).max(32).optional(),
+  interest: z.string().trim().max(5000).nullable().optional(),
+}).refine((input) => Object.keys(input).some((key) => key !== "id" && input[key as keyof typeof input] !== undefined), { message: "Provide at least one client field to update." });
 
 export type UpdateBookingAdminInput = z.infer<typeof updateBookingAdminSchema>;

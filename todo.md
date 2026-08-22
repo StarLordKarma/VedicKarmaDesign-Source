@@ -108,4 +108,9 @@
 - [x] Run full verification and save a new checkpoint
 - [x] Add Admin UI pagination test with more than PAGE_SIZE rows and next/previous navigation
 - [x] Save a checkpoint after pagination behavior test and final full verification
-- [ ] Save a follow-up checkpoint after correcting bulk delivery providerId results
+- [x] Save a follow-up checkpoint after correcting bulk delivery providerId results
+- [x] Add secure client contact-data editing from the PDF preview modal
+- [x] Improve admin search matching for client name and email
+- [x] Add localized success, partial-failure, and failure notifications for bulk PDF delivery
+- [x] Add tests for modal editing, name/email search, and bulk outcome feedback
+- [x] Run full verification and save a new checkpoint

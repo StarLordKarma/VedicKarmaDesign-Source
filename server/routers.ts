@@ -4,8 +4,8 @@ import { systemRouter } from "./_core/systemRouter";
 import { adminProcedure, publicProcedure, router } from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { bookingSchema, getBookingTotal } from "@shared/booking";
-import { attachNatalPdfSchema, bulkSendNatalPdfSchema, sendNatalPdfSchema, updateBookingAdminSchema } from "@shared/admin";
-import { createBookingRequest, getBookingRequestById, updateBookingDelivery, updateBookingPayment } from "./db";
+import { attachNatalPdfSchema, bulkSendNatalPdfSchema, editBookingClientSchema, sendNatalPdfSchema, updateBookingAdminSchema } from "@shared/admin";
+import { createBookingRequest, getBookingRequestById, updateBookingClient, updateBookingDelivery, updateBookingPayment } from "./db";
 import { notifyOwner } from "./_core/notification";
 import { createCheckoutForBooking } from "./payment-flow";
 import { applyAdminBookingUpdate } from "./admin-update-flow";
@@ -30,6 +30,7 @@ export const appRouter = router({
   admin: router({
     bookingList: adminProcedure.query(() => getAllBookingRequests()),
     updateBooking: adminProcedure.input(updateBookingAdminSchema).mutation(({ input, ctx }) => applyAdminBookingUpdate({ ...input, adminOpenId: ctx.user.openId })),
+    editBookingClient: adminProcedure.input(editBookingClientSchema).mutation(({ input }) => updateBookingClient(input)),
     exportCsv: adminProcedure.mutation(async () => ({ filename: `jyotish-bookings-${new Date().toISOString().slice(0, 10)}.csv`, contentBase64: Buffer.from(buildBookingsCsv(await getAllBookingRequests()), "utf8").toString("base64") })),
     exportPdf: adminProcedure.mutation(async () => ({ filename: `jyotish-bookings-${new Date().toISOString().slice(0, 10)}.pdf`, contentBase64: (await buildBookingsPdf(await getAllBookingRequests())).toString("base64") })),
     attachNatalPdf: adminProcedure.input(attachNatalPdfSchema).mutation(async ({ input, ctx }) => {
