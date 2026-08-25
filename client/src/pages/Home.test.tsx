@@ -3,6 +3,7 @@ import React from "react";
 import "@testing-library/jest-dom/vitest";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { resolveLocale } from "./Home";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import Home from "./Home";
 
@@ -13,6 +14,7 @@ let mutationOptions: { onSuccess?: (result: { invoiceUrl: string }) => void } = 
 let pdfMutationOptions: { onSuccess?: (result: { filename: string; contentBase64: string; url: string }) => void; onError?: (error: Error) => void } = {};
 let emailMutationOptions: { onSuccess?: () => void; onError?: () => void } = {};
 const pricingData = { basicUsd: 25, numerologyAddonUsd: 10 };
+const renderHome = () => render(<ThemeProvider switchable><Home /></ThemeProvider>);
 
 vi.mock("@/lib/trpc", () => ({
   trpc: {
@@ -53,7 +55,7 @@ describe("Home booking payment UX", () => {
   it("renders the current configured prices from the public pricing query", () => {
     pricingData.basicUsd = 40;
     pricingData.numerologyAddonUsd = 15;
-    render(<Home />);
+    renderHome();
     expect(screen.getAllByText("$40").length).toBeGreaterThan(0);
     fireEvent.click(screen.getAllByRole("checkbox")[0]);
     expect(screen.getAllByText("$55").length).toBeGreaterThan(0);
@@ -68,7 +70,7 @@ describe("Home booking payment UX", () => {
   it("shows a detailed checkout price breakdown and keeps the total mathematically consistent", () => {
     pricingData.basicUsd = 25;
     pricingData.numerologyAddonUsd = 10;
-    render(<Home />);
+    renderHome();
     expect(screen.getByRole("group", { name: "Price breakdown" })).toHaveTextContent("Basic reading");
     expect(screen.getByRole("group", { name: "Price breakdown" })).toHaveTextContent("$25");
     expect(screen.getByRole("group", { name: "Price breakdown" })).toHaveTextContent("Not selected");
@@ -82,7 +84,7 @@ describe("Home booking payment UX", () => {
   });
 
   it("keeps price-breakdown tooltip copy aligned with the selected language", () => {
-    render(<Home />);
+    renderHome();
     expect(screen.getByRole("button", { name: "Basic reading" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Indian numerology add-on/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Total" })).toBeInTheDocument();
@@ -101,7 +103,7 @@ describe("Home booking payment UX", () => {
   });
 
   it("offers localized birth-field help, downloads the PDF, and shares its receipt link", async () => {
-    render(<Home />);
+    renderHome();
     expect(screen.getByRole("button", { name: "Date of birth" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Exact time of birth" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Download price breakdown PDF" }));
@@ -120,7 +122,7 @@ describe("Home booking payment UX", () => {
   });
 
   it("persists the selected German language and resolves it on a later session", () => {
-    const view = render(<Home />);
+    const view = renderHome();
     const selector = screen.getAllByRole("combobox")[0];
     fireEvent.change(selector, { target: { value: "de" } });
     expect(localStorage.getItem("public-locale")).toBe("de");
@@ -130,8 +132,23 @@ describe("Home booking payment UX", () => {
     view.unmount();
   });
 
+  it("restores the saved language and theme for the booking form", () => {
+    localStorage.setItem("public-locale", "es");
+    localStorage.setItem("theme", "dark");
+    renderHome();
+    expect(screen.getByText("Un mapa más claro para tu cielo interior.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Modo claro" })).toBeInTheDocument();
+  });
+
+  it("toggles the booking form theme and persists the new choice", () => {
+    renderHome();
+    fireEvent.click(screen.getByRole("button", { name: "Dark mode" }));
+    expect(localStorage.getItem("theme")).toBe("dark");
+    expect(screen.getByRole("button", { name: "Light mode" })).toBeInTheDocument();
+  });
+
   it("highlights and shakes the consent block when submitting without acceptance", () => {
-    render(<Home />);
+    renderHome();
     fireEvent.change(screen.getByLabelText("Preferred name"), { target: { value: "Maya" } });
     fireEvent.change(screen.getByLabelText("Email"), { target: { value: "maya@example.com" } });
     fireEvent.change(screen.getByLabelText("Date of birth"), { target: { value: "1990-04-12" } });
@@ -154,14 +171,14 @@ describe("Home booking payment UX", () => {
   it("shows pending loading, success confirmation, and schedules the checkout redirect", async () => {
     const assign = vi.fn();
     Object.defineProperty(window, "location", { configurable: true, value: { assign } });
-    const view = render(<Home />);
+    const view = renderHome();
 
     mutationState.isPending = true;
-    view.rerender(<Home />);
+    view.rerender(<ThemeProvider switchable><Home /></ThemeProvider>);
     expect(screen.getByRole("button", { name: /Creating your secure checkout/i })).toBeInTheDocument();
 
     mutationState.isPending = false;
-    view.rerender(<Home />);
+    view.rerender(<ThemeProvider switchable><Home /></ThemeProvider>);
     fireEvent.change(screen.getAllByRole("combobox", { name: "Currency" })[0], { target: { value: "EUR" } });
     expect(screen.getAllByText((_, node) => Boolean(node?.textContent?.includes("25") && node.textContent.includes("€"))).length).toBeGreaterThan(0);
     fireEvent.change(screen.getByLabelText("Preferred name"), { target: { value: "Maya" } });
@@ -190,7 +207,7 @@ describe("Home booking payment UX", () => {
   it("emails the generated receipt from the checkout success state and surfaces delivery errors", async () => {
     const assign = vi.fn();
     Object.defineProperty(window, "location", { configurable: true, value: { assign } });
-    render(<Home />);
+    renderHome();
     fireEvent.change(screen.getByLabelText("Preferred name"), { target: { value: "Maya" } });
     fireEvent.change(screen.getByLabelText("Email"), { target: { value: "maya@example.com" } });
     fireEvent.change(screen.getByLabelText("Date of birth"), { target: { value: "1990-04-12" } });

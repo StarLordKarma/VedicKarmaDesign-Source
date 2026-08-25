@@ -481,3 +481,16 @@
 - [x] Run full tests, build, logs, and responsive verification for the UI polish
 - [x] Commit and push the validated changes to VedicKarmaDesign on GitHub
 - [x] Document readiness and scope for the next roadmap stage
+
+- [x] Persist public locale in localStorage and restore it on the next visit
+- [x] Add a localized light/dark theme toggle to Privacy and booking form headers
+- [x] Ensure Privacy and booking form colors, controls, and accessibility remain readable in both themes
+- [x] Add regression tests for locale restoration and theme switching
+- [x] Run full tests, build, logs, and responsive verification for locale/theme changes
+- [x] Start the next planned roadmap function after locale/theme validation
+
+- [x] Define versioned service packages with localized names, package type, and active pricing
+- [x] Add immutable package and price snapshot fields to booking creation
+- [x] Add migration, server contract, and regression tests for package/price snapshot integrity
+- [ ] Expose package selection in the public booking flow without changing historical order totals
+- [x] Run Phase 2.2 package snapshot full validation and save an implementation checkpoint

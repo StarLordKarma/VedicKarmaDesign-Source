@@ -18,6 +18,20 @@ export const bookingSchema = z.object({
 
 export type BookingInput = z.infer<typeof bookingSchema>;
 
+export type BookingPriceSnapshot = {
+  packageCode: "basic" | "basic_plus";
+  packageVersion: 1;
+  currency: "USD" | "EUR" | "GBP";
+  basicAmount: number;
+  addonAmount: number;
+  totalAmount: number;
+};
+
+export function buildBookingPriceSnapshot(input: { addon: boolean; currency: BookingPriceSnapshot["currency"]; basicAmount: number; addonAmount: number }): BookingPriceSnapshot {
+  const packageCode = input.addon ? "basic_plus" : "basic";
+  return { packageCode, packageVersion: 1, currency: input.currency, basicAmount: input.basicAmount, addonAmount: input.addon ? input.addonAmount : 0, totalAmount: input.basicAmount + (input.addon ? input.addonAmount : 0) };
+}
+
 export function isProductionSmokeTestBooking(input: Pick<BookingInput, "email" | "interest" | "smokeTest" | "smokeTestRunId">) {
   return input.smokeTest === true && input.smokeTestRunId !== undefined && input.email === `${input.smokeTestRunId}@example.com` && input.interest === "Automated production checkout verification";
 }

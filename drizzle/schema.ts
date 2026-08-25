@@ -35,6 +35,9 @@ export const bookingRequests = mysqlTable("booking_requests", {
   birthCountry: varchar("birthCountry", { length: 160 }).notNull(),
   language: varchar("language", { length: 32 }).notNull(),
   addon: int("addon").default(0).notNull(),
+  packageCode: varchar("packageCode", { length: 64 }).default("basic").notNull(),
+  packageVersion: int("packageVersion").default(1).notNull(),
+  priceSnapshotJson: text("priceSnapshotJson"),
   totalUsd: int("totalUsd").notNull(),
   currency: varchar("currency", { length: 3 }).default("USD").notNull(),
   interest: text("interest"),
@@ -105,6 +108,23 @@ export const servicePricingHistory = mysqlTable("service_pricing_history", {
 
 export type ServicePricingHistory = typeof servicePricingHistory.$inferSelect;
 export type InsertServicePricingHistory = typeof servicePricingHistory.$inferInsert;
+
+export const servicePackages = mysqlTable("service_packages", {
+  id: int("id").autoincrement().primaryKey(),
+  code: varchar("code", { length: 64 }).notNull(),
+  version: int("version").notNull(),
+  packageType: mysqlEnum("packageType", ["basic", "basic_plus"]).notNull(),
+  nameEn: varchar("nameEn", { length: 160 }).notNull(),
+  nameRu: varchar("nameRu", { length: 160 }).notNull(),
+  nameDe: varchar("nameDe", { length: 160 }).notNull(),
+  nameEs: varchar("nameEs", { length: 160 }).notNull(),
+  active: boolean("active").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  createdBy: varchar("createdBy", { length: 64 }).notNull(),
+}, (table) => ({ codeVersionUnique: uniqueIndex("service_packages_code_version_unique").on(table.code, table.version), activeCodeIdx: index("service_packages_active_code_idx").on(table.active, table.code) }));
+
+export type ServicePackage = typeof servicePackages.$inferSelect;
+export type InsertServicePackage = typeof servicePackages.$inferInsert;
 
 export const smokeTestRuns = mysqlTable("smoke_test_runs", {
   id: int("id").autoincrement().primaryKey(),

@@ -5,13 +5,14 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { afterEach } from "vitest";
 import { Router } from "wouter";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 import Privacy from "./Privacy";
 
 function renderPrivacy(language: string) {
   window.localStorage.clear();
   window.localStorage.setItem("public-locale", language);
   window.history.replaceState({}, "", "/privacy");
-  return render(<Router><Privacy /></Router>);
+  return render(<ThemeProvider switchable><Router><Privacy /></Router></ThemeProvider>);
 }
 
 describe("Privacy page", () => {
@@ -38,5 +39,21 @@ describe("Privacy page", () => {
     expect(screen.getByRole("heading", { name: "Как мы обрабатываем персональные данные" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Русский" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("link", { name: "Наверх" })).toHaveAttribute("href", "#privacy-top");
+  });
+
+  it("restores the saved locale and theme on a later visit", () => {
+    window.localStorage.setItem("public-locale", "de");
+    window.localStorage.setItem("theme", "dark");
+    window.history.replaceState({}, "", "/privacy");
+    render(<ThemeProvider switchable><Router><Privacy /></Router></ThemeProvider>);
+    expect(screen.getByRole("heading", { name: "Wie wir personenbezogene Daten verarbeiten" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Heller Modus" })).toBeInTheDocument();
+  });
+
+  it("toggles the Privacy theme and persists the new choice", () => {
+    renderPrivacy("en");
+    fireEvent.click(screen.getByRole("button", { name: "Dark mode" }));
+    expect(localStorage.getItem("theme")).toBe("dark");
+    expect(screen.getByRole("button", { name: "Light mode" })).toBeInTheDocument();
   });
 });

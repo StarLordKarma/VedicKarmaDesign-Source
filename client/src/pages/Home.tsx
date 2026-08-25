@@ -5,6 +5,7 @@ import { bookingSchema, getCheckoutErrorMessage } from "@shared/booking";
 import { CHECKOUT_REDIRECT_DELAY_MS, getCheckoutButtonLabel, getCheckoutSuccessMessage } from "@shared/payment-ux";
 import { COPY, Locale } from "@shared/i18n";
 import { trpc } from "@/lib/trpc";
+import { useTheme } from "@/contexts/ThemeContext";
 import { Link } from "wouter";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -31,6 +32,7 @@ import {
 const SUPPORTED_LOCALES: Locale[] = ["en", "ru", "de", "es"];
 const LOCALE_LABELS: Record<Locale, string> = { en: "EN", ru: "RU", de: "DE", es: "ES" };
 const privacyFormCopy: Record<Locale, { label: string; link: string; required: string }> = { en: { label: "I have read and accept the privacy information.", link: "Privacy & data protection", required: "Please read and accept the privacy information before submitting." }, ru: { label: "Я прочитал(а) и принимаю информацию о конфиденциальности.", link: "Конфиденциальность и данные", required: "Перед отправкой прочитайте и примите информацию о конфиденциальности." }, de: { label: "Ich habe die Datenschutzhinweise gelesen und akzeptiere sie.", link: "Datenschutz", required: "Bitte lesen und akzeptieren Sie die Datenschutzhinweise vor dem Absenden." }, es: { label: "He leído y acepto la información de privacidad.", link: "Privacidad y datos", required: "Lee y acepta la información de privacidad antes de enviar." } };
+const themeCopy: Record<Locale, { dark: string; light: string }> = { en: { dark: "Dark mode", light: "Light mode" }, ru: { dark: "Тёмная тема", light: "Светлая тема" }, de: { dark: "Dunkler Modus", light: "Heller Modus" }, es: { dark: "Modo oscuro", light: "Modo claro" } };
 export function resolveLocale(value: string | null | undefined): Locale { return SUPPORTED_LOCALES.includes(value as Locale) ? value as Locale : "en"; }
 function getInitialLocale() { const queryLocale = new URLSearchParams(window.location.search).get("lang"); return queryLocale ? resolveLocale(queryLocale) : resolveLocale(window.localStorage.getItem("public-locale")); }
 function base64ToFile(contentBase64: string, filename: string, contentType: string) { const bytes = Uint8Array.from(window.atob(contentBase64), (character) => character.charCodeAt(0)); return new File([bytes], filename, { type: contentType }); }
@@ -40,6 +42,9 @@ export default function Home() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [locale, setLocale] = useState<Locale>(getInitialLocale);
   const copy = COPY[locale];
+  const { theme, toggleTheme } = useTheme();
+  const isDarkTheme = theme === "dark";
+  const themeLabel = isDarkTheme ? themeCopy[locale].light : themeCopy[locale].dark;
   const serviceHighlights = [...copy.features, copy.highlightQuestions];
   const faqs = copy.faqs;
   const [addon, setAddon] = useState(false);
@@ -131,8 +136,8 @@ export default function Home() {
   const currencySymbol = currency === "EUR" ? "€" : currency === "GBP" ? "£" : "$";
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-[#f8f5f0] text-[#28231f]">
-      <header className="sticky top-0 z-50 border-b border-[#28231f]/10 bg-[#f8f5f0]/90 backdrop-blur-xl">
+    <div className={`public-page min-h-screen overflow-x-hidden text-[#28231f] ${isDarkTheme ? "theme-dark" : "theme-light"}`}>
+      <header className={`sticky top-0 z-50 border-b backdrop-blur-xl ${isDarkTheme ? "border-[#544238] bg-[#201a16]/90" : "border-[#28231f]/10 bg-[#f8f5f0]/90"}`}>
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 lg:px-8">
           <a href="#top" className="flex items-center gap-3" aria-label="Jyotish home">
             <span className="grid h-10 w-10 place-items-center rounded-full bg-[#b55b39] text-[#fffaf4] shadow-[0_8px_24px_rgba(181,91,57,0.22)]">
@@ -140,25 +145,25 @@ export default function Home() {
             </span>
             <span className="font-serif text-lg font-semibold tracking-tight">Jyotish · by Anika</span>
           </a>
-          <nav className="hidden items-center gap-8 text-sm font-medium text-[#635a52] md:flex">
+          <nav className={`hidden items-center gap-8 text-sm font-medium md:flex ${isDarkTheme ? "text-[#ddcabe]" : "text-[#635a52]"}`}>
             <a className="transition-colors hover:text-[#b55b39]" href="#reading">{copy.navReading}</a>
             <a className="transition-colors hover:text-[#b55b39]" href="#process">{copy.navHow}</a>
             <a className="transition-colors hover:text-[#b55b39]" href="#faq">{copy.navFaq}</a>
-            <select aria-label={copy.localeLabel} value={locale} onChange={(event) => changeLocale(event.target.value as Locale)} className="rounded-full border border-[#28231f]/15 bg-transparent px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] outline-none"><option value="en">EN</option><option value="ru">RU</option><option value="de">DE</option><option value="es">ES</option></select>
-            <a className="rounded-full bg-[#28231f] px-5 py-2.5 text-[#fffaf4] transition-transform hover:-translate-y-0.5" href="#book">{copy.book}</a>
+            <select aria-label={copy.localeLabel} value={locale} onChange={(event) => changeLocale(event.target.value as Locale)} className={`rounded-full border bg-transparent px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] outline-none ${isDarkTheme ? "border-[#705544] text-[#f0c7ae]" : "border-[#28231f]/15 text-[#28231f]"}`}><option value="en">EN</option><option value="ru">RU</option><option value="de">DE</option><option value="es">ES</option></select>
+            <button type="button" aria-label={themeLabel} title={themeLabel} onClick={() => toggleTheme?.()} className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold transition-colors ${isDarkTheme ? "border-[#705544] bg-[#3a2b25] text-[#f0c7ae] hover:bg-[#51382d]" : "border-[#28231f]/15 bg-white/70 text-[#635a52] hover:bg-[#f0e7df]"}`}>{isDarkTheme ? <Sun size={15} /> : <Moon size={15} />}<span className="hidden lg:inline">{themeLabel}</span></button><a className="rounded-full bg-[#28231f] px-5 py-2.5 text-[#fffaf4] transition-transform hover:-translate-y-0.5" href="#book">{copy.book}</a>
           </nav>
           <button className="rounded-lg p-2 md:hidden" onClick={() => setMenuOpen(!menuOpen)} aria-label="Toggle menu">
             {menuOpen ? <X size={22} /> : <Menu size={22} />}
           </button>
         </div>
         {menuOpen && (
-          <nav className="border-t border-[#28231f]/10 bg-[#f8f5f0] px-5 py-4 md:hidden">
+          <nav className={`border-t px-5 py-4 md:hidden ${isDarkTheme ? "border-[#544238] bg-[#201a16]" : "border-[#28231f]/10 bg-[#f8f5f0]"}`}>
             <div className="flex flex-col gap-4 text-sm font-medium">
               <a href="#reading" onClick={() => setMenuOpen(false)}>{copy.navReading}</a>
               <a href="#process" onClick={() => setMenuOpen(false)}>{copy.navHow}</a>
               <a href="#faq" onClick={() => setMenuOpen(false)}>{copy.navFaq}</a>
-              <label className="flex items-center gap-2 rounded-full border border-[#28231f]/15 px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em]">{copy.localeLabel}: <select aria-label={copy.localeLabel} value={locale} onChange={(event) => changeLocale(event.target.value as Locale)} className="bg-transparent outline-none"><option value="en">EN</option><option value="ru">RU</option><option value="de">DE</option><option value="es">ES</option></select></label>
-              <a className="rounded-full bg-[#28231f] px-4 py-3 text-center text-[#fffaf4]" href="#book" onClick={() => setMenuOpen(false)}>{copy.book}</a>
+              <label className={`flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] ${isDarkTheme ? "border-[#705544] text-[#f0c7ae]" : "border-[#28231f]/15 text-[#28231f]"}`}>{copy.localeLabel}: <select aria-label={copy.localeLabel} value={locale} onChange={(event) => changeLocale(event.target.value as Locale)} className="bg-transparent outline-none"><option value="en">EN</option><option value="ru">RU</option><option value="de">DE</option><option value="es">ES</option></select></label>
+              <button type="button" aria-label={themeLabel} title={themeLabel} onClick={() => toggleTheme?.()} className={`inline-flex items-center justify-center gap-2 rounded-full border px-4 py-3 text-sm font-semibold ${isDarkTheme ? "border-[#705544] bg-[#3a2b25] text-[#f0c7ae]" : "border-[#28231f]/15 bg-white/70 text-[#635a52]"}`}>{isDarkTheme ? <Sun size={16} /> : <Moon size={16} />}{themeLabel}</button><a className="rounded-full bg-[#28231f] px-4 py-3 text-center text-[#fffaf4]" href="#book" onClick={() => setMenuOpen(false)}>{copy.book}</a>
             </div>
           </nav>
         )}

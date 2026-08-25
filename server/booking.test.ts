@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bookingSchema, getBookingTotal, isProductionSmokeTestBooking } from "@shared/booking";
+import { bookingSchema, buildBookingPriceSnapshot, getBookingTotal, isProductionSmokeTestBooking } from "@shared/booking";
 
 describe("booking validation", () => {
   const validBooking = {
@@ -31,6 +31,11 @@ describe("booking validation", () => {
   it("defaults missing currency to USD and rejects unsupported currencies", () => {
     expect(bookingSchema.parse(validBooking).currency).toBe("USD");
     expect(bookingSchema.safeParse({ ...validBooking, currency: "JPY" }).success).toBe(false);
+  });
+
+  it("creates immutable package snapshots with deterministic totals", () => {
+    expect(buildBookingPriceSnapshot({ addon: false, currency: "USD", basicAmount: 25, addonAmount: 10 })).toEqual({ packageCode: "basic", packageVersion: 1, currency: "USD", basicAmount: 25, addonAmount: 0, totalAmount: 25 });
+    expect(buildBookingPriceSnapshot({ addon: true, currency: "EUR", basicAmount: 23, addonAmount: 9 })).toEqual({ packageCode: "basic_plus", packageVersion: 1, currency: "EUR", basicAmount: 23, addonAmount: 9, totalAmount: 32 });
   });
 
   it("recognizes only explicitly marked production smoke-test bookings for cleanup", () => {

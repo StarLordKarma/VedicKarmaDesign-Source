@@ -42,7 +42,7 @@ describe("booking pricing integration", () => {
       interest: "Career themes",
     });
 
-    expect(mocks.createBookingRequest).toHaveBeenCalledWith(expect.objectContaining({ addon: 1, totalUsd: 57 }));
+    expect(mocks.createBookingRequest).toHaveBeenCalledWith(expect.objectContaining({ addon: 1, packageCode: "basic_plus", packageVersion: 1, priceSnapshotJson: JSON.stringify({ packageCode: "basic_plus", packageVersion: 1, currency: "USD", basicAmount: 41, addonAmount: 16, totalAmount: 57 }), totalUsd: 57 }));
     expect(mocks.getServicePricing).toHaveBeenCalledWith("USD");
     expect(mocks.createCheckoutForBooking).toHaveBeenCalledWith(expect.objectContaining({ bookingId: 77, totalUsd: 57, addon: true, priceCurrency: "USD", origin: "https://example.test" }));
     expect(result).toEqual(expect.objectContaining({ id: 77, totalUsd: 57, paymentId: "invoice-77", invoiceUrl: "https://checkout.test/invoice-77" }));

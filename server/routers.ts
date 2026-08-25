@@ -4,7 +4,7 @@ import { systemRouter } from "./_core/systemRouter";
 import { adminProcedure, publicProcedure, router } from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { bookingSchema, isProductionSmokeTestBooking } from "@shared/booking";
+import { bookingSchema, buildBookingPriceSnapshot, isProductionSmokeTestBooking } from "@shared/booking";
 import { addSlaEmailAllowlistSchema, removeSlaEmailAllowlistSchema, updateSlaEmailAllowlistSchema, activityDateRangeSchema, attachNatalPdfSchema, bulkSendNatalPdfSchema, clientHistorySchema, editBookingClientSchema, pricingCurrencySchema, pricingHistoryFilterSchema, pricingHistoryPageSchema, receiptEmailHistoryPageSchema, sendNatalPdfSchema, servicePricingSchema, smokeTestRunsPageSchema, slaEvaluationRunsPageSchema, updateBookingAdminSchema, reportRunSchema, reportApprovalSchema, sendSlaChartPdfSchema } from "@shared/admin";
 import { createBookingRequest, createSmokeTestRun, deleteBookingRequest, finishSmokeTestRun, getAdminActivityEvents, getAdminActivitySummary, getBookingRequestById, getClientChangeHistory, getPricingHistory, getPricingHistoryPage, getServicePricing, getSmokeTestRuns, getSmokeTestRunsForExport, getSmokeTestRunsPage, getReceiptRetentionHours, cleanupExpiredReceiptFiles, listServicePricing, getReceiptEmailHistoryPage, getLatestReceiptEmailAttempt, createReceiptEmailAttempt, finishReceiptEmailAttempt, normalizeReceiptEmail, isReceiptEmailCoolingDown, recordReceiptEmailFailureAlert, RECEIPT_EMAIL_COOLDOWN_MS, listSlaEmailAllowlist, addSlaEmailAllowlist, setSlaEmailAllowlistEnabled, removeSlaEmailAllowlist, isSlaEmailAllowed, updateBookingClient, updateBookingDelivery, updateBookingPayment, updateReceiptRetentionHours, updateServicePricing } from "./db";
 import { notifyOwner } from "./_core/notification";
@@ -161,6 +161,7 @@ export const appRouter = router({
     submit: publicProcedure.input(bookingSchema).mutation(async ({ input, ctx }) => {
       const pricing = await getServicePricing(input.currency);
       const totalUsd = pricing.basicUsd + (input.addon ? pricing.numerologyAddonUsd : 0);
+      const priceSnapshot = buildBookingPriceSnapshot({ addon: input.addon, currency: input.currency, basicAmount: pricing.basicUsd, addonAmount: pricing.numerologyAddonUsd });
       const result = await createBookingRequest({
         name: input.name,
         email: input.email,
@@ -170,6 +171,9 @@ export const appRouter = router({
         birthCountry: input.birthCountry,
         language: input.language,
         addon: input.addon ? 1 : 0,
+        packageCode: priceSnapshot.packageCode,
+        packageVersion: priceSnapshot.packageVersion,
+        priceSnapshotJson: JSON.stringify(priceSnapshot),
         totalUsd,
         currency: input.currency,
         interest: input.interest || null,
