@@ -9,7 +9,7 @@ export async function evaluateSlaHandler(req: Request, res: Response) {
       res.status(403).json({ error: "cron-only" });
       return;
     }
-    const result = await evaluateSla();
+    const result = await evaluateSla({ trigger: "heartbeat", actor: user.taskUid });
     res.json({ ok: true, ...result });
   } catch (error) {
     res.status(500).json({ error: "sla-evaluation-failed", timestamp: new Date().toISOString() });

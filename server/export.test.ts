@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildActivityCsv, buildBookingsCsv, buildCheckoutBreakdownPdf, buildReportStylePreviewPdf, buildPricingHistoryCsv, buildSmokeTestRunsCsv, decodePdfBase64, sanitizePdfName } from "./export";
+import { buildActivityCsv, buildBookingsCsv, buildCheckoutBreakdownPdf, buildReportStylePreviewPdf, buildPricingHistoryCsv, buildSlaEvaluationRunsCsv, buildSmokeTestRunsCsv, decodePdfBase64, sanitizePdfName } from "./export";
 import { attachNatalPdfSchema } from "@shared/admin";
 import type { BookingRequest } from "../drizzle/schema";
 
@@ -63,6 +63,17 @@ describe("admin exports and PDF validation", () => {
     expect(csv).toContain("25");
     expect(csv).toContain("Anika Jyotish");
     expect(csv).toContain("2026-08-22T12:00:00.000Z");
+  });
+
+  it("exports aggregate metrics and SLA evaluation history without client PII", () => {
+    const csv = buildSlaEvaluationRunsCsv({ since: "2026-08-01T00:00:00.000Z", bookings: 12, paidBookings: 8, completedBookings: 5, failedDeliveries: 1, queuedReports: 2, sentReports: 4, openAlerts: 1 }, [{ id: 4, trigger: "heartbeat", status: "succeeded", evaluatedAt: new Date("2026-08-22T12:00:00Z"), durationMs: 42, jobsEvaluated: 8, preparationViolations: 2, deliveryViolations: 1, alertsCreated: 1, notificationsSent: 1, errorCode: null }]);
+    expect(csv.startsWith("\uFEFF")).toBe(true);
+    expect(csv).toContain("bookings");
+    expect(csv).toContain("heartbeat");
+    expect(csv).toContain("Preparation violations");
+    expect(csv).toContain("42");
+    expect(csv).not.toContain("email");
+    expect(csv).not.toContain("birthDate");
   });
 
   it("exports filtered smoke-test runs with status, timing, and JSON result", () => {

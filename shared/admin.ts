@@ -81,3 +81,17 @@ export type UpdateBookingAdminInput = z.infer<typeof updateBookingAdminSchema>;
 export const reportJobIdSchema = z.object({ reportJobId: z.number().int().positive() });
 export const reportRunSchema = z.object({ reportJobId: z.number().int().positive() });
 export const reportApprovalSchema = z.object({ reportJobId: z.number().int().positive(), versionId: z.number().int().positive(), summary: z.string().trim().max(1000).optional() });
+
+
+export const slaEvaluationStatusSchema = z.enum(["succeeded", "disabled", "failed"]);
+export const slaEvaluationTriggerSchema = z.enum(["heartbeat", "manual"]);
+export const slaEvaluationSortSchema = z.enum(["evaluated_desc", "evaluated_asc", "duration_desc", "duration_asc"]);
+export const slaEvaluationRunsPageSchema = z.object({
+  status: slaEvaluationStatusSchema.optional(),
+  trigger: slaEvaluationTriggerSchema.optional(),
+  from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  sort: slaEvaluationSortSchema.default("evaluated_desc"),
+  page: z.number().int().min(1).default(1),
+  pageSize: z.number().int().min(1).max(50).default(10),
+}).refine((input) => !input.from || !input.to || input.from <= input.to, { message: "The SLA evaluation date range is invalid." });

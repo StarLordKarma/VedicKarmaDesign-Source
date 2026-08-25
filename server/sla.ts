@@ -1,10 +1,29 @@
-import { and, count, desc, eq, gte, isNull } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, isNull, lt } from "drizzle-orm";
 import { notifyOwner } from "./_core/notification";
 import { logStructuredEvent } from "./observability";
-import { bookingRequests, operationalAlerts, reportJobs, slaSettings } from "../drizzle/schema";
+import { bookingRequests, operationalAlerts, reportJobs, slaEvaluationRuns, slaSettings } from "../drizzle/schema";
 import { getDb } from "./db";
 
 const SETTINGS_ID = 1;
+
+export type SlaEvaluationRunFilters = {
+  status?: "succeeded" | "disabled" | "failed";
+  trigger?: "heartbeat" | "manual";
+  from?: string;
+  to?: string;
+  sort?: "evaluated_desc" | "evaluated_asc" | "duration_desc" | "duration_asc";
+  page?: number;
+  pageSize?: number;
+};
+
+function runConditions(filters: SlaEvaluationRunFilters) {
+  const conditions = [] as any[];
+  if (filters.from) conditions.push(gte(slaEvaluationRuns.evaluatedAt, new Date(`${filters.from}T00:00:00.000Z`)));
+  if (filters.to) { const end = new Date(`${filters.to}T00:00:00.000Z`); end.setUTCDate(end.getUTCDate() + 1); conditions.push(lt(slaEvaluationRuns.evaluatedAt, end)); }
+  if (filters.status) conditions.push(eq(slaEvaluationRuns.status, filters.status));
+  if (filters.trigger) conditions.push(eq(slaEvaluationRuns.trigger, filters.trigger));
+  return conditions;
+}
 
 export type SlaSettingsInput = {
   enabled: boolean;
@@ -36,11 +55,17 @@ async function scalar(query: Promise<Array<{ value: number } | { value: string }
   return Number(rows[0]?.value ?? 0);
 }
 
-export async function evaluateSla() {
+export async function evaluateSla(options: { trigger?: "heartbeat" | "manual"; actor?: string } = {}) {
   const db = await getDb();
+  const trigger = options.trigger ?? "manual";
+  const actor = (options.actor ?? "system").slice(0, 64);
+  const startedAt = Date.now();
   if (!db) return { enabled: false, evaluated: 0, alertsCreated: 0, notificationsSent: 0 };
   const settings = await getSlaSettings();
-  if (!settings.enabled) return { enabled: false, evaluated: 0, alertsCreated: 0, notificationsSent: 0 };
+  if (!settings.enabled) {
+    await db.insert(slaEvaluationRuns).values({ trigger, status: "disabled", evaluatedAt: new Date(), durationMs: Date.now() - startedAt, actor });
+    return { enabled: false, evaluated: 0, alertsCreated: 0, notificationsSent: 0 };
+  }
   const now = Date.now();
   const jobs = await db.select({ id: reportJobs.id, status: reportJobs.status, createdAt: reportJobs.createdAt, updatedAt: reportJobs.updatedAt }).from(reportJobs).limit(500);
   const preparationCutoff = now - settings.preparationHours * 3600000;
@@ -69,7 +94,8 @@ export async function evaluateSla() {
       if (!existing && sent) await db.update(operationalAlerts).set({ lastNotifiedAt: new Date(now) }).where(eq(operationalAlerts.fingerprint, fingerprint));
     }
   }
-  logStructuredEvent("info", "sla.evaluated", { evaluated: jobs.length, overduePreparation: overduePreparation.length, overdueDelivery: overdueDelivery.length, alertsCreated, notificationsSent });
+  await db.insert(slaEvaluationRuns).values({ trigger, status: "succeeded", evaluatedAt: new Date(now), durationMs: Date.now() - startedAt, jobsEvaluated: jobs.length, preparationViolations: overduePreparation.length, deliveryViolations: overdueDelivery.length, alertsCreated, notificationsSent, actor });
+  logStructuredEvent("info", "sla.evaluated", { evaluated: jobs.length, overduePreparation: overduePreparation.length, overdueDelivery: overdueDelivery.length, alertsCreated, notificationsSent, trigger });
   return { enabled: true, evaluated: jobs.length, overduePreparation: overduePreparation.length, overdueDelivery: overdueDelivery.length, alertsCreated, notificationsSent };
 }
 
@@ -86,6 +112,31 @@ export async function getOwnerMetrics(sinceInput?: Date) {
     scalar(db.select({ value: count() }).from(reportJobs).where(and(gte(reportJobs.createdAt, since), eq(reportJobs.status, "sent")))),
     scalar(db.select({ value: count() }).from(operationalAlerts).where(and(eq(operationalAlerts.status, "open"), isNull(operationalAlerts.resolvedAt)))),
   ]);
-  const recentAlerts = await db.select({ id: operationalAlerts.id, alertType: operationalAlerts.alertType, severity: operationalAlerts.severity, status: operationalAlerts.status, count: operationalAlerts.count, summary: operationalAlerts.summary, firstSeenAt: operationalAlerts.firstSeenAt, lastSeenAt: operationalAlerts.lastSeenAt }).from(operationalAlerts).where(eq(operationalAlerts.status, "open")).orderBy(desc(operationalAlerts.lastSeenAt)).limit(20);
-  return { since: since.toISOString(), bookings, paidBookings, completedBookings, failedDeliveries, queuedReports, sentReports, openAlerts, recentAlerts };
+  const [recentAlerts, recentSlaRuns] = await Promise.all([
+    db.select({ id: operationalAlerts.id, alertType: operationalAlerts.alertType, severity: operationalAlerts.severity, status: operationalAlerts.status, count: operationalAlerts.count, summary: operationalAlerts.summary, firstSeenAt: operationalAlerts.firstSeenAt, lastSeenAt: operationalAlerts.lastSeenAt }).from(operationalAlerts).where(eq(operationalAlerts.status, "open")).orderBy(desc(operationalAlerts.lastSeenAt)).limit(20),
+    db.select().from(slaEvaluationRuns).where(gte(slaEvaluationRuns.evaluatedAt, since)).orderBy(desc(slaEvaluationRuns.evaluatedAt)).limit(20),
+  ]);
+  return { since: since.toISOString(), bookings, paidBookings, completedBookings, failedDeliveries, queuedReports, sentReports, openAlerts, recentAlerts, recentSlaRuns };
+}
+
+
+export async function getSlaEvaluationRuns(filters: SlaEvaluationRunFilters = {}) {
+  const db = await getDb();
+  const page = Math.max(1, filters.page ?? 1);
+  const pageSize = Math.min(50, Math.max(1, filters.pageSize ?? 10));
+  if (!db) return { items: [], total: 0, page, pageSize, totalPages: 0 };
+  const conditions = runConditions(filters);
+  const where = conditions.length ? and(...conditions) : undefined;
+  const order = filters.sort === "evaluated_asc"
+    ? asc(slaEvaluationRuns.evaluatedAt)
+    : filters.sort === "duration_desc"
+      ? desc(slaEvaluationRuns.durationMs)
+      : filters.sort === "duration_asc"
+        ? asc(slaEvaluationRuns.durationMs)
+        : desc(slaEvaluationRuns.evaluatedAt);
+  const [items, total] = await Promise.all([
+    db.select().from(slaEvaluationRuns).where(where).orderBy(order).limit(pageSize).offset((page - 1) * pageSize),
+    scalar(db.select({ value: count() }).from(slaEvaluationRuns).where(where)),
+  ]);
+  return { items, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
 }

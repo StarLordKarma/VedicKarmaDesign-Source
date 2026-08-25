@@ -397,3 +397,11 @@
 - [x] Run full validation, visual checks, and save the Phase 2.1 checkpoint
 
 - [x] Create the platform-managed Heartbeat schedule for SLA evaluation after the callback is checkpointed and production deployment is confirmed (`fBrbcSitQTNmYmjsyPf7qa`, daily 03:15 UTC)
+
+- [x] Add persistent SLA evaluation history with evaluation timestamps, aggregate counts, and violation summaries
+- [x] Show SLA evaluation and violation history in the owner metrics dashboard with safe filters/pagination
+- [x] Add owner-only CSV export for filtered metrics and SLA history without PII
+- [x] Localize the metrics/SLA dashboard and status labels for Russian, German, and Spanish
+- [x] Persist the selected owner dashboard locale and keep it independent from customer language data
+- [x] Add regression tests for SLA history persistence, CSV columns/filters, localization, and locale persistence
+- [x] Run full validation, responsive checks, and save the Phase 2.1 metrics checkpoint

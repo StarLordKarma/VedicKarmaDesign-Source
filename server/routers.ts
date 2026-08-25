@@ -5,7 +5,7 @@ import { adminProcedure, publicProcedure, router } from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { bookingSchema, isProductionSmokeTestBooking } from "@shared/booking";
-import { activityDateRangeSchema, attachNatalPdfSchema, bulkSendNatalPdfSchema, clientHistorySchema, editBookingClientSchema, pricingCurrencySchema, pricingHistoryFilterSchema, pricingHistoryPageSchema, receiptEmailHistoryPageSchema, sendNatalPdfSchema, servicePricingSchema, smokeTestRunsPageSchema, updateBookingAdminSchema, reportRunSchema, reportApprovalSchema } from "@shared/admin";
+import { activityDateRangeSchema, attachNatalPdfSchema, bulkSendNatalPdfSchema, clientHistorySchema, editBookingClientSchema, pricingCurrencySchema, pricingHistoryFilterSchema, pricingHistoryPageSchema, receiptEmailHistoryPageSchema, sendNatalPdfSchema, servicePricingSchema, smokeTestRunsPageSchema, slaEvaluationRunsPageSchema, updateBookingAdminSchema, reportRunSchema, reportApprovalSchema } from "@shared/admin";
 import { createBookingRequest, createSmokeTestRun, deleteBookingRequest, finishSmokeTestRun, getAdminActivityEvents, getAdminActivitySummary, getBookingRequestById, getClientChangeHistory, getPricingHistory, getPricingHistoryPage, getServicePricing, getSmokeTestRuns, getSmokeTestRunsForExport, getSmokeTestRunsPage, getReceiptRetentionHours, cleanupExpiredReceiptFiles, listServicePricing, getReceiptEmailHistoryPage, getLatestReceiptEmailAttempt, createReceiptEmailAttempt, finishReceiptEmailAttempt, normalizeReceiptEmail, isReceiptEmailCoolingDown, recordReceiptEmailFailureAlert, RECEIPT_EMAIL_COOLDOWN_MS, updateBookingClient, updateBookingDelivery, updateBookingPayment, updateReceiptRetentionHours, updateServicePricing } from "./db";
 import { notifyOwner } from "./_core/notification";
 import { buildCheckoutBreakdownPdf, buildSmokeTestRunsCsv } from "./export";
@@ -15,12 +15,12 @@ import { applyAdminBookingUpdate } from "./admin-update-flow";
 import { attachNatalPdf, getAllBookingRequests, registerReceiptFile } from "./db";
 import { sendClientNatalPdf, sendClientReceiptPdf } from "./client-delivery";
 import { storagePut } from "./storage";
-import { buildActivityCsv, buildBookingsCsv, buildBookingsPdf, buildPricingHistoryCsv, decodePdfBase64, sanitizePdfName } from "./export";
+import { buildActivityCsv, buildBookingsCsv, buildBookingsPdf, buildPricingHistoryCsv, buildSlaEvaluationRunsCsv, decodePdfBase64, sanitizePdfName } from "./export";
 import { ENV } from "./_core/env";
 import { approveReportVersion, enqueueReportJobForBooking, getReportProcessingSettings, getReportReviewJob, listReportReviewJobs, processReportJob, retryReportDelivery, setReportProcessingSettings } from "./report-studio-db";
 import { AI_NARRATIVE_MODELS } from "./report-narrative";
 import { createClientStatusLink, getPublicClientStatus, listClientStatusLinks, revokeClientStatusLink } from "./client-status";
-import { evaluateSla, getOwnerMetrics, getSlaSettings, setSlaSettings } from "./sla";
+import { evaluateSla, getOwnerMetrics, getSlaEvaluationRuns, getSlaSettings, setSlaSettings } from "./sla";
 
 async function cleanupSmokeTestBooking(input: Parameters<typeof isProductionSmokeTestBooking>[0], bookingId: number, reason: "success" | "failure") {
   if (!isProductionSmokeTestBooking(input)) return false;
@@ -69,9 +69,11 @@ export const appRouter = router({
     createClientStatusLink: adminProcedure.input(z.object({ bookingId: z.number().int().positive(), expiryHours: z.number().int().min(1).max(720) })).mutation(({ input, ctx }) => createClientStatusLink({ ...input, createdBy: ctx.user.openId })),
     revokeClientStatusLink: adminProcedure.input(z.object({ tokenId: z.number().int().positive() })).mutation(({ input, ctx }) => revokeClientStatusLink(input.tokenId, ctx.user.openId)),
     metrics: adminProcedure.input(z.object({ since: z.coerce.date().optional() }).optional()).query(({ input }) => getOwnerMetrics(input?.since)),
+    slaEvaluationRuns: adminProcedure.input(slaEvaluationRunsPageSchema.optional()).query(({ input }) => getSlaEvaluationRuns(input ?? {})),
+    exportMetricsCsv: adminProcedure.input(slaEvaluationRunsPageSchema.omit({ page: true, pageSize: true }).optional()).mutation(async ({ input }) => { const [metrics, runs] = await Promise.all([getOwnerMetrics(input?.from ? new Date(`${input.from}T00:00:00.000Z`) : undefined), getSlaEvaluationRuns(input ?? {})]); return { filename: `jyotish-metrics-${new Date().toISOString().slice(0, 10)}.csv`, contentBase64: Buffer.from(buildSlaEvaluationRunsCsv(metrics, runs.items), "utf8").toString("base64") }; }),
     slaSettings: adminProcedure.query(() => getSlaSettings()),
     updateSlaSettings: adminProcedure.input(z.object({ enabled: z.boolean(), preparationHours: z.number().int().min(1).max(720), deliveryHours: z.number().int().min(1).max(720), alertCooldownMinutes: z.number().int().min(5).max(10080) })).mutation(({ input, ctx }) => setSlaSettings({ ...input, updatedBy: ctx.user.openId })),
-    evaluateSla: adminProcedure.mutation(() => evaluateSla()),
+    evaluateSla: adminProcedure.mutation(({ ctx }) => evaluateSla({ trigger: "manual", actor: ctx.user.openId })),
     attachNatalPdf: adminProcedure.input(attachNatalPdfSchema).mutation(async ({ input, ctx }) => {
       const buffer = decodePdfBase64(input.contentBase64);
       const safeName = sanitizePdfName(input.fileName);

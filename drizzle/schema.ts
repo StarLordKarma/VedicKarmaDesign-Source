@@ -400,3 +400,24 @@ export const operationalAlerts = mysqlTable("operational_alerts", {
 
 export type OperationalAlert = typeof operationalAlerts.$inferSelect;
 export type InsertOperationalAlert = typeof operationalAlerts.$inferInsert;
+
+export const slaEvaluationRuns = mysqlTable("sla_evaluation_runs", {
+  id: int("id").autoincrement().primaryKey(),
+  trigger: mysqlEnum("trigger", ["heartbeat", "manual"]).notNull(),
+  status: mysqlEnum("status", ["succeeded", "disabled", "failed"]).notNull(),
+  evaluatedAt: timestamp("evaluatedAt").defaultNow().notNull(),
+  durationMs: int("durationMs").notNull().default(0),
+  jobsEvaluated: int("jobsEvaluated").notNull().default(0),
+  preparationViolations: int("preparationViolations").notNull().default(0),
+  deliveryViolations: int("deliveryViolations").notNull().default(0),
+  alertsCreated: int("alertsCreated").notNull().default(0),
+  notificationsSent: int("notificationsSent").notNull().default(0),
+  errorCode: varchar("errorCode", { length: 120 }),
+  actor: varchar("actor", { length: 64 }).notNull().default("system"),
+}, (table) => ({
+  evaluatedAtIdx: index("sla_evaluation_runs_evaluated_at_idx").on(table.evaluatedAt),
+  statusEvaluatedAtIdx: index("sla_evaluation_runs_status_evaluated_at_idx").on(table.status, table.evaluatedAt),
+}));
+
+export type SlaEvaluationRun = typeof slaEvaluationRuns.$inferSelect;
+export type InsertSlaEvaluationRun = typeof slaEvaluationRuns.$inferInsert;

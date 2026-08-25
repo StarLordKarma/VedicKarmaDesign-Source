@@ -251,3 +251,41 @@ export async function buildFullNatalReportPdf(input: { background: Buffer; local
   doc.end();
   return result;
 }
+
+
+export function buildSlaEvaluationRunsCsv(metrics: {
+  since: string;
+  bookings: number;
+  paidBookings: number;
+  completedBookings: number;
+  failedDeliveries: number;
+  queuedReports: number;
+  sentReports: number;
+  openAlerts: number;
+}, runs: Array<{
+  id: number;
+  trigger: string;
+  status: string;
+  evaluatedAt: Date;
+  durationMs: number;
+  jobsEvaluated: number;
+  preparationViolations: number;
+  deliveryViolations: number;
+  alertsCreated: number;
+  notificationsSent: number;
+  errorCode: string | null;
+}>) {
+  const summaryHeaders = ["Metric", "Value", "Window start"];
+  const summaryRows = [
+    ["bookings", metrics.bookings, metrics.since],
+    ["paid_bookings", metrics.paidBookings, metrics.since],
+    ["completed_bookings", metrics.completedBookings, metrics.since],
+    ["failed_deliveries", metrics.failedDeliveries, metrics.since],
+    ["queued_reports", metrics.queuedReports, metrics.since],
+    ["sent_reports", metrics.sentReports, metrics.since],
+    ["open_alerts", metrics.openAlerts, metrics.since],
+  ];
+  const runHeaders = ["Run ID", "Trigger", "Status", "Evaluated at", "Duration ms", "Jobs evaluated", "Preparation violations", "Delivery violations", "Alerts created", "Notifications sent", "Error code"];
+  const runRows = runs.map((run) => [run.id, run.trigger, run.status, run.evaluatedAt.toISOString(), run.durationMs, run.jobsEvaluated, run.preparationViolations, run.deliveryViolations, run.alertsCreated, run.notificationsSent, run.errorCode ?? ""]);
+  return `\uFEFF${summaryHeaders.map(escapeCsv).join(",")}\n${summaryRows.map((row) => row.map(escapeCsv).join(",")).join("\n")}\n\n${runHeaders.map(escapeCsv).join(",")}\n${runRows.map((row) => row.map(escapeCsv).join(",")).join("\n")}`;
+}
