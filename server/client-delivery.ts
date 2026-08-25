@@ -86,3 +86,23 @@ export async function sendClientReportPdf(input: { email: string; name: string; 
   }
   return (await response.json()) as { id?: string };
 }
+
+
+export async function sendSlaChartPdf(input: { email: string; pdfBytes: Uint8Array; pdfName: string; rangeLabel: string; language: string }) {
+  if (!ENV.resendApiKey || !ENV.resendFromEmail) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Email delivery is not configured." });
+  if (input.pdfBytes.length === 0 || input.pdfBytes.length > 12 * 1024 * 1024) throw new TRPCError({ code: "PAYLOAD_TOO_LARGE", message: "The SLA chart PDF exceeds the delivery limit." });
+  const language = input.language === "ru" ? "ru" : input.language === "de" ? "de" : input.language === "es" ? "es" : "en";
+  const copy = language === "ru" ? { subject: "Отчёт по нарушениям SLA", greeting: "Здравствуйте", body: "Отчёт с графиками нарушений SLA прикреплён в формате PDF.", period: "Выбранный период" } : language === "de" ? { subject: "SLA-Verstoßbericht", greeting: "Guten Tag", body: "Der Bericht mit den SLA-Verstoßgrafiken ist als PDF angehängt.", period: "Ausgewählter Zeitraum" } : language === "es" ? { subject: "Informe de incumplimientos SLA", greeting: "Hola", body: "El informe con los gráficos de incumplimientos SLA está adjunto en formato PDF.", period: "Periodo seleccionado" } : { subject: "SLA violations report", greeting: "Hello", body: "The SLA violations chart report is attached as a PDF.", period: "Selected period" };
+  const safeRange = escapeHtml(input.rangeLabel);
+  const response = await fetch(RESEND_ENDPOINT, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${ENV.resendApiKey}`, "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ from: ENV.resendFromEmail, to: [input.email], subject: copy.subject, html: `<p>${copy.greeting},</p><p>${copy.body}</p><p>${copy.period}: <strong>${safeRange}</strong></p><p style="font-size:12px;color:#635a52">This operational report is provided for internal monitoring and does not constitute professional advice.</p>`, attachments: [{ filename: input.pdfName || "sla-violations-report.pdf", content: bytesToBase64(input.pdfBytes) }] }),
+    signal: AbortSignal.timeout(20_000),
+  });
+  if (!response.ok) {
+    const detail = await response.text().catch(() => "");
+    throw new TRPCError({ code: "BAD_GATEWAY", message: `Email provider rejected the SLA report delivery${detail ? `: ${detail.slice(0, 240)}` : "."}` });
+  }
+  return (await response.json()) as { id?: string };
+}

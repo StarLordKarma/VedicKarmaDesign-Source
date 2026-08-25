@@ -10,12 +10,13 @@ vi.mock("@/lib/trpc", () => ({
   trpc: {
     useUtils: () => ({ admin: { slaSettings: { invalidate: vi.fn() } } }),
     admin: {
-      metrics: { useQuery: () => ({ data: { bookings: 1, paidBookings: 1, queuedReports: 0, openAlerts: 0, completedBookings: 1, sentReports: 1, failedDeliveries: 0, since: "2026-08-01T00:00:00.000Z", recentAlerts: [] }, isLoading: false, refetch: vi.fn() }) },
+      metrics: { useQuery: () => ({ data: { bookings: 1, paidBookings: 1, queuedReports: 0, openAlerts: 0, completedBookings: 1, sentReports: 1, failedDeliveries: 0, since: "2026-08-01T00:00:00.000Z", recentAlerts: [], topWeeklyErrors: [{ errorCode: "DELIVERY_FAILED", count: 3, latestAt: "2026-08-23T12:00:00.000Z" }], slaViolationTrend: [] }, isLoading: false, refetch: vi.fn() }) },
       slaEvaluationRuns: { useQuery: () => ({ data: { items: [], total: 0, page: 1, pageSize: 10, totalPages: 0 }, isLoading: false, refetch: vi.fn() }) },
       slaSettings: { useQuery: () => ({ data: { enabled: true, preparationHours: 48, deliveryHours: 24, alertCooldownMinutes: 60 }, isLoading: false }) },
       updateSlaSettings: { useMutation: () => ({ mutate: vi.fn(), isPending: false, isSuccess: false }) },
       evaluateSla: { useMutation: () => ({ mutate: vi.fn(), isPending: false, isSuccess: false }) },
       exportMetricsCsv: { useMutation: () => ({ mutate: vi.fn(), isPending: false, isSuccess: false, isError: false }) },
+      sendSlaChartPdf: { useMutation: () => ({ mutateAsync: vi.fn().mockResolvedValue({ success: true, providerId: "test" }), isPending: false, isSuccess: false, isError: false }) },
     },
   },
 }));
@@ -32,6 +33,10 @@ describe("AdminMetrics localization", () => {
     expect(screen.getByRole("button", { name: "PNG" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "PDF" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "CSV" })).toBeDisabled();
+    expect(screen.getByText("Top SLA errors this week")).toBeInTheDocument();
+    expect(screen.getByText("DELIVERY_FAILED")).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Recipient email" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Choose dates" })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "Error type" })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Rows" })).toBeInTheDocument();
     expect(screen.getByLabelText("From")).toBeInTheDocument();

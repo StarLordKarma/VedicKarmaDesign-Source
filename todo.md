@@ -453,3 +453,10 @@
 - [x] Verify the VedicKarmaDesign GitHub repository, remote, branch, and safe push target
 - [x] Commit the current project state with a descriptive Git commit and push it to GitHub
 - [x] Run final validation and save a WebDev checkpoint for the export-feedback version
+
+- [x] Add owner dashboard widget with the top three SLA error codes for the current UTC week
+- [x] Add an owner-only email delivery flow for the generated SLA chart PDF with recipient validation and delivery status
+- [x] Add a calendar-based custom date-range picker for the SLA journal filters
+- [x] Preserve search, error-code, status, date, sort, pagination, and infinite-scroll behavior with the calendar range
+- [x] Add regression tests for weekly top errors, email authorization/feedback, and calendar range state
+- [x] Run full validation, responsive verification, and save the dashboard extension checkpoint

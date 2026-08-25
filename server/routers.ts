@@ -5,7 +5,7 @@ import { adminProcedure, publicProcedure, router } from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { bookingSchema, isProductionSmokeTestBooking } from "@shared/booking";
-import { activityDateRangeSchema, attachNatalPdfSchema, bulkSendNatalPdfSchema, clientHistorySchema, editBookingClientSchema, pricingCurrencySchema, pricingHistoryFilterSchema, pricingHistoryPageSchema, receiptEmailHistoryPageSchema, sendNatalPdfSchema, servicePricingSchema, smokeTestRunsPageSchema, slaEvaluationRunsPageSchema, updateBookingAdminSchema, reportRunSchema, reportApprovalSchema } from "@shared/admin";
+import { activityDateRangeSchema, attachNatalPdfSchema, bulkSendNatalPdfSchema, clientHistorySchema, editBookingClientSchema, pricingCurrencySchema, pricingHistoryFilterSchema, pricingHistoryPageSchema, receiptEmailHistoryPageSchema, sendNatalPdfSchema, servicePricingSchema, smokeTestRunsPageSchema, slaEvaluationRunsPageSchema, updateBookingAdminSchema, reportRunSchema, reportApprovalSchema, sendSlaChartPdfSchema } from "@shared/admin";
 import { createBookingRequest, createSmokeTestRun, deleteBookingRequest, finishSmokeTestRun, getAdminActivityEvents, getAdminActivitySummary, getBookingRequestById, getClientChangeHistory, getPricingHistory, getPricingHistoryPage, getServicePricing, getSmokeTestRuns, getSmokeTestRunsForExport, getSmokeTestRunsPage, getReceiptRetentionHours, cleanupExpiredReceiptFiles, listServicePricing, getReceiptEmailHistoryPage, getLatestReceiptEmailAttempt, createReceiptEmailAttempt, finishReceiptEmailAttempt, normalizeReceiptEmail, isReceiptEmailCoolingDown, recordReceiptEmailFailureAlert, RECEIPT_EMAIL_COOLDOWN_MS, updateBookingClient, updateBookingDelivery, updateBookingPayment, updateReceiptRetentionHours, updateServicePricing } from "./db";
 import { notifyOwner } from "./_core/notification";
 import { buildCheckoutBreakdownPdf, buildSmokeTestRunsCsv } from "./export";
@@ -13,7 +13,7 @@ import { createCheckoutForBooking } from "./payment-flow";
 import { runManualSmokeTest } from "./manual-smoke-test";
 import { applyAdminBookingUpdate } from "./admin-update-flow";
 import { attachNatalPdf, getAllBookingRequests, registerReceiptFile } from "./db";
-import { sendClientNatalPdf, sendClientReceiptPdf } from "./client-delivery";
+import { sendClientNatalPdf, sendClientReceiptPdf, sendSlaChartPdf } from "./client-delivery";
 import { storagePut } from "./storage";
 import { buildActivityCsv, buildBookingsCsv, buildBookingsPdf, buildPricingHistoryCsv, buildSlaEvaluationRunsCsv, decodePdfBase64, sanitizePdfName } from "./export";
 import { ENV } from "./_core/env";
@@ -71,6 +71,7 @@ export const appRouter = router({
     metrics: adminProcedure.input(z.object({ since: z.coerce.date().optional(), until: z.coerce.date().optional() }).optional()).query(({ input }) => getOwnerMetrics(input?.since, input?.until)),
     slaEvaluationRuns: adminProcedure.input(slaEvaluationRunsPageSchema.optional()).query(({ input }) => getSlaEvaluationRuns(input ?? {})),
     exportMetricsCsv: adminProcedure.input(slaEvaluationRunsPageSchema.omit({ page: true, pageSize: true }).optional()).mutation(async ({ input }) => { const [metrics, runs] = await Promise.all([getOwnerMetrics(input?.from ? new Date(`${input.from}T00:00:00.000Z`) : undefined, input?.to ? new Date(`${input.to}T23:59:59.999Z`) : undefined), getSlaEvaluationRuns(input ?? {})]); return { filename: `jyotish-metrics-${new Date().toISOString().slice(0, 10)}.csv`, contentBase64: Buffer.from(buildSlaEvaluationRunsCsv(metrics, runs.items), "utf8").toString("base64") }; }),
+    sendSlaChartPdf: adminProcedure.input(sendSlaChartPdfSchema).mutation(async ({ input }) => { const pdfBytes = decodePdfBase64(input.contentBase64); const result = await sendSlaChartPdf({ email: input.email, pdfBytes, pdfName: input.fileName, rangeLabel: input.rangeLabel, language: input.language }); return { success: true, providerId: result.id ?? null } as const; }),
     slaSettings: adminProcedure.query(() => getSlaSettings()),
     updateSlaSettings: adminProcedure.input(z.object({ enabled: z.boolean(), preparationHours: z.number().int().min(1).max(720), deliveryHours: z.number().int().min(1).max(720), alertCooldownMinutes: z.number().int().min(5).max(10080) })).mutation(({ input, ctx }) => setSlaSettings({ ...input, updatedBy: ctx.user.openId })),
     evaluateSla: adminProcedure.mutation(({ ctx }) => evaluateSla({ trigger: "manual", actor: ctx.user.openId })),

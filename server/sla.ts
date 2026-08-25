@@ -26,6 +26,21 @@ export function aggregateSlaViolationTrend(runs: Array<{ evaluatedAt: Date; prep
   return Array.from(byDay.values()).sort((a, b) => a.date.localeCompare(b.date));
 }
 
+export type SlaErrorSummary = { errorCode: string; count: number; latestAt: Date | null };
+
+export function aggregateTopSlaErrors(runs: Array<{ errorCode: string | null; evaluatedAt?: Date | null }>, limit = 3): SlaErrorSummary[] {
+  const grouped = new Map<string, SlaErrorSummary>();
+  for (const run of runs) {
+    const errorCode = run.errorCode?.trim();
+    if (!errorCode) continue;
+    const current = grouped.get(errorCode) ?? { errorCode, count: 0, latestAt: null };
+    current.count += 1;
+    if (run.evaluatedAt && (!current.latestAt || run.evaluatedAt > current.latestAt)) current.latestAt = run.evaluatedAt;
+    grouped.set(errorCode, current);
+  }
+  return Array.from(grouped.values()).sort((a, b) => b.count - a.count || a.errorCode.localeCompare(b.errorCode)).slice(0, Math.max(0, limit));
+}
+
 export type SlaEvaluationRunFilters = {
   status?: "succeeded" | "disabled" | "failed";
   trigger?: "heartbeat" | "manual";
@@ -131,7 +146,7 @@ export async function getOwnerMetrics(sinceInput?: Date, untilInput?: Date) {
   const since = sinceInput && !Number.isNaN(sinceInput.getTime()) ? sinceInput : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   const until = untilInput && !Number.isNaN(untilInput.getTime()) ? untilInput : undefined;
   const range = (column: any) => until ? and(gte(column, since), lt(column, until)) : gte(column, since);
-  if (!db) return { since: since.toISOString(), bookings: 0, paidBookings: 0, completedBookings: 0, failedDeliveries: 0, queuedReports: 0, sentReports: 0, openAlerts: 0, averageSlaResponseMs: 0, recentAlerts: [], recentSlaRuns: [], slaViolationTrend: [] };
+  if (!db) return { since: since.toISOString(), bookings: 0, paidBookings: 0, completedBookings: 0, failedDeliveries: 0, queuedReports: 0, sentReports: 0, openAlerts: 0, averageSlaResponseMs: 0, recentAlerts: [], recentSlaRuns: [], slaViolationTrend: [], topWeeklyErrors: [] };
   const [bookings, paidBookings, completedBookings, failedDeliveries, queuedReports, sentReports, openAlerts, averageSlaResponseMs] = await Promise.all([
     scalar(db.select({ value: count() }).from(bookingRequests).where(range(bookingRequests.createdAt))),
     scalar(db.select({ value: count() }).from(bookingRequests).where(and(range(bookingRequests.createdAt), eq(bookingRequests.paymentStatus, "finished")))),
@@ -142,12 +157,18 @@ export async function getOwnerMetrics(sinceInput?: Date, untilInput?: Date) {
     scalar(db.select({ value: count() }).from(operationalAlerts).where(and(eq(operationalAlerts.status, "open"), isNull(operationalAlerts.resolvedAt)))),
     scalar(db.select({ value: avg(slaEvaluationRuns.durationMs) }).from(slaEvaluationRuns).where(and(range(slaEvaluationRuns.evaluatedAt), eq(slaEvaluationRuns.status, "succeeded")))),
   ]);
-  const [recentAlerts, recentSlaRuns, trendRuns] = await Promise.all([
+  const now = new Date();
+  const weekStart = new Date(now);
+  weekStart.setUTCHours(0, 0, 0, 0);
+  const daysFromMonday = (weekStart.getUTCDay() + 6) % 7;
+  weekStart.setUTCDate(weekStart.getUTCDate() - daysFromMonday);
+  const [recentAlerts, recentSlaRuns, trendRuns, weeklyErrorRuns] = await Promise.all([
     db.select({ id: operationalAlerts.id, alertType: operationalAlerts.alertType, severity: operationalAlerts.severity, status: operationalAlerts.status, count: operationalAlerts.count, summary: operationalAlerts.summary, firstSeenAt: operationalAlerts.firstSeenAt, lastSeenAt: operationalAlerts.lastSeenAt }).from(operationalAlerts).where(eq(operationalAlerts.status, "open")).orderBy(desc(operationalAlerts.lastSeenAt)).limit(20),
     db.select().from(slaEvaluationRuns).where(range(slaEvaluationRuns.evaluatedAt)).orderBy(desc(slaEvaluationRuns.evaluatedAt)).limit(20),
     db.select({ evaluatedAt: slaEvaluationRuns.evaluatedAt, preparationViolations: slaEvaluationRuns.preparationViolations, deliveryViolations: slaEvaluationRuns.deliveryViolations }).from(slaEvaluationRuns).where(and(range(slaEvaluationRuns.evaluatedAt), eq(slaEvaluationRuns.status, "succeeded"))).orderBy(asc(slaEvaluationRuns.evaluatedAt)).limit(1000),
+    db.select({ errorCode: slaEvaluationRuns.errorCode, evaluatedAt: slaEvaluationRuns.evaluatedAt }).from(slaEvaluationRuns).where(and(gte(slaEvaluationRuns.evaluatedAt, weekStart), eq(slaEvaluationRuns.status, "failed"))).orderBy(desc(slaEvaluationRuns.evaluatedAt)).limit(1000),
   ]);
-  return { since: since.toISOString(), bookings, paidBookings, completedBookings, failedDeliveries, queuedReports, sentReports, openAlerts, averageSlaResponseMs, recentAlerts, recentSlaRuns, slaViolationTrend: aggregateSlaViolationTrend(trendRuns) };
+  return { since: since.toISOString(), bookings, paidBookings, completedBookings, failedDeliveries, queuedReports, sentReports, openAlerts, averageSlaResponseMs, recentAlerts, recentSlaRuns, slaViolationTrend: aggregateSlaViolationTrend(trendRuns), topWeeklyErrors: aggregateTopSlaErrors(weeklyErrorRuns) };
 }
 
 

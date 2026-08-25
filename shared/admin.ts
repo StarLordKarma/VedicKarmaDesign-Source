@@ -86,6 +86,14 @@ export const reportApprovalSchema = z.object({ reportJobId: z.number().int().pos
 export const slaEvaluationStatusSchema = z.enum(["succeeded", "disabled", "failed"]);
 export const slaEvaluationTriggerSchema = z.enum(["heartbeat", "manual"]);
 export const slaEvaluationSortSchema = z.enum(["evaluated_desc", "evaluated_asc", "duration_desc", "duration_asc"]);
+export const sendSlaChartPdfSchema = z.object({
+  email: z.string().email().max(320),
+  contentBase64: z.string().min(16).max(17_000_000),
+  fileName: z.string().trim().min(1).max(180),
+  rangeLabel: z.string().trim().min(1).max(120),
+  language: z.enum(["en", "ru", "de", "es"]),
+});
+
 export const slaEvaluationRunsPageSchema = z.object({
   status: slaEvaluationStatusSchema.optional(),
   trigger: slaEvaluationTriggerSchema.optional(),
