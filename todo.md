@@ -508,3 +508,9 @@
 - [x] Add a dynamic included-services list that follows the selected package
 - [x] Add regression coverage for promo validation, totals, success animation, and included services
 - [x] Run full tests, TypeScript, build, logs, and responsive verification
+
+- [x] Add a localized booking-form progress indicator showing completed and remaining steps
+- [x] Keep progress state synchronized with package selection, required birth fields, and privacy consent
+- [x] Add localized success-screen Share buttons for Web Share API and social links
+- [x] Add regression coverage for progress states and success-screen sharing actions
+- [x] Run full tests, TypeScript, build, logs, and responsive verification

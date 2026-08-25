@@ -81,7 +81,7 @@ describe("Home booking payment UX", () => {
     expect(promoMutationState.mutate).toHaveBeenCalledWith({ currency: "USD", addon: true, promoCode: "WELCOME10" });
     act(() => promoMutationOptions.onSuccess?.({ valid: true, code: "WELCOME10", discountPercent: 10, discountAmount: 3.5, totalAmount: 31.5 }));
     expect(screen.getByTestId("live-total-breakdown")).toHaveTextContent("$32");
-    expect(screen.getByRole("status")).toHaveTextContent("Promo code applied");
+    expect(screen.getByTestId("applied-promo-status")).toHaveTextContent("Promo code applied");
   });
 
   it("shows a detailed checkout price breakdown and keeps the total mathematically consistent", () => {
@@ -202,6 +202,8 @@ describe("Home booking payment UX", () => {
     const assign = vi.fn();
     Object.defineProperty(window, "location", { configurable: true, value: { assign } });
     const view = renderHome();
+    expect(screen.getByRole("status", { name: "Booking progress" })).toHaveTextContent("2 steps remaining");
+    expect(screen.getByText("Choose reading")).toBeInTheDocument();
 
     mutationState.isPending = true;
     view.rerender(<ThemeProvider switchable><Home /></ThemeProvider>);
@@ -226,6 +228,11 @@ describe("Home booking payment UX", () => {
     });
     expect(screen.getByText("Your request is received.")).toBeInTheDocument();
     expect(screen.getByText(/Your request is saved/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Share" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "WhatsApp" })).toHaveAttribute("href", expect.stringContaining("wa.me"));
+    expect(screen.getByRole("link", { name: "Telegram" })).toHaveAttribute("href", expect.stringContaining("t.me/share"));
+    expect(screen.getByRole("link", { name: "X" })).toHaveAttribute("href", expect.stringContaining("twitter.com/intent/tweet"));
+    expect(screen.getByRole("link", { name: "Facebook" })).toHaveAttribute("href", expect.stringContaining("facebook.com/sharer"));
     expect(document.querySelector(".success-pop")).toBeInTheDocument();
     expect(document.querySelector(".success-checkmark")).toBeInTheDocument();
     expect(screen.getAllByText((_, node) => Boolean(node?.textContent?.includes("25") && node.textContent.includes("€"))).length).toBeGreaterThan(0);
