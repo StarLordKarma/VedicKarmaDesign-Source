@@ -420,3 +420,9 @@
 - [x] Improve SLA journal large-volume browsing with page-size controls and robust pagination
 - [x] Add regression tests for chart exports, date-range filtering, and journal pagination
 - [x] Run full validation, responsive checks, and save the metrics export checkpoint
+
+- [x] Add an infinite-scroll alternative for the SLA journal while preserving pagination mode
+- [x] Preserve server-side search, date, status, trigger, and sort filters in infinite-scroll loading
+- [x] Add a branded PNG export header with the selected UTC date range and company logo
+- [x] Add regression tests for infinite-scroll mode and branded PNG export metadata/layout
+- [x] Run full validation, responsive checks, and save the infinite-scroll/export checkpoint
