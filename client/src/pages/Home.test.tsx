@@ -33,6 +33,11 @@ vi.mock("@/lib/trpc", () => ({
 }));
 
 describe("Home booking payment UX", () => {
+  it("does not expose a customer file attachment input", () => {
+    renderHome();
+    expect(document.querySelector('input[type="file"]')).toBeNull();
+  });
+
   it("autosaves safe form values, restores a recent draft, and never restores consent", () => {
     renderHome();
     fireEvent.input(screen.getByLabelText("Preferred name"), { target: { value: "Maya" } });
@@ -55,13 +60,6 @@ describe("Home booking payment UX", () => {
     expect(name).toHaveValue("");
     expect(localStorage.getItem("vedic-booking-draft-v1")).toBeNull();
     expect(screen.queryByTestId("draft-status")).not.toBeInTheDocument();
-  });
-
-  it("renders an optional attachment input with an allowlisted file policy", () => {
-    renderHome();
-    const input = screen.getByLabelText("Optional attachment");
-    expect(input).toHaveAttribute("type", "file");
-    expect(input).toHaveAttribute("accept", "application/pdf,image/jpeg,image/png,image/webp,text/plain");
   });
 
   it("removes a draft older than the retention window", () => {

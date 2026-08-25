@@ -531,8 +531,21 @@
 - [x] Update existing success-flow tests to confirm the new review step before final submit
 
 - [x] Add smooth enter/exit animation to the order preview dialog with reduced-motion support
-- [x] Add optional file/image attachment input to the booking data step with type and size validation
-- [x] Show selected attachment metadata and allow removal before review/submit
-- [x] Keep attachment handling privacy-conscious and preserve existing draft/consent rules
-- [x] Add regression tests for dialog animation state and attachment validation/removal
+- [x] Add optional file/image attachment input to the booking data step with type and size validation (superseded by user-requested removal)
+- [x] Show selected attachment metadata and allow removal before review/submit (superseded by user-requested removal)
+- [x] Keep attachment handling privacy-conscious and preserve existing draft/consent rules (superseded by user-requested removal)
+- [x] Add regression tests for dialog animation state and attachment validation/removal (superseded by user-requested removal)
 - [x] Run full tests, TypeScript, build, logs, and responsive verification
+
+- [x] Cancel server-side malware scanning gate because customer attachments were removed
+- [x] Cancel antivirus configuration/fail-closed behavior because customer attachments were removed
+- [x] Cancel attachment lifecycle/orphan tracking because customer attachments were removed
+- [x] Cancel scheduled orphan-attachment cleanup because customer attachments were removed
+- [x] Cancel attachment security-specific regression scope because customer attachments were removed
+- [x] Preserve unrelated validation and review-dialog checks after feature cancellation
+
+- [x] Remove customer attachment input, preview metadata, and review summary from booking UI
+- [x] Remove attachment payload validation, storage upload flow, and booking metadata schema fields
+- [x] Apply user-authorized database migration 0023 to remove unused attachment metadata columns
+- [x] Remove attachment-specific tests and add regression assertion that the attachment UI is absent
+- [x] Run full tests, TypeScript, build, logs, and responsive verification after removal

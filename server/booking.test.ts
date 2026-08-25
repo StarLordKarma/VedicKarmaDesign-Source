@@ -33,13 +33,6 @@ describe("booking validation", () => {
     expect(bookingSchema.safeParse({ ...validBooking, currency: "JPY" }).success).toBe(false);
   });
 
-  it("accepts supported attachment metadata and rejects unsafe size or MIME type", () => {
-    const accepted = bookingSchema.safeParse({ ...validBooking, attachment: { fileName: "context.txt", contentType: "text/plain", size: 12, contentBase64: "c3VwcG9ydGluZw==" } });
-    expect(accepted.success).toBe(true);
-    expect(bookingSchema.safeParse({ ...validBooking, attachment: { fileName: "script.exe", contentType: "application/octet-stream", size: 12, contentBase64: "YQ==" } }).success).toBe(false);
-    expect(bookingSchema.safeParse({ ...validBooking, attachment: { fileName: "large.pdf", contentType: "application/pdf", size: 5 * 1024 * 1024 + 1, contentBase64: "YQ==" } }).success).toBe(false);
-  });
-
   it("creates immutable package snapshots with deterministic totals", () => {
     expect(buildBookingPriceSnapshot({ addon: false, currency: "USD", basicAmount: 25, addonAmount: 10 })).toEqual({ packageCode: "basic", packageVersion: 1, currency: "USD", basicAmount: 25, addonAmount: 0, totalAmount: 25 });
     expect(buildBookingPriceSnapshot({ addon: true, currency: "EUR", basicAmount: 23, addonAmount: 9 })).toEqual({ packageCode: "basic_plus", packageVersion: 1, currency: "EUR", basicAmount: 23, addonAmount: 9, totalAmount: 32 });
