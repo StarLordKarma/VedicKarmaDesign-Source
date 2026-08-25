@@ -494,3 +494,9 @@
 - [x] Add migration, server contract, and regression tests for package/price snapshot integrity
 - [x] Expose package selection in the public booking flow without changing historical order totals
 - [x] Run Phase 2.2 package snapshot full validation and save an implementation checkpoint
+
+- [x] Add localized informative tooltips explaining Basic versus Basic+ in the booking form
+- [x] Add smooth light/dark theme transition with reduced-motion support
+- [x] Add a dedicated live-updating booking total breakdown block for the selected package
+- [x] Add regression coverage for package tooltips, theme transition, and live total breakdown
+- [x] Run full tests, TypeScript, build, logs, and responsive verification

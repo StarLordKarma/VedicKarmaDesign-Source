@@ -83,6 +83,17 @@ describe("Home booking payment UX", () => {
     expect(breakdown).toHaveTextContent("$35");
   });
 
+  it("updates the dedicated total breakdown when the package changes", () => {
+    renderHome();
+    const total = screen.getByTestId("live-total-breakdown");
+    expect(total).toHaveTextContent("Total");
+    expect(total).toHaveTextContent("$25");
+    expect(screen.getByRole("radio", { name: "Basic + numerology" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("radio", { name: "Basic + numerology" }));
+    expect(total).toHaveTextContent("+$10");
+    expect(total).toHaveTextContent("$35");
+  });
+
   it("keeps price-breakdown tooltip copy aligned with the selected language", () => {
     renderHome();
     expect(screen.getByRole("button", { name: "Basic reading" })).toBeInTheDocument();
@@ -143,6 +154,7 @@ describe("Home booking payment UX", () => {
   it("toggles the booking form theme and persists the new choice", () => {
     renderHome();
     fireEvent.click(screen.getByRole("button", { name: "Dark mode" }));
+    expect(document.documentElement).toHaveClass("theme-transition");
     expect(localStorage.getItem("theme")).toBe("dark");
     expect(screen.getByRole("button", { name: "Light mode" })).toBeInTheDocument();
   });

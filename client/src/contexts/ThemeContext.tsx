@@ -44,7 +44,9 @@ export function ThemeProvider({
 
   const toggleTheme = switchable
     ? () => {
+        document.documentElement.classList.add("theme-transition");
         setTheme(prev => (prev === "light" ? "dark" : "light"));
+        window.setTimeout(() => document.documentElement.classList.remove("theme-transition"), 240);
       }
     : undefined;
 
