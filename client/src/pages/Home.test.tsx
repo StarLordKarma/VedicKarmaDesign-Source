@@ -130,6 +130,27 @@ describe("Home booking payment UX", () => {
     view.unmount();
   });
 
+  it("highlights and shakes the consent block when submitting without acceptance", () => {
+    render(<Home />);
+    fireEvent.change(screen.getByLabelText("Preferred name"), { target: { value: "Maya" } });
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "maya@example.com" } });
+    fireEvent.change(screen.getByLabelText("Date of birth"), { target: { value: "1990-04-12" } });
+    fireEvent.change(screen.getByLabelText("Exact time of birth"), { target: { value: "14:30" } });
+    fireEvent.change(screen.getByLabelText("City of birth"), { target: { value: "Delhi" } });
+    fireEvent.change(screen.getByLabelText("Country of birth"), { target: { value: "India" } });
+
+    fireEvent.click(screen.getByRole("button", { name: /Request my reading/i }));
+
+    expect(mutationState.mutate).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert")).toHaveTextContent("Please read and accept the privacy information before submitting.");
+    expect(screen.getByLabelText("privacy consent")).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByLabelText("privacy consent").closest("label")).toHaveClass("consent-error-shake");
+
+    fireEvent.click(screen.getByLabelText("privacy consent"));
+    expect(screen.getByLabelText("privacy consent")).toHaveAttribute("aria-invalid", "false");
+    expect(screen.queryByText("Please read and accept the privacy information before submitting.")).not.toBeInTheDocument();
+  });
+
   it("shows pending loading, success confirmation, and schedules the checkout redirect", async () => {
     const assign = vi.fn();
     Object.defineProperty(window, "location", { configurable: true, value: { assign } });

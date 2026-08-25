@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { ArrowLeft, ShieldCheck } from "lucide-react";
 
 type Locale = "en" | "ru" | "de" | "es";
+const LOCALE_LABELS: Record<Locale, string> = { en: "English", ru: "Русский", de: "Deutsch", es: "Español" };
 const copy: Record<Locale, { back: string; eyebrow: string; title: string; intro: string; draft: string; sections: Array<{ title: string; body: string }> }> = {
   en: { back: "Back to the reading", eyebrow: "PRIVACY & DATA PROTECTION", title: "How we handle personal data", intro: "This notice explains what data is collected through this site, why it is used, who may process it, how long it is kept, and how to exercise applicable rights.", draft: "Working notice — replace the controller name, postal address and privacy contact before launch, and obtain local legal review for every target market.", sections: [
     { title: "1. Controller and contact", body: "The controller is the person or organisation operating Jyotish · by Anika. Controller name, postal address and a dedicated privacy contact must be inserted here before publication. Privacy requests should identify the request and the email used for the booking; we may ask for proportionate verification." },
@@ -50,8 +51,41 @@ const copy: Record<Locale, { back: string; eyebrow: string; title: string; intro
   ] },
 };
 
+const navigationCopy: Record<Locale, { language: string; sections: string; backToTop: string }> = {
+  en: { language: "Choose language", sections: "On this page", backToTop: "Back to top" },
+  ru: { language: "Выберите язык", sections: "В этом документе", backToTop: "Наверх" },
+  de: { language: "Sprache wählen", sections: "Auf dieser Seite", backToTop: "Nach oben" },
+  es: { language: "Elegir idioma", sections: "En esta página", backToTop: "Volver arriba" },
+};
+
 export default function Privacy() {
   const [locale, setLocale] = useState<Locale>(() => { const value = window.localStorage.getItem("public-locale"); return value === "ru" || value === "de" || value === "es" ? value : "en"; });
+  const [activeSection, setActiveSection] = useState("privacy-section-1");
   const t = copy[locale];
-  return <main className="min-h-screen bg-[#f8f5f0] px-5 py-8 text-[#2f2923] sm:px-8 lg:px-16"><div className="mx-auto max-w-4xl"><div className="flex flex-wrap items-center justify-between gap-4"><Link href="/" className="inline-flex items-center gap-2 text-sm text-[#8f4e36] hover:underline"><ArrowLeft size={16} />{t.back}</Link><select aria-label="Language" value={locale} onChange={(event) => { const next = event.target.value as Locale; setLocale(next); window.localStorage.setItem("public-locale", next); }} className="rounded-full border border-[#d8c8bd] bg-white px-3 py-2 text-sm"><option value="en">EN</option><option value="ru">RU</option><option value="de">DE</option><option value="es">ES</option></select></div><div className="mt-16"><p className="text-xs font-semibold tracking-[0.24em] text-[#aa6245]">{t.eyebrow}</p><h1 className="mt-3 max-w-3xl font-serif text-4xl leading-tight sm:text-6xl">{t.title}</h1><p className="mt-6 max-w-3xl text-lg leading-8 text-[#635a52]">{t.intro}</p><div className="mt-6 flex gap-3 rounded-2xl border border-[#d9a441]/40 bg-[#fff8e8] p-4 text-sm leading-6 text-[#635a52]"><ShieldCheck className="mt-1 shrink-0 text-[#aa6245]" size={20} /><p>{t.draft}</p></div></div><div className="mt-12 space-y-8">{t.sections.map((section) => <section key={section.title} className="rounded-2xl border border-[#eadfd7] bg-white p-6 shadow-sm sm:p-8"><h2 className="font-serif text-2xl">{section.title}</h2><p className="mt-3 leading-7 text-[#635a52]">{section.body}</p></section>)}</div><p className="mt-10 text-xs leading-6 text-[#806f64]">This page is a working information notice, not legal advice. The operator remains responsible for selecting the correct controller, legal bases, retention periods, provider agreements, transfer mechanisms, records and local filings.</p></div></main>;
+  const navigation = navigationCopy[locale];
+  const sectionIds = t.sections.map((_, index) => `privacy-section-${index + 1}`);
+
+  useEffect(() => {
+    window.localStorage.setItem("public-locale", locale);
+  }, [locale]);
+
+  useEffect(() => {
+    if (!("IntersectionObserver" in window)) return;
+    const sections = sectionIds.map((id) => document.getElementById(id)).filter((section): section is HTMLElement => Boolean(section));
+    const observer = new IntersectionObserver((entries) => {
+      const visible = entries.filter((entry) => entry.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+      if (visible?.target instanceof HTMLElement) setActiveSection(visible.target.id);
+    }, { rootMargin: "-18% 0px -62% 0px", threshold: [0.1, 0.4, 0.8] });
+    sections.forEach((section) => observer.observe(section));
+    return () => observer.disconnect();
+  }, [locale, sectionIds.join("|")]);
+
+  function changeLocale(next: Locale) {
+    setLocale(next);
+    const url = new URL(window.location.href);
+    url.searchParams.set("lang", next);
+    window.history.replaceState({}, "", url.toString());
+  }
+
+  return <main id="privacy-top" className="scroll-smooth min-h-screen bg-[#f8f5f0] px-5 py-8 text-[#2f2923] sm:px-8 lg:px-16"><div className="mx-auto max-w-6xl"><div className="flex flex-wrap items-center justify-between gap-4"><Link href="/" className="inline-flex items-center gap-2 text-sm text-[#8f4e36] hover:underline"><ArrowLeft size={16} />{t.back}</Link><div className="rounded-2xl border border-[#d8c8bd] bg-white/80 p-2 shadow-sm"><p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#8f4e36]">{navigation.language}</p><div className="flex flex-wrap gap-1" role="group" aria-label={navigation.language}>{(Object.keys(LOCALE_LABELS) as Locale[]).map((value) => <button key={value} type="button" aria-pressed={locale === value} onClick={() => changeLocale(value)} className={`rounded-xl px-3 py-2 text-xs font-semibold transition-colors ${locale === value ? "bg-[#2f2923] text-white" : "text-[#635a52] hover:bg-[#f0e7df]"}`}>{LOCALE_LABELS[value]}</button>)}</div></div></div><div className="mt-14 max-w-4xl"><p className="text-xs font-semibold tracking-[0.24em] text-[#aa6245]">{t.eyebrow}</p><h1 className="mt-3 max-w-3xl font-serif text-4xl leading-tight sm:text-6xl">{t.title}</h1><p className="mt-6 max-w-3xl text-lg leading-8 text-[#635a52]">{t.intro}</p><div className="mt-6 flex gap-3 rounded-2xl border border-[#d9a441]/40 bg-[#fff8e8] p-4 text-sm leading-6 text-[#635a52]"><ShieldCheck className="mt-1 shrink-0 text-[#aa6245]" size={20} /><p>{t.draft}</p></div></div><div className="mt-12 grid gap-8 lg:grid-cols-[220px_minmax(0,1fr)]"><aside className="lg:sticky lg:top-8 lg:self-start"><nav aria-label={navigation.sections} className="rounded-2xl border border-[#eadfd7] bg-white/75 p-4 shadow-sm"><p className="px-3 pb-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#8f4e36]">{navigation.sections}</p><div className="flex gap-2 overflow-x-auto pb-1 lg:block lg:space-y-1 lg:overflow-visible">{t.sections.map((section, index) => { const id = sectionIds[index]; const label = section.title.replace(/^\d+\.\s*/, ""); return <a key={id} href={`#${id}`} aria-current={activeSection === id ? "location" : undefined} className={`block min-w-max rounded-xl px-3 py-2 text-sm transition-colors ${activeSection === id ? "bg-[#f0e1d6] font-semibold text-[#8f4e36]" : "text-[#635a52] hover:bg-[#f8f5f0] hover:text-[#8f4e36]"}`}>{index + 1}. {label}</a>; })}</div><a href="#privacy-top" className="mt-3 block px-3 text-xs font-semibold text-[#8f4e36] hover:underline">{navigation.backToTop}</a></nav></aside><div className="space-y-8">{t.sections.map((section, index) => <section id={sectionIds[index]} key={section.title} className="scroll-mt-8 rounded-2xl border border-[#eadfd7] bg-white p-6 shadow-sm sm:p-8"><h2 className="font-serif text-2xl">{section.title}</h2><p className="mt-3 leading-7 text-[#635a52]">{section.body}</p></section>)}</div></div><p className="mt-10 text-xs leading-6 text-[#806f64]">This page is a working information notice, not legal advice. The operator remains responsible for selecting the correct controller, legal bases, retention periods, provider agreements, transfer mechanisms, records and local filings.</p></div></main>;
 }

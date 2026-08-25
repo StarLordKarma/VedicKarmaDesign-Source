@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
 import React from "react";
 import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import "@testing-library/jest-dom/vitest";
+import { afterEach } from "vitest";
 import { Router } from "wouter";
 import Privacy from "./Privacy";
 
@@ -13,6 +15,7 @@ function renderPrivacy(language: string) {
 }
 
 describe("Privacy page", () => {
+  afterEach(() => cleanup());
   it.each([
     ["en", "How we handle personal data", "1. Controller and contact", "6. Rights and complaints", "9. Astrology service disclaimer"],
     ["ru", "Как мы обрабатываем персональные данные", "1. Оператор и контакт", "6. Права и жалобы", "9. Дисклеймер услуги"],
@@ -24,5 +27,16 @@ describe("Privacy page", () => {
     expect(screen.getByRole("heading", { name: controller })).toBeTruthy();
     expect(screen.getByRole("heading", { name: rights })).toBeTruthy();
     expect(screen.getByRole("heading", { name: disclaimer })).toBeTruthy();
+    expect(screen.getByRole("group", { name: /Choose language|Выберите язык|Sprache wählen|Elegir idioma/ })).toBeTruthy();
+    expect(screen.getByRole("navigation", { name: /On this page|В этом документе|Auf dieser Seite|En esta página/ })).toBeTruthy();
+    expect(screen.getByRole("link", { name: new RegExp(`^1\\.`) })).toHaveAttribute("href", "#privacy-section-1");
+  });
+
+  it("changes language from the prominent switcher and keeps section links available", () => {
+    renderPrivacy("en");
+    fireEvent.click(screen.getByRole("button", { name: "Русский" }));
+    expect(screen.getByRole("heading", { name: "Как мы обрабатываем персональные данные" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Русский" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("link", { name: "Наверх" })).toHaveAttribute("href", "#privacy-top");
   });
 });
