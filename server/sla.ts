@@ -35,6 +35,7 @@ export type SlaEvaluationRunFilters = {
   page?: number;
   pageSize?: number;
   search?: string;
+  errorCode?: string;
 };
 
 function runConditions(filters: SlaEvaluationRunFilters) {
@@ -43,6 +44,7 @@ function runConditions(filters: SlaEvaluationRunFilters) {
   if (filters.to) { const end = new Date(`${filters.to}T00:00:00.000Z`); end.setUTCDate(end.getUTCDate() + 1); conditions.push(lt(slaEvaluationRuns.evaluatedAt, end)); }
   if (filters.status) conditions.push(eq(slaEvaluationRuns.status, filters.status));
   if (filters.trigger) conditions.push(eq(slaEvaluationRuns.trigger, filters.trigger));
+  if (filters.errorCode) conditions.push(like(slaEvaluationRuns.errorCode, `%${filters.errorCode.slice(0, 120)}%`));
   if (filters.search) {
     const term = `%${filters.search.slice(0, 120)}%`;
     conditions.push(or(sql`CAST(${slaEvaluationRuns.id} AS CHAR) LIKE ${term}`, like(slaEvaluationRuns.errorCode, term), like(slaEvaluationRuns.status, term), like(slaEvaluationRuns.trigger, term)));

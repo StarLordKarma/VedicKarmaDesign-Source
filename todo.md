@@ -432,3 +432,10 @@
 - [x] Add animated skeleton rows while infinite-scroll pages are loading
 - [x] Add regression tests for PNG background selection, mode persistence, and loading state
 - [x] Run full validation, responsive checks, and save the dashboard polish checkpoint
+
+- [x] Add branded PDF export for the filtered SLA violations chart
+- [x] Add exact localized hover tooltips for preparation, delivery, and total SLA values
+- [x] Add server-side journal filtering by error type/code and status
+- [x] Keep new filters aligned with search, date range, sorting, pagination, and infinite scroll
+- [x] Add regression tests for PDF export, tooltip values, and error/status filters
+- [x] Run full validation, responsive checks, and save the SLA chart/reporting checkpoint

@@ -90,6 +90,7 @@ export const slaEvaluationRunsPageSchema = z.object({
   status: slaEvaluationStatusSchema.optional(),
   trigger: slaEvaluationTriggerSchema.optional(),
   search: z.string().trim().max(120).optional(),
+  errorCode: z.string().trim().max(120).optional(),
   from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   sort: slaEvaluationSortSchema.default("evaluated_desc"),
