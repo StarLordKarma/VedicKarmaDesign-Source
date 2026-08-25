@@ -1,10 +1,30 @@
-import { and, asc, count, desc, eq, gte, isNull, lt } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, isNull, like, lt, or, sql } from "drizzle-orm";
 import { notifyOwner } from "./_core/notification";
 import { logStructuredEvent } from "./observability";
 import { bookingRequests, operationalAlerts, reportJobs, slaEvaluationRuns, slaSettings } from "../drizzle/schema";
 import { getDb } from "./db";
 
 const SETTINGS_ID = 1;
+
+export type SlaViolationTrendPoint = {
+  date: string;
+  preparationViolations: number;
+  deliveryViolations: number;
+  totalViolations: number;
+};
+
+export function aggregateSlaViolationTrend(runs: Array<{ evaluatedAt: Date; preparationViolations: number; deliveryViolations: number }>): SlaViolationTrendPoint[] {
+  const byDay = new Map<string, SlaViolationTrendPoint>();
+  for (const run of runs) {
+    const date = run.evaluatedAt.toISOString().slice(0, 10);
+    const point = byDay.get(date) ?? { date, preparationViolations: 0, deliveryViolations: 0, totalViolations: 0 };
+    point.preparationViolations += run.preparationViolations;
+    point.deliveryViolations += run.deliveryViolations;
+    point.totalViolations += run.preparationViolations + run.deliveryViolations;
+    byDay.set(date, point);
+  }
+  return Array.from(byDay.values()).sort((a, b) => a.date.localeCompare(b.date));
+}
 
 export type SlaEvaluationRunFilters = {
   status?: "succeeded" | "disabled" | "failed";
@@ -14,6 +34,7 @@ export type SlaEvaluationRunFilters = {
   sort?: "evaluated_desc" | "evaluated_asc" | "duration_desc" | "duration_asc";
   page?: number;
   pageSize?: number;
+  search?: string;
 };
 
 function runConditions(filters: SlaEvaluationRunFilters) {
@@ -22,6 +43,10 @@ function runConditions(filters: SlaEvaluationRunFilters) {
   if (filters.to) { const end = new Date(`${filters.to}T00:00:00.000Z`); end.setUTCDate(end.getUTCDate() + 1); conditions.push(lt(slaEvaluationRuns.evaluatedAt, end)); }
   if (filters.status) conditions.push(eq(slaEvaluationRuns.status, filters.status));
   if (filters.trigger) conditions.push(eq(slaEvaluationRuns.trigger, filters.trigger));
+  if (filters.search) {
+    const term = `%${filters.search.slice(0, 120)}%`;
+    conditions.push(or(sql`CAST(${slaEvaluationRuns.id} AS CHAR) LIKE ${term}`, like(slaEvaluationRuns.errorCode, term), like(slaEvaluationRuns.status, term), like(slaEvaluationRuns.trigger, term)));
+  }
   return conditions;
 }
 
@@ -102,7 +127,7 @@ export async function evaluateSla(options: { trigger?: "heartbeat" | "manual"; a
 export async function getOwnerMetrics(sinceInput?: Date) {
   const db = await getDb();
   const since = sinceInput && !Number.isNaN(sinceInput.getTime()) ? sinceInput : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-  if (!db) return { since: since.toISOString(), bookings: 0, paidBookings: 0, completedBookings: 0, failedDeliveries: 0, queuedReports: 0, sentReports: 0, openAlerts: 0 };
+  if (!db) return { since: since.toISOString(), bookings: 0, paidBookings: 0, completedBookings: 0, failedDeliveries: 0, queuedReports: 0, sentReports: 0, openAlerts: 0, recentAlerts: [], recentSlaRuns: [], slaViolationTrend: [] };
   const [bookings, paidBookings, completedBookings, failedDeliveries, queuedReports, sentReports, openAlerts] = await Promise.all([
     scalar(db.select({ value: count() }).from(bookingRequests).where(gte(bookingRequests.createdAt, since))),
     scalar(db.select({ value: count() }).from(bookingRequests).where(and(gte(bookingRequests.createdAt, since), eq(bookingRequests.paymentStatus, "finished")))),
@@ -112,11 +137,12 @@ export async function getOwnerMetrics(sinceInput?: Date) {
     scalar(db.select({ value: count() }).from(reportJobs).where(and(gte(reportJobs.createdAt, since), eq(reportJobs.status, "sent")))),
     scalar(db.select({ value: count() }).from(operationalAlerts).where(and(eq(operationalAlerts.status, "open"), isNull(operationalAlerts.resolvedAt)))),
   ]);
-  const [recentAlerts, recentSlaRuns] = await Promise.all([
+  const [recentAlerts, recentSlaRuns, trendRuns] = await Promise.all([
     db.select({ id: operationalAlerts.id, alertType: operationalAlerts.alertType, severity: operationalAlerts.severity, status: operationalAlerts.status, count: operationalAlerts.count, summary: operationalAlerts.summary, firstSeenAt: operationalAlerts.firstSeenAt, lastSeenAt: operationalAlerts.lastSeenAt }).from(operationalAlerts).where(eq(operationalAlerts.status, "open")).orderBy(desc(operationalAlerts.lastSeenAt)).limit(20),
     db.select().from(slaEvaluationRuns).where(gte(slaEvaluationRuns.evaluatedAt, since)).orderBy(desc(slaEvaluationRuns.evaluatedAt)).limit(20),
+    db.select({ evaluatedAt: slaEvaluationRuns.evaluatedAt, preparationViolations: slaEvaluationRuns.preparationViolations, deliveryViolations: slaEvaluationRuns.deliveryViolations }).from(slaEvaluationRuns).where(and(gte(slaEvaluationRuns.evaluatedAt, since), eq(slaEvaluationRuns.status, "succeeded"))).orderBy(asc(slaEvaluationRuns.evaluatedAt)).limit(1000),
   ]);
-  return { since: since.toISOString(), bookings, paidBookings, completedBookings, failedDeliveries, queuedReports, sentReports, openAlerts, recentAlerts, recentSlaRuns };
+  return { since: since.toISOString(), bookings, paidBookings, completedBookings, failedDeliveries, queuedReports, sentReports, openAlerts, recentAlerts, recentSlaRuns, slaViolationTrend: aggregateSlaViolationTrend(trendRuns) };
 }
 
 

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
 import "@testing-library/jest-dom/vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import AdminMetrics from "./AdminMetrics";
 
@@ -23,6 +23,15 @@ vi.mock("@/lib/trpc", () => ({
 describe("AdminMetrics localization", () => {
   beforeEach(() => localStorage.clear());
   afterEach(() => cleanup());
+
+  it("persists the metrics dashboard dark theme and exposes journal search", () => {
+    render(<AdminMetrics />);
+    const toggle = screen.getByRole("button", { name: "Switch to dark theme" });
+    expect(screen.getByRole("textbox", { name: "Run ID, error code, status…" })).toBeInTheDocument();
+    fireEvent.click(toggle);
+    expect(localStorage.getItem("admin-metrics-theme")).toBe("dark");
+    expect(screen.getByRole("button", { name: "Switch to light theme" })).toBeInTheDocument();
+  });
 
   it("restores the owner language from localStorage", () => {
     localStorage.setItem("admin-locale", "es");

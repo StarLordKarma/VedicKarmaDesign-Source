@@ -405,3 +405,10 @@
 - [x] Persist the selected owner dashboard locale and keep it independent from customer language data
 - [x] Add regression tests for SLA history persistence, CSV columns/filters, localization, and locale persistence
 - [x] Run full validation, responsive checks, and save the Phase 2.1 metrics checkpoint
+
+- [x] Add an owner metrics time-series chart for SLA violations over time
+- [x] Add a journal search field for SLA run IDs and error codes
+- [x] Add a dark-theme toggle scoped to the metrics dashboard
+- [x] Persist the metrics dashboard theme in user localStorage
+- [x] Add regression tests for chart aggregation, journal search, and theme persistence
+- [x] Run full validation, responsive visual checks, and save the metrics dashboard checkpoint
