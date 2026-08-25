@@ -412,3 +412,11 @@
 - [x] Persist the metrics dashboard theme in user localStorage
 - [x] Add regression tests for chart aggregation, journal search, and theme persistence
 - [x] Run full validation, responsive visual checks, and save the metrics dashboard checkpoint
+
+- [x] Add PNG export for the filtered SLA violations chart
+- [x] Add CSV export for the filtered SLA violations chart with localized-safe headers
+- [x] Add chart date-range filtering with quick week/month/year presets and custom dates
+- [x] Keep metrics summary, chart, journal, and exports aligned to the selected date range
+- [x] Improve SLA journal large-volume browsing with page-size controls and robust pagination
+- [x] Add regression tests for chart exports, date-range filtering, and journal pagination
+- [x] Run full validation, responsive checks, and save the metrics export checkpoint

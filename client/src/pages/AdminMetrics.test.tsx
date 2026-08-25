@@ -28,6 +28,12 @@ describe("AdminMetrics localization", () => {
     render(<AdminMetrics />);
     const toggle = screen.getByRole("button", { name: "Switch to dark theme" });
     expect(screen.getByRole("textbox", { name: "Run ID, error code, status…" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Window (days)" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "PNG" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "CSV" })).toBeDisabled();
+    expect(screen.getByRole("combobox", { name: "Rows" })).toBeInTheDocument();
+    expect(screen.getByLabelText("From")).toBeInTheDocument();
+    expect(screen.getByLabelText("To")).toBeInTheDocument();
     fireEvent.click(toggle);
     expect(localStorage.getItem("admin-metrics-theme")).toBe("dark");
     expect(screen.getByRole("button", { name: "Switch to light theme" })).toBeInTheDocument();

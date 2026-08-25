@@ -124,23 +124,25 @@ export async function evaluateSla(options: { trigger?: "heartbeat" | "manual"; a
   return { enabled: true, evaluated: jobs.length, overduePreparation: overduePreparation.length, overdueDelivery: overdueDelivery.length, alertsCreated, notificationsSent };
 }
 
-export async function getOwnerMetrics(sinceInput?: Date) {
+export async function getOwnerMetrics(sinceInput?: Date, untilInput?: Date) {
   const db = await getDb();
   const since = sinceInput && !Number.isNaN(sinceInput.getTime()) ? sinceInput : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const until = untilInput && !Number.isNaN(untilInput.getTime()) ? untilInput : undefined;
+  const range = (column: any) => until ? and(gte(column, since), lt(column, until)) : gte(column, since);
   if (!db) return { since: since.toISOString(), bookings: 0, paidBookings: 0, completedBookings: 0, failedDeliveries: 0, queuedReports: 0, sentReports: 0, openAlerts: 0, recentAlerts: [], recentSlaRuns: [], slaViolationTrend: [] };
   const [bookings, paidBookings, completedBookings, failedDeliveries, queuedReports, sentReports, openAlerts] = await Promise.all([
-    scalar(db.select({ value: count() }).from(bookingRequests).where(gte(bookingRequests.createdAt, since))),
-    scalar(db.select({ value: count() }).from(bookingRequests).where(and(gte(bookingRequests.createdAt, since), eq(bookingRequests.paymentStatus, "finished")))),
-    scalar(db.select({ value: count() }).from(bookingRequests).where(and(gte(bookingRequests.createdAt, since), eq(bookingRequests.status, "completed")))),
-    scalar(db.select({ value: count() }).from(reportJobs).where(and(gte(reportJobs.createdAt, since), eq(reportJobs.status, "delivery_failed")))),
-    scalar(db.select({ value: count() }).from(reportJobs).where(and(gte(reportJobs.createdAt, since), eq(reportJobs.status, "queued")))),
-    scalar(db.select({ value: count() }).from(reportJobs).where(and(gte(reportJobs.createdAt, since), eq(reportJobs.status, "sent")))),
+    scalar(db.select({ value: count() }).from(bookingRequests).where(range(bookingRequests.createdAt))),
+    scalar(db.select({ value: count() }).from(bookingRequests).where(and(range(bookingRequests.createdAt), eq(bookingRequests.paymentStatus, "finished")))),
+    scalar(db.select({ value: count() }).from(bookingRequests).where(and(range(bookingRequests.createdAt), eq(bookingRequests.status, "completed")))),
+    scalar(db.select({ value: count() }).from(reportJobs).where(and(range(reportJobs.createdAt), eq(reportJobs.status, "delivery_failed")))),
+    scalar(db.select({ value: count() }).from(reportJobs).where(and(range(reportJobs.createdAt), eq(reportJobs.status, "queued")))),
+    scalar(db.select({ value: count() }).from(reportJobs).where(and(range(reportJobs.createdAt), eq(reportJobs.status, "sent")))),
     scalar(db.select({ value: count() }).from(operationalAlerts).where(and(eq(operationalAlerts.status, "open"), isNull(operationalAlerts.resolvedAt)))),
   ]);
   const [recentAlerts, recentSlaRuns, trendRuns] = await Promise.all([
     db.select({ id: operationalAlerts.id, alertType: operationalAlerts.alertType, severity: operationalAlerts.severity, status: operationalAlerts.status, count: operationalAlerts.count, summary: operationalAlerts.summary, firstSeenAt: operationalAlerts.firstSeenAt, lastSeenAt: operationalAlerts.lastSeenAt }).from(operationalAlerts).where(eq(operationalAlerts.status, "open")).orderBy(desc(operationalAlerts.lastSeenAt)).limit(20),
-    db.select().from(slaEvaluationRuns).where(gte(slaEvaluationRuns.evaluatedAt, since)).orderBy(desc(slaEvaluationRuns.evaluatedAt)).limit(20),
-    db.select({ evaluatedAt: slaEvaluationRuns.evaluatedAt, preparationViolations: slaEvaluationRuns.preparationViolations, deliveryViolations: slaEvaluationRuns.deliveryViolations }).from(slaEvaluationRuns).where(and(gte(slaEvaluationRuns.evaluatedAt, since), eq(slaEvaluationRuns.status, "succeeded"))).orderBy(asc(slaEvaluationRuns.evaluatedAt)).limit(1000),
+    db.select().from(slaEvaluationRuns).where(range(slaEvaluationRuns.evaluatedAt)).orderBy(desc(slaEvaluationRuns.evaluatedAt)).limit(20),
+    db.select({ evaluatedAt: slaEvaluationRuns.evaluatedAt, preparationViolations: slaEvaluationRuns.preparationViolations, deliveryViolations: slaEvaluationRuns.deliveryViolations }).from(slaEvaluationRuns).where(and(range(slaEvaluationRuns.evaluatedAt), eq(slaEvaluationRuns.status, "succeeded"))).orderBy(asc(slaEvaluationRuns.evaluatedAt)).limit(1000),
   ]);
   return { since: since.toISOString(), bookings, paidBookings, completedBookings, failedDeliveries, queuedReports, sentReports, openAlerts, recentAlerts, recentSlaRuns, slaViolationTrend: aggregateSlaViolationTrend(trendRuns) };
 }
