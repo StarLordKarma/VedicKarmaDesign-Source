@@ -475,9 +475,9 @@
 - [x] Run final full validation, build, logs, responsive checks, and legal-content review
 - [x] Read todo.md, mark completed final items, and save the Phase 2.1 privacy/allowlist checkpoint
 
-- [ ] Improve Privacy page with a prominent language switcher and smooth section navigation
-- [ ] Add localized consent-error highlighting and shake animation to the booking form
-- [ ] Add regression tests for Privacy navigation/language controls and consent error feedback
-- [ ] Run full tests, build, logs, and responsive verification for the UI polish
-- [ ] Commit and push the validated changes to VedicKarmaDesign on GitHub
-- [ ] Document readiness and scope for the next roadmap stage
+- [x] Improve Privacy page with a prominent language switcher and smooth section navigation
+- [x] Add localized consent-error highlighting and shake animation to the booking form
+- [x] Add regression tests for Privacy navigation/language controls and consent error feedback
+- [x] Run full tests, build, logs, and responsive verification for the UI polish
+- [x] Commit and push the validated changes to VedicKarmaDesign on GitHub
+- [x] Document readiness and scope for the next roadmap stage
