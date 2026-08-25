@@ -1,6 +1,9 @@
 import type { Express } from "express";
+
+type CorrelatedRequest = { requestId?: string };
 import { processPaymentNotification } from "./payment-notification";
 import { verifyNowPaymentsSignature } from "./nowpayments";
+import { createRateLimit, logStructuredEvent } from "./observability";
 
 function stableStringify(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
@@ -20,10 +23,12 @@ export function shouldNotifyPayment(previousStatus: string | null, nextStatus: s
 }
 
 export function registerNowPaymentsWebhook(app: Express) {
-  app.post("/api/nowpayments/ipn", (req, res) => {
+  const ipnRateLimit = createRateLimit({ name: "payment-ipn", windowMs: 60_000, max: 60 });
+  app.post("/api/nowpayments/ipn", ipnRateLimit, (req, res) => {
     const signature = req.header("x-nowpayments-sig");
     if (!signature || !verifyNowPaymentsSignature(stableStringify(req.body), signature)) {
-      res.status(401).json({ error: "Invalid payment signature" });
+      logStructuredEvent("warn", "payment.ipn.rejected", { requestId: (req as unknown as CorrelatedRequest).requestId, reason: "invalid_signature" });
+      res.status(401).json({ error: "Invalid payment signature", requestId: (req as unknown as CorrelatedRequest).requestId });
       return;
     }
 
@@ -35,10 +40,15 @@ export function registerNowPaymentsWebhook(app: Express) {
       return;
     }
 
+    const requestId = (req as unknown as CorrelatedRequest).requestId;
+    logStructuredEvent("info", "payment.ipn.accepted", { requestId, bookingId });
     void processPaymentNotification({
       bookingId,
       paymentId: payload.payment_id,
       paymentStatus: payload.payment_status ?? "unknown",
-    }).then(() => res.status(200).json({ received: true })).catch(() => res.status(500).json({ error: "Could not update payment status" }));
+    }).then(() => res.status(200).json({ received: true, requestId })).catch(() => {
+      logStructuredEvent("error", "payment.ipn.processing_failed", { requestId, bookingId });
+      res.status(500).json({ error: "Could not update payment status", requestId });
+    });
   });
 }

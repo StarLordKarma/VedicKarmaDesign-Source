@@ -6,6 +6,8 @@ export type TrpcContext = {
   req: CreateExpressContextOptions["req"];
   res: CreateExpressContextOptions["res"];
   user: User | null;
+  requestId: string;
+  clientIp: string;
 };
 
 export async function createContext(
@@ -20,9 +22,12 @@ export async function createContext(
     user = null;
   }
 
+  const requestMeta = opts.req as typeof opts.req & { requestId?: string; clientIp?: string };
   return {
     req: opts.req,
     res: opts.res,
     user,
+    requestId: requestMeta.requestId ?? "unknown",
+    clientIp: requestMeta.clientIp ?? "unknown",
   };
 }

@@ -378,3 +378,11 @@
 - [x] Add a secret-free `.env.example` with the complete configuration variable list and safe placeholders
 - [x] Add a detailed configuration/secrets setup guide covering purpose, requiredness, sources, validation, rotation, and client/server separation
 - [x] Rebuild the unified ZIP with the example env and configuration guide, then verify its contents and secret safety
+
+- [x] Add request correlation IDs across booking, payment, Report Studio, email, and backup flows
+- [x] Add privacy-safe structured server logging with PII, tokens, secrets, and PDF contents masked
+- [x] Add scoped rate limits for booking, payment creation, IPN, receipt email, export, and Report Studio actions
+- [x] Add health and readiness endpoints that do not expose secrets or customer data
+- [x] Add owner-visible observability events and safe error correlation details
+- [x] Add regression tests for correlation IDs, PII masking, rate-limit responses, and health/readiness behavior
+- [x] Run full validation and save the Phase 2.0 checkpoint

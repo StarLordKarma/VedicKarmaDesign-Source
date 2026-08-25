@@ -1,5 +1,5 @@
 import { drizzle } from "drizzle-orm/mysql2";
-import { and, asc, count, desc, eq, gte, gt, like, lt } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, gt, like, lt, sql } from "drizzle-orm";
 import { ClientChangeHistory, InsertBookingRequest, InsertUser, bookingRequests, clientChangeHistory, servicePricing, servicePricingCurrencies, servicePricingHistory, smokeTestRuns, users, receiptFiles, receiptRetentionSettings, receiptEmailAttempts, receiptEmailFailureAlerts } from "../drizzle/schema";
 import { READING_PRICES } from "@shared/pricing";
 import { ENV } from './_core/env';
@@ -17,6 +17,18 @@ export async function getDb() {
     }
   }
   return _db;
+}
+
+export async function checkDatabaseReadiness(): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+  try {
+    await db.execute(sql`SELECT 1`);
+    return true;
+  } catch (error) {
+    console.warn("[Database] Readiness probe failed");
+    return false;
+  }
 }
 
 export async function upsertUser(user: InsertUser): Promise<void> {

@@ -10,6 +10,8 @@ import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { registerNowPaymentsWebhook } from "../nowpayments.webhook";
 import { cleanupReceiptFilesHandler } from "../receipt-retention";
+import { requestObservabilityMiddleware, trpcRateLimitMiddleware } from "../observability";
+import { healthHandler, readinessHandler } from "../health";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -32,15 +34,20 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 
 async function startServer() {
   const app = express();
+  app.set("trust proxy", true);
+  app.use(requestObservabilityMiddleware);
   const server = createServer(app);
   // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
+  app.get("/health", healthHandler);
+  app.get("/ready", readinessHandler);
   registerNowPaymentsWebhook(app);
   registerStorageProxy(app);
   registerOAuthRoutes(app);
   app.post("/api/scheduled/cleanup-receipts", cleanupReceiptFilesHandler);
   // tRPC API
+  app.use("/api/trpc", trpcRateLimitMiddleware);
   app.use(
     "/api/trpc",
     createExpressMiddleware({
