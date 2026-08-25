@@ -206,3 +206,18 @@ html.theme-transition #root * {
     transition: none !important;
   }
 }
+
+@media (prefers-reduced-motion: no-preference) {
+  .success-pop { animation: success-pop 320ms cubic-bezier(0.23, 1, 0.32, 1) both; }
+  .success-checkmark { animation: success-checkmark 420ms 80ms cubic-bezier(0.23, 1, 0.32, 1) both; }
+}
+
+@keyframes success-pop {
+  from { opacity: 0; transform: translateY(10px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes success-checkmark {
+  from { opacity: 0; transform: scale(0.82) rotate(-8deg); }
+  to { opacity: 1; transform: scale(1) rotate(0); }
+}

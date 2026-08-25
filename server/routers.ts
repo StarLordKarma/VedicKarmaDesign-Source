@@ -4,7 +4,7 @@ import { systemRouter } from "./_core/systemRouter";
 import { adminProcedure, publicProcedure, router } from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { bookingSchema, buildBookingPriceSnapshot, isProductionSmokeTestBooking } from "@shared/booking";
+import { bookingSchema, buildBookingPriceSnapshot, isProductionSmokeTestBooking, validatePromoCode } from "@shared/booking";
 import { addSlaEmailAllowlistSchema, removeSlaEmailAllowlistSchema, updateSlaEmailAllowlistSchema, activityDateRangeSchema, attachNatalPdfSchema, bulkSendNatalPdfSchema, clientHistorySchema, editBookingClientSchema, pricingCurrencySchema, pricingHistoryFilterSchema, pricingHistoryPageSchema, receiptEmailHistoryPageSchema, sendNatalPdfSchema, servicePricingSchema, smokeTestRunsPageSchema, slaEvaluationRunsPageSchema, updateBookingAdminSchema, reportRunSchema, reportApprovalSchema, sendSlaChartPdfSchema } from "@shared/admin";
 import { createBookingRequest, createSmokeTestRun, deleteBookingRequest, finishSmokeTestRun, getAdminActivityEvents, getAdminActivitySummary, getBookingRequestById, getClientChangeHistory, getPricingHistory, getPricingHistoryPage, getServicePricing, getSmokeTestRuns, getSmokeTestRunsForExport, getSmokeTestRunsPage, getReceiptRetentionHours, cleanupExpiredReceiptFiles, listServicePricing, getReceiptEmailHistoryPage, getLatestReceiptEmailAttempt, createReceiptEmailAttempt, finishReceiptEmailAttempt, normalizeReceiptEmail, isReceiptEmailCoolingDown, recordReceiptEmailFailureAlert, RECEIPT_EMAIL_COOLDOWN_MS, listSlaEmailAllowlist, addSlaEmailAllowlist, setSlaEmailAllowlistEnabled, removeSlaEmailAllowlist, isSlaEmailAllowed, updateBookingClient, updateBookingDelivery, updateBookingPayment, updateReceiptRetentionHours, updateServicePricing } from "./db";
 import { notifyOwner } from "./_core/notification";
@@ -134,6 +134,7 @@ export const appRouter = router({
   }),
   pricing: router({
     current: publicProcedure.input(pricingCurrencySchema.optional()).query(({ input }) => getServicePricing(input?.currency)),
+    validatePromo: publicProcedure.input(z.object({ currency: pricingCurrencySchema.shape.currency, addon: z.boolean(), promoCode: z.string().trim().max(32) })).mutation(async ({ input }) => { const pricing = await getServicePricing(input.currency); const validation = validatePromoCode(input.promoCode); const subtotal = pricing.basicUsd + (input.addon ? pricing.numerologyAddonUsd : 0); const discountAmount = validation.valid ? Math.round(subtotal * validation.discountPercent) / 100 : 0; return { ...validation, discountAmount, totalAmount: Math.max(0, Math.round((subtotal - discountAmount) * 100) / 100) }; }),
     breakdownPdf: publicProcedure.input(z.object({ currency: pricingCurrencySchema.shape.currency, locale: z.string().min(2).max(20), addon: z.boolean(), labels: z.object({ title: z.string().min(1).max(120), currency: z.string().min(1).max(40), basic: z.string().min(1).max(120), addon: z.string().min(1).max(120), addonNotSelected: z.string().min(1).max(80), total: z.string().min(1).max(80), generated: z.string().min(1).max(80), disclaimer: z.string().min(1).max(3000) }) })).mutation(async ({ input }) => { const pricing = await getServicePricing(input.currency); const pdf = await buildCheckoutBreakdownPdf({ ...input, basicUsd: pricing.basicUsd, numerologyAddonUsd: pricing.numerologyAddonUsd }); const stored = await storagePut(`price-breakdowns/${new Date().toISOString().slice(0, 10)}/${crypto.randomUUID()}.pdf`, pdf, "application/pdf"); const receipt = await registerReceiptFile(stored.key); return { filename: `jyotish-price-breakdown-${input.currency.toLowerCase()}.pdf`, contentBase64: pdf.toString("base64"), url: stored.url, expiresAt: receipt.expiresAt.toISOString() }; }),
     emailBreakdownPdf: publicProcedure.input(z.object({ email: z.string().email().max(320), currency: pricingCurrencySchema.shape.currency, locale: z.string().min(2).max(20), addon: z.boolean(), labels: z.object({ title: z.string().min(1).max(120), currency: z.string().min(1).max(40), basic: z.string().min(1).max(120), addon: z.string().min(1).max(120), addonNotSelected: z.string().min(1).max(80), total: z.string().min(1).max(80), generated: z.string().min(1).max(80), disclaimer: z.string().min(1).max(3000) }), language: z.string().min(2).max(30) })).mutation(async ({ input }) => {
       const normalizedEmail = normalizeReceiptEmail(input.email);
@@ -160,8 +161,9 @@ export const appRouter = router({
   booking: router({
     submit: publicProcedure.input(bookingSchema).mutation(async ({ input, ctx }) => {
       const pricing = await getServicePricing(input.currency);
-      const totalUsd = pricing.basicUsd + (input.addon ? pricing.numerologyAddonUsd : 0);
-      const priceSnapshot = buildBookingPriceSnapshot({ addon: input.addon, currency: input.currency, basicAmount: pricing.basicUsd, addonAmount: pricing.numerologyAddonUsd });
+      if (input.promoCode && !validatePromoCode(input.promoCode).valid) throw new TRPCError({ code: "BAD_REQUEST", message: "This promo code is not valid." });
+      const priceSnapshot = buildBookingPriceSnapshot({ addon: input.addon, currency: input.currency, basicAmount: pricing.basicUsd, addonAmount: pricing.numerologyAddonUsd, promoCode: input.promoCode });
+      const totalUsd = priceSnapshot.totalAmount;
       const result = await createBookingRequest({
         name: input.name,
         email: input.email,

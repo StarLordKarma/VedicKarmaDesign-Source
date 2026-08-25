@@ -12,6 +12,7 @@ export const bookingSchema = z.object({
   addon: z.boolean(),
   currency: z.enum(["USD", "EUR", "GBP"]).default("USD"),
   interest: z.string().trim().max(1000).optional(),
+  promoCode: z.string().trim().max(32).optional(),
   smokeTest: z.boolean().optional().default(false),
   smokeTestRunId: z.string().regex(/^production-smoke-\d{10,}$/).optional(),
 });
@@ -25,11 +26,34 @@ export type BookingPriceSnapshot = {
   basicAmount: number;
   addonAmount: number;
   totalAmount: number;
+  promoCode?: string;
+  discountPercent?: number;
+  discountAmount?: number;
 };
 
-export function buildBookingPriceSnapshot(input: { addon: boolean; currency: BookingPriceSnapshot["currency"]; basicAmount: number; addonAmount: number }): BookingPriceSnapshot {
+export const PROMOTION_CODES = { WELCOME10: { discountPercent: 10 } } as const;
+
+export function normalizePromoCode(code: string | null | undefined) {
+  return code?.trim().toUpperCase() || "";
+}
+
+export function validatePromoCode(code: string | null | undefined) {
+  const normalizedCode = normalizePromoCode(code);
+  const promotion = normalizedCode ? PROMOTION_CODES[normalizedCode as keyof typeof PROMOTION_CODES] : undefined;
+  return promotion ? { valid: true as const, code: normalizedCode, discountPercent: promotion.discountPercent } : { valid: false as const, code: normalizedCode, discountPercent: 0 };
+}
+
+export function applyPromoDiscount(totalAmount: number, code: string | null | undefined) {
+  const validation = validatePromoCode(code);
+  const discountAmount = validation.valid ? Math.round(totalAmount * validation.discountPercent) / 100 : 0;
+  return { ...validation, discountAmount, totalAmount: Math.max(0, Math.round((totalAmount - discountAmount) * 100) / 100) };
+}
+
+export function buildBookingPriceSnapshot(input: { addon: boolean; currency: BookingPriceSnapshot["currency"]; basicAmount: number; addonAmount: number; promoCode?: string }): BookingPriceSnapshot {
   const packageCode = input.addon ? "basic_plus" : "basic";
-  return { packageCode, packageVersion: 1, currency: input.currency, basicAmount: input.basicAmount, addonAmount: input.addon ? input.addonAmount : 0, totalAmount: input.basicAmount + (input.addon ? input.addonAmount : 0) };
+  const subtotal = input.basicAmount + (input.addon ? input.addonAmount : 0);
+  const promo = applyPromoDiscount(subtotal, input.promoCode);
+  return { packageCode, packageVersion: 1, currency: input.currency, basicAmount: input.basicAmount, addonAmount: input.addon ? input.addonAmount : 0, totalAmount: promo.totalAmount, ...(promo.valid ? { promoCode: promo.code, discountPercent: promo.discountPercent, discountAmount: promo.discountAmount } : {}) };
 }
 
 export function isProductionSmokeTestBooking(input: Pick<BookingInput, "email" | "interest" | "smokeTest" | "smokeTestRunId">) {

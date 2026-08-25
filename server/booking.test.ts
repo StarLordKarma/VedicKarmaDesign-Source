@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bookingSchema, buildBookingPriceSnapshot, getBookingTotal, isProductionSmokeTestBooking } from "@shared/booking";
+import { applyPromoDiscount, bookingSchema, buildBookingPriceSnapshot, getBookingTotal, isProductionSmokeTestBooking, validatePromoCode } from "@shared/booking";
 
 describe("booking validation", () => {
   const validBooking = {
@@ -36,6 +36,13 @@ describe("booking validation", () => {
   it("creates immutable package snapshots with deterministic totals", () => {
     expect(buildBookingPriceSnapshot({ addon: false, currency: "USD", basicAmount: 25, addonAmount: 10 })).toEqual({ packageCode: "basic", packageVersion: 1, currency: "USD", basicAmount: 25, addonAmount: 0, totalAmount: 25 });
     expect(buildBookingPriceSnapshot({ addon: true, currency: "EUR", basicAmount: 23, addonAmount: 9 })).toEqual({ packageCode: "basic_plus", packageVersion: 1, currency: "EUR", basicAmount: 23, addonAmount: 9, totalAmount: 32 });
+  });
+
+  it("validates supported promo codes and applies deterministic discounts", () => {
+    expect(validatePromoCode(" welcome10 ")).toEqual({ valid: true, code: "WELCOME10", discountPercent: 10 });
+    expect(validatePromoCode("invalid").valid).toBe(false);
+    expect(applyPromoDiscount(35, "WELCOME10")).toEqual({ valid: true, code: "WELCOME10", discountPercent: 10, discountAmount: 3.5, totalAmount: 31.5 });
+    expect(applyPromoDiscount(35, "invalid").totalAmount).toBe(35);
   });
 
   it("recognizes only explicitly marked production smoke-test bookings for cleanup", () => {

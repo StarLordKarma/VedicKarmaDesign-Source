@@ -500,3 +500,11 @@
 - [x] Add a dedicated live-updating booking total breakdown block for the selected package
 - [x] Add regression coverage for package tooltips, theme transition, and live total breakdown
 - [x] Run full tests, TypeScript, build, logs, and responsive verification
+
+- [x] Add a server-validated promo-code field to the booking form
+- [x] Recalculate the displayed and submitted total deterministically after a valid promo code
+- [x] Add localized promo success/error feedback and prevent client-only discount trust
+- [x] Add a polished localized success animation with checkmark and thank-you message
+- [x] Add a dynamic included-services list that follows the selected package
+- [x] Add regression coverage for promo validation, totals, success animation, and included services
+- [x] Run full tests, TypeScript, build, logs, and responsive verification

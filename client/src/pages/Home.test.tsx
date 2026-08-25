@@ -10,15 +10,17 @@ import Home from "./Home";
 const mutationState = { isPending: false, mutate: vi.fn() };
 const pdfMutationState = { isPending: false, mutate: vi.fn() };
 const emailMutationState = { isPending: false, mutate: vi.fn() };
+const promoMutationState = { isPending: false, mutate: vi.fn() };
 let mutationOptions: { onSuccess?: (result: { invoiceUrl: string }) => void } = {};
 let pdfMutationOptions: { onSuccess?: (result: { filename: string; contentBase64: string; url: string }) => void; onError?: (error: Error) => void } = {};
 let emailMutationOptions: { onSuccess?: () => void; onError?: () => void } = {};
+let promoMutationOptions: { onSuccess?: (result: { valid: boolean; code: string; discountPercent: number; discountAmount: number; totalAmount: number }) => void; onError?: () => void } = {};
 const pricingData = { basicUsd: 25, numerologyAddonUsd: 10 };
 const renderHome = () => render(<ThemeProvider switchable><Home /></ThemeProvider>);
 
 vi.mock("@/lib/trpc", () => ({
   trpc: {
-    pricing: { current: { useQuery: () => ({ data: pricingData }) }, breakdownPdf: { useMutation: (options: typeof pdfMutationOptions) => { pdfMutationOptions = options; return pdfMutationState; } }, emailBreakdownPdf: { useMutation: (options: typeof emailMutationOptions) => { emailMutationOptions = options; return emailMutationState; } } },
+    pricing: { current: { useQuery: () => ({ data: pricingData }) }, validatePromo: { useMutation: (options: typeof promoMutationOptions) => { promoMutationOptions = options; return promoMutationState; } }, breakdownPdf: { useMutation: (options: typeof pdfMutationOptions) => { pdfMutationOptions = options; return pdfMutationState; } }, emailBreakdownPdf: { useMutation: (options: typeof emailMutationOptions) => { emailMutationOptions = options; return emailMutationState; } } },
     booking: {
       submit: {
         useMutation: (options: typeof mutationOptions) => {
@@ -43,6 +45,8 @@ describe("Home booking payment UX", () => {
     pdfMutationState.mutate.mockReset();
     emailMutationState.isPending = false;
     emailMutationState.mutate.mockReset();
+    promoMutationState.isPending = false;
+    promoMutationState.mutate.mockReset();
     Object.defineProperty(window.URL, "createObjectURL", { configurable: true, value: vi.fn(() => "blob:test") });
     Object.defineProperty(window.URL, "revokeObjectURL", { configurable: true, value: vi.fn() });
     Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: vi.fn().mockResolvedValue(undefined) } });
@@ -65,6 +69,19 @@ describe("Home booking payment UX", () => {
     expect(screen.getAllByText("£40").length).toBeGreaterThan(0);
     pricingData.basicUsd = 25;
     pricingData.numerologyAddonUsd = 10;
+  });
+
+  it("validates a promo code and updates the live total and included services", () => {
+    renderHome();
+    expect(screen.getByText("One clarification round")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("radio", { name: "Basic + numerology" }));
+    expect(screen.getByText("Indian numerology overview")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Promo code"), { target: { value: "WELCOME10" } });
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+    expect(promoMutationState.mutate).toHaveBeenCalledWith({ currency: "USD", addon: true, promoCode: "WELCOME10" });
+    act(() => promoMutationOptions.onSuccess?.({ valid: true, code: "WELCOME10", discountPercent: 10, discountAmount: 3.5, totalAmount: 31.5 }));
+    expect(screen.getByTestId("live-total-breakdown")).toHaveTextContent("$32");
+    expect(screen.getByRole("status")).toHaveTextContent("Promo code applied");
   });
 
   it("shows a detailed checkout price breakdown and keeps the total mathematically consistent", () => {
@@ -157,6 +174,7 @@ describe("Home booking payment UX", () => {
     expect(document.documentElement).toHaveClass("theme-transition");
     expect(localStorage.getItem("theme")).toBe("dark");
     expect(screen.getByRole("button", { name: "Light mode" })).toBeInTheDocument();
+    expect(document.documentElement).toHaveClass("theme-transition");
   });
 
   it("highlights and shakes the consent block when submitting without acceptance", () => {
@@ -208,6 +226,8 @@ describe("Home booking payment UX", () => {
     });
     expect(screen.getByText("Your request is received.")).toBeInTheDocument();
     expect(screen.getByText(/Your request is saved/)).toBeInTheDocument();
+    expect(document.querySelector(".success-pop")).toBeInTheDocument();
+    expect(document.querySelector(".success-checkmark")).toBeInTheDocument();
     expect(screen.getAllByText((_, node) => Boolean(node?.textContent?.includes("25") && node.textContent.includes("€"))).length).toBeGreaterThan(0);
 
     await act(async () => {
