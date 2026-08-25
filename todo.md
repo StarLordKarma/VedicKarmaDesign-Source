@@ -521,3 +521,11 @@
 - [x] Expire stale drafts and clear the draft after successful booking or starting a new request
 - [x] Add regression tests for draft serialization, restoration, expiry, and cleanup
 - [x] Run full tests, TypeScript, build, logs, and responsive verification
+
+- [x] Add a one-click localized Clear form action that removes the saved booking draft
+- [x] Show and update localized relative last-autosave time such as just now or five minutes ago
+- [x] Add an explicit review step before booking submission with editable summary data and selected package
+- [x] Keep consent confirmation required at final submission and preserve server-derived totals
+- [x] Add regression coverage for clear draft, relative autosave time, and review navigation
+- [x] Run full tests, TypeScript, build, logs, and responsive verification
+- [x] Update existing success-flow tests to confirm the new review step before final submit

@@ -38,12 +38,23 @@ describe("Home booking payment UX", () => {
     fireEvent.input(screen.getByLabelText("Preferred name"), { target: { value: "Maya" } });
     expect(JSON.parse(localStorage.getItem("vedic-booking-draft-v1") ?? "{}")).toMatchObject({ name: "Maya", addon: false, currency: "USD" });
     expect(screen.getByTestId("draft-status")).toHaveTextContent("Draft saved locally");
+    expect(screen.getByTestId("draft-relative-time")).toHaveTextContent("Saved just now");
 
     cleanup();
     renderHome();
     expect(screen.getByLabelText("Preferred name")).toHaveValue("Maya");
     expect(screen.getByTestId("draft-status")).toHaveTextContent("Draft restored from this device");
     expect(screen.getByLabelText("privacy consent")).not.toBeChecked();
+  });
+
+  it("clears the draft and resets the form in one action", () => {
+    renderHome();
+    const name = screen.getByLabelText("Preferred name");
+    fireEvent.input(name, { target: { value: "Maya" } });
+    fireEvent.click(screen.getByRole("button", { name: "Clear form" }));
+    expect(name).toHaveValue("");
+    expect(localStorage.getItem("vedic-booking-draft-v1")).toBeNull();
+    expect(screen.queryByTestId("draft-status")).not.toBeInTheDocument();
   });
 
   it("removes a draft older than the retention window", () => {
@@ -241,6 +252,8 @@ describe("Home booking payment UX", () => {
     fireEvent.change(screen.getByLabelText("Country of birth"), { target: { value: "India" } });
     fireEvent.click(screen.getByLabelText("privacy consent"));
     fireEvent.click(screen.getByRole("button", { name: /Request my reading/i }));
+    expect(screen.getByRole("dialog", { name: "Review your order" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Confirm and continue" }));
     expect(mutationState.mutate).toHaveBeenCalledOnce();
 
     await act(async () => {
@@ -275,6 +288,7 @@ describe("Home booking payment UX", () => {
     fireEvent.change(screen.getByLabelText("Country of birth"), { target: { value: "India" } });
     fireEvent.click(screen.getByLabelText("privacy consent"));
     fireEvent.click(screen.getByRole("button", { name: /Request my reading/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirm and continue" }));
     await act(async () => { mutationOptions.onSuccess?.({ invoiceUrl: "https://checkout.example/invoice/2" }); });
 
     const emailInput = screen.getByPlaceholderText("your@email.com");
