@@ -439,3 +439,11 @@
 - [x] Keep new filters aligned with search, date range, sorting, pagination, and infinite scroll
 - [x] Add regression tests for PDF export, tooltip values, and error/status filters
 - [x] Run full validation, responsive checks, and save the SLA chart/reporting checkpoint
+
+- [x] Add localized SLA error-code glossary with causes and remediation guidance on journal error hover
+- [x] Add SLA PDF summary table with total violations and average response time for the selected period
+- [x] Document independent-server deployment requirements and replace hard-coded platform assumptions with adapters where feasible
+- [x] Add a portable environment template and safe deployment instructions without secrets
+- [x] Connect the user's GitHub integration and verify repository access/state
+- [x] Add regression tests for glossary, PDF summary calculations, portability config, and GitHub-related project metadata
+- [x] Run full validation and publish the portability/reporting checkpoint

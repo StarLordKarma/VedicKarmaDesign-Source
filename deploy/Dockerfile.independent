@@ -1,0 +1,18 @@
+FROM node:22-bookworm-slim
+
+WORKDIR /app
+ENV NODE_ENV=production
+
+COPY . .
+RUN npm install -g corepack@latest \
+  && corepack pnpm install --frozen-lockfile \
+  && corepack pnpm run build
+
+EXPOSE 3000
+CMD ["node", "dist/index.js"]
+
+# Build from repository root:
+# docker build -f deploy/Dockerfile.independent -t vedic-astrology-booking .
+# docker run --env-file .env.standalone -p 3000:3000 vedic-astrology-booking
+# Provide secrets through an external secret manager or env file; never commit them.
+# Use host/platform scheduling for cleanup and SLA callbacks instead of in-container cron.

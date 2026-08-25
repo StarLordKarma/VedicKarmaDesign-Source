@@ -33,6 +33,15 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
   throw new Error(`No available port found starting from ${startPort}`);
 }
 
+async function scheduledTaskGuard(req: express.Request, res: express.Response, next: express.NextFunction) {
+  const expected = process.env.SCHEDULED_TASK_SECRET;
+  if (!expected) return next();
+  const bearer = req.header("authorization")?.replace(/^Bearer\s+/i, "");
+  const provided = bearer ?? req.header("x-scheduled-task-secret");
+  if (provided !== expected) return res.status(401).json({ error: "Unauthorized scheduled task" });
+  next();
+}
+
 async function startServer() {
   const app = express();
   app.set("trust proxy", true);
@@ -46,8 +55,8 @@ async function startServer() {
   registerNowPaymentsWebhook(app);
   registerStorageProxy(app);
   registerOAuthRoutes(app);
-  app.post("/api/scheduled/cleanup-receipts", cleanupReceiptFilesHandler);
-  app.post("/api/scheduled/evaluate-sla", evaluateSlaHandler);
+  app.post("/api/scheduled/cleanup-receipts", scheduledTaskGuard, cleanupReceiptFilesHandler);
+  app.post("/api/scheduled/evaluate-sla", scheduledTaskGuard, evaluateSlaHandler);
   // tRPC API
   app.use("/api/trpc", trpcRateLimitMiddleware);
   app.use(
@@ -65,7 +74,7 @@ async function startServer() {
   }
 
   const preferredPort = parseInt(process.env.PORT || "3000");
-  const port = await findAvailablePort(preferredPort);
+  const port = process.env.NODE_ENV === "development" ? await findAvailablePort(preferredPort) : preferredPort;
 
   if (port !== preferredPort) {
     console.log(`Port ${preferredPort} is busy, using port ${port} instead`);

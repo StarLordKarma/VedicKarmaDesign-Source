@@ -3,7 +3,7 @@ import React from "react";
 import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import AdminMetrics from "./AdminMetrics";
+import AdminMetrics, { getSlaChartSummary, getSlaErrorGuidance } from "./AdminMetrics";
 
 vi.mock("@/components/DashboardLayout", () => ({ default: ({ children }: { children: React.ReactNode }) => <>{children}</> }));
 vi.mock("@/lib/trpc", () => ({
@@ -47,6 +47,13 @@ describe("AdminMetrics localization", () => {
     render(<AdminMetrics />);
     expect(screen.getByRole("combobox", { name: "Journal view" })).toHaveTextContent("Infinite scroll");
     expect(screen.getByRole("combobox", { name: "PNG background" })).toHaveTextContent("Dark");
+  });
+
+  it("provides localized guidance and safe PDF summary aggregates", () => {
+    expect(getSlaErrorGuidance("ru", "DELIVERY_FAILED").fix).toContain("повторите отправку");
+    expect(getSlaErrorGuidance("de", "UNREGISTERED_CODE").cause).toContain("keinen Katalogeintrag");
+    expect(getSlaChartSummary([{ totalViolations: 2 }, { totalViolations: 3 }], 41.8)).toEqual({ total: 5, averageMs: 41.8 });
+    expect(getSlaChartSummary([], -10)).toEqual({ total: 0, averageMs: 0 });
   });
 
   it("restores the owner language from localStorage", () => {
