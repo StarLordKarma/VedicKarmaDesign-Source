@@ -86,6 +86,11 @@ export const reportApprovalSchema = z.object({ reportJobId: z.number().int().pos
 export const slaEvaluationStatusSchema = z.enum(["succeeded", "disabled", "failed"]);
 export const slaEvaluationTriggerSchema = z.enum(["heartbeat", "manual"]);
 export const slaEvaluationSortSchema = z.enum(["evaluated_desc", "evaluated_asc", "duration_desc", "duration_asc"]);
+export const slaEmailAllowlistEntrySchema = z.object({ id: z.number().int().positive(), email: z.string().email().max(320), label: z.string().trim().max(120).nullable(), enabled: z.boolean(), createdAt: z.coerce.date(), updatedAt: z.coerce.date(), createdBy: z.string().min(1).max(64), updatedBy: z.string().min(1).max(64) });
+export const addSlaEmailAllowlistSchema = z.object({ email: z.string().trim().email().max(320), label: z.string().trim().max(120).optional() });
+export const updateSlaEmailAllowlistSchema = z.object({ id: z.number().int().positive(), enabled: z.boolean() });
+export const removeSlaEmailAllowlistSchema = z.object({ id: z.number().int().positive() });
+
 export const sendSlaChartPdfSchema = z.object({
   email: z.string().email().max(320),
   contentBase64: z.string().min(16).max(17_000_000),

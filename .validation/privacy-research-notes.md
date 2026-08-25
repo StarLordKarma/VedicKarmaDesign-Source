@@ -1,0 +1,7 @@
+# Privacy research notes
+
+The European Data Protection Board states that a controller must select an appropriate legal basis, and that consent must be freely given, informed, specific, and unambiguous; withdrawal must be as easy as giving consent. It also identifies contract performance, legal obligation, vital interests, public interest, and legitimate interest as other GDPR legal bases. Source: https://www.edpb.europa.eu/sme/be-compliant/process-personal-data-lawfully_en
+
+The European Commission explains that names, email addresses, IP addresses, cookie IDs, and pseudonymised data that can be re-identified are personal data, and that collection, storage, consultation, disclosure, and deletion are processing activities. The project therefore treats booking identity/contact data, birth details, status tokens, delivery metadata, and operational logs as protected data or security-relevant metadata. Source: https://commission.europa.eu/law/law-topic/data-protection/data-protection-explained_en
+
+Implementation implication: the site should identify the controller and contact route, describe purposes and categories, explain legal bases, recipients/processors, international transfers, retention, rights and complaint routes, distinguish required booking processing from optional marketing/analytics consent, and avoid claiming that a notice alone guarantees compliance. Country-specific legal review remains required for the owner’s establishment, target markets, payment/email/storage providers, and any Russian data-localisation or cross-border obligations.

@@ -1,6 +1,6 @@
 import { drizzle } from "drizzle-orm/mysql2";
 import { and, asc, count, desc, eq, gte, gt, like, lt, sql } from "drizzle-orm";
-import { ClientChangeHistory, InsertBookingRequest, InsertUser, bookingRequests, clientChangeHistory, servicePricing, servicePricingCurrencies, servicePricingHistory, smokeTestRuns, users, receiptFiles, receiptRetentionSettings, receiptEmailAttempts, receiptEmailFailureAlerts } from "../drizzle/schema";
+import { ClientChangeHistory, InsertBookingRequest, InsertUser, bookingRequests, clientChangeHistory, servicePricing, servicePricingCurrencies, servicePricingHistory, smokeTestRuns, users, receiptFiles, receiptRetentionSettings, receiptEmailAttempts, receiptEmailFailureAlerts, slaEmailAllowlist } from "../drizzle/schema";
 import { READING_PRICES } from "@shared/pricing";
 import { ENV } from './_core/env';
 
@@ -149,6 +149,12 @@ export const RECEIPT_EMAIL_COOLDOWN_MS = 60_000;
 export const RECEIPT_EMAIL_FAILURE_WINDOW_MS = 60 * 60 * 1000;
 export const RECEIPT_EMAIL_FAILURE_THRESHOLD = 3;
 export function normalizeReceiptEmail(email: string) { return email.trim().toLowerCase(); }
+
+export async function listSlaEmailAllowlist() { const db = await getDb(); if (!db) return []; return db.select().from(slaEmailAllowlist).orderBy(asc(slaEmailAllowlist.email)); }
+export async function addSlaEmailAllowlist(input: { email: string; label?: string | null; actor: string }) { const db = await getDb(); if (!db) throw new Error("Database unavailable"); const email = normalizeReceiptEmail(input.email); await db.insert(slaEmailAllowlist).values({ email, label: input.label?.trim() || null, enabled: true, createdBy: input.actor, updatedBy: input.actor }); return (await db.select().from(slaEmailAllowlist).where(eq(slaEmailAllowlist.email, email)).limit(1))[0]; }
+export async function setSlaEmailAllowlistEnabled(input: { id: number; enabled: boolean; actor: string }) { const db = await getDb(); if (!db) throw new Error("Database unavailable"); await db.update(slaEmailAllowlist).set({ enabled: input.enabled, updatedBy: input.actor }).where(eq(slaEmailAllowlist.id, input.id)); return (await db.select().from(slaEmailAllowlist).where(eq(slaEmailAllowlist.id, input.id)).limit(1))[0]; }
+export async function removeSlaEmailAllowlist(input: { id: number }) { const db = await getDb(); if (!db) throw new Error("Database unavailable"); await db.delete(slaEmailAllowlist).where(eq(slaEmailAllowlist.id, input.id)); return { success: true } as const; }
+export async function isSlaEmailAllowed(email: string) { const db = await getDb(); if (!db) return false; const row = (await db.select({ id: slaEmailAllowlist.id }).from(slaEmailAllowlist).where(and(eq(slaEmailAllowlist.email, normalizeReceiptEmail(email)), eq(slaEmailAllowlist.enabled, true))).limit(1))[0]; return Boolean(row); }
 export function isReceiptEmailCoolingDown(lastRequestedAt: Date | undefined, now = Date.now()) { return Boolean(lastRequestedAt && now - lastRequestedAt.getTime() < RECEIPT_EMAIL_COOLDOWN_MS); }
 export function shouldCreateReceiptEmailFailureAlert(failureCount: number, hasRecentAlert: boolean) { return failureCount >= RECEIPT_EMAIL_FAILURE_THRESHOLD && !hasRecentAlert; }
 

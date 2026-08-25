@@ -419,5 +419,19 @@ export const slaEvaluationRuns = mysqlTable("sla_evaluation_runs", {
   statusEvaluatedAtIdx: index("sla_evaluation_runs_status_evaluated_at_idx").on(table.status, table.evaluatedAt),
 }));
 
+export const slaEmailAllowlist = mysqlTable("sla_email_allowlist", {
+  id: int("id").autoincrement().primaryKey(),
+  email: varchar("email", { length: 320 }).notNull(),
+  label: varchar("label", { length: 120 }),
+  enabled: boolean("enabled").notNull().default(true),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  createdBy: varchar("createdBy", { length: 64 }).notNull(),
+  updatedBy: varchar("updatedBy", { length: 64 }).notNull(),
+}, (table) => ({ emailUnique: uniqueIndex("sla_email_allowlist_email_unique").on(table.email), enabledEmailIdx: index("sla_email_allowlist_enabled_email_idx").on(table.enabled, table.email) }));
+
+export type SlaEmailAllowlistEntry = typeof slaEmailAllowlist.$inferSelect;
+export type InsertSlaEmailAllowlistEntry = typeof slaEmailAllowlist.$inferInsert;
+
 export type SlaEvaluationRun = typeof slaEvaluationRuns.$inferSelect;
 export type InsertSlaEvaluationRun = typeof slaEvaluationRuns.$inferInsert;

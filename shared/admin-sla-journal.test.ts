@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sendSlaChartPdfSchema, slaEvaluationRunsPageSchema } from "./admin";
+import { addSlaEmailAllowlistSchema, removeSlaEmailAllowlistSchema, sendSlaChartPdfSchema, slaEvaluationRunsPageSchema, updateSlaEmailAllowlistSchema } from "./admin";
 
 describe("SLA journal filters", () => {
   it("accepts searchable run filters and rejects an invalid range", () => {
@@ -15,5 +15,13 @@ describe("SLA journal filters", () => {
     expect(sendSlaChartPdfSchema.safeParse({ ...valid, email: "not-an-email" }).success).toBe(false);
     expect(sendSlaChartPdfSchema.safeParse({ ...valid, language: "fr" }).success).toBe(false);
     expect(sendSlaChartPdfSchema.safeParse({ ...valid, contentBase64: "x".repeat(17_000_001) }).success).toBe(false);
+  });
+
+  it("validates owner allowlist entries and normalizes membership input", () => {
+    expect(addSlaEmailAllowlistSchema.parse({ email: " Owner@Example.COM ", label: "Primary" })).toEqual({ email: "Owner@Example.COM", label: "Primary" });
+    expect(addSlaEmailAllowlistSchema.safeParse({ email: "bad" }).success).toBe(false);
+    expect(addSlaEmailAllowlistSchema.safeParse({ email: "owner@example.com", label: "x".repeat(121) }).success).toBe(false);
+    expect(updateSlaEmailAllowlistSchema.parse({ id: 4, enabled: false })).toEqual({ id: 4, enabled: false });
+    expect(removeSlaEmailAllowlistSchema.parse({ id: 4 })).toEqual({ id: 4 });
   });
 });

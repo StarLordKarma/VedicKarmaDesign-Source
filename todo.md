@@ -460,3 +460,17 @@
 - [x] Preserve search, error-code, status, date, sort, pagination, and infinite-scroll behavior with the calendar range
 - [x] Add regression tests for weekly top errors, email authorization/feedback, and calendar range state
 - [x] Run full validation, responsive verification, and save the dashboard extension checkpoint
+
+- [x] Add owner-managed email allowlist storage and CRUD controls
+- [x] Enforce allowlist membership before sending generated SLA chart PDFs by email
+- [x] Add localized privacy/data-processing information for EN/RU/DE/ES with jurisdiction caveats
+- [x] Add consent and privacy-policy links to relevant public data-collection flows
+- [x] Document purposes, legal bases, retention, processors, user rights, security, and contact procedures
+- [x] Update email/PDF disclosures and standalone deployment privacy configuration guidance
+- [x] Add regression tests for allowlist authorization/enforcement and privacy/consent localization
+- [x] Run full validation, responsive checks, legal-content review, and save the privacy/allowlist checkpoint
+
+- [x] Add regression test for receipt email allowlist normalization and schema validation
+- [x] Add localized privacy page/content regression coverage
+- [x] Run final full validation, build, logs, responsive checks, and legal-content review
+- [x] Read todo.md, mark completed final items, and save the Phase 2.1 privacy/allowlist checkpoint
