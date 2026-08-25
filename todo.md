@@ -396,4 +396,4 @@
 - [x] Add regression tests for token security, expiry/revocation, status privacy, metrics, and SLA alerts
 - [x] Run full validation, visual checks, and save the Phase 2.1 checkpoint
 
-- [ ] Create the platform-managed Heartbeat schedule for SLA evaluation after the callback is checkpointed and production deployment is confirmed
+- [x] Create the platform-managed Heartbeat schedule for SLA evaluation after the callback is checkpointed and production deployment is confirmed (`fBrbcSitQTNmYmjsyPf7qa`, daily 03:15 UTC)
