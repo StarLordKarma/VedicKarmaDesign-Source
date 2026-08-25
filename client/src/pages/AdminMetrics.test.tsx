@@ -3,7 +3,7 @@ import React from "react";
 import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import AdminMetrics, { getSlaChartSummary, getSlaErrorGuidance } from "./AdminMetrics";
+import AdminMetrics, { getPdfExportMessage, getSlaChartSummary, getSlaErrorGuidance } from "./AdminMetrics";
 
 vi.mock("@/components/DashboardLayout", () => ({ default: ({ children }: { children: React.ReactNode }) => <>{children}</> }));
 vi.mock("@/lib/trpc", () => ({
@@ -54,6 +54,8 @@ describe("AdminMetrics localization", () => {
     expect(getSlaErrorGuidance("de", "UNREGISTERED_CODE").cause).toContain("keinen Katalogeintrag");
     expect(getSlaChartSummary([{ totalViolations: 2 }, { totalViolations: 3 }], 41.8)).toEqual({ total: 5, averageMs: 41.8 });
     expect(getSlaChartSummary([], -10)).toEqual({ total: 0, averageMs: 0 });
+    expect(getPdfExportMessage("ru", "success")).toBe("PDF-отчёт успешно экспортирован.");
+    expect(getPdfExportMessage("es", "error")).toContain("No se pudo");
   });
 
   it("restores the owner language from localStorage", () => {
