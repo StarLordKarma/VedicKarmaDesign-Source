@@ -57,7 +57,7 @@ describe("Home booking payment UX", () => {
     pricingData.numerologyAddonUsd = 15;
     renderHome();
     expect(screen.getAllByText("$40").length).toBeGreaterThan(0);
-    fireEvent.click(screen.getAllByRole("checkbox")[0]);
+    fireEvent.click(screen.getByRole("radio", { name: "Basic + numerology" }));
     expect(screen.getAllByText("$55").length).toBeGreaterThan(0);
     fireEvent.change(screen.getAllByRole("combobox", { name: "Currency" })[0], { target: { value: "EUR" } });
     expect(screen.getAllByText("€40").length).toBeGreaterThan(0);
@@ -76,7 +76,7 @@ describe("Home booking payment UX", () => {
     expect(screen.getByRole("group", { name: "Price breakdown" })).toHaveTextContent("Not selected");
     expect(screen.getByRole("group", { name: "Price breakdown" })).toHaveTextContent("$0");
     expect(screen.getByRole("group", { name: "Price breakdown" })).toHaveTextContent("$25");
-    fireEvent.click(screen.getAllByRole("checkbox")[0]);
+    fireEvent.click(screen.getByRole("radio", { name: "Basic + numerology" }));
     const breakdown = screen.getByRole("group", { name: "Price breakdown" });
     expect(breakdown).toHaveTextContent("Indian numerology add-on");
     expect(breakdown).toHaveTextContent("+$10");
@@ -187,7 +187,7 @@ describe("Home booking payment UX", () => {
     fireEvent.change(screen.getByLabelText("Exact time of birth"), { target: { value: "14:30" } });
     fireEvent.change(screen.getByLabelText("City of birth"), { target: { value: "Delhi" } });
     fireEvent.change(screen.getByLabelText("Country of birth"), { target: { value: "India" } });
-    fireEvent.click(screen.getAllByRole("checkbox")[1]);
+    fireEvent.click(screen.getByLabelText("privacy consent"));
     fireEvent.click(screen.getByRole("button", { name: /Request my reading/i }));
     expect(mutationState.mutate).toHaveBeenCalledOnce();
 
@@ -214,7 +214,7 @@ describe("Home booking payment UX", () => {
     fireEvent.change(screen.getByLabelText("Exact time of birth"), { target: { value: "14:30" } });
     fireEvent.change(screen.getByLabelText("City of birth"), { target: { value: "Delhi" } });
     fireEvent.change(screen.getByLabelText("Country of birth"), { target: { value: "India" } });
-    fireEvent.click(screen.getAllByRole("checkbox")[1]);
+    fireEvent.click(screen.getByLabelText("privacy consent"));
     fireEvent.click(screen.getByRole("button", { name: /Request my reading/i }));
     await act(async () => { mutationOptions.onSuccess?.({ invoiceUrl: "https://checkout.example/invoice/2" }); });
 

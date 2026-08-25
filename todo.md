@@ -492,5 +492,5 @@
 - [x] Define versioned service packages with localized names, package type, and active pricing
 - [x] Add immutable package and price snapshot fields to booking creation
 - [x] Add migration, server contract, and regression tests for package/price snapshot integrity
-- [ ] Expose package selection in the public booking flow without changing historical order totals
+- [x] Expose package selection in the public booking flow without changing historical order totals
 - [x] Run Phase 2.2 package snapshot full validation and save an implementation checkpoint
