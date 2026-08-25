@@ -39,6 +39,14 @@ describe("AdminMetrics localization", () => {
     expect(screen.getByRole("button", { name: "Switch to light theme" })).toBeInTheDocument();
   });
 
+  it("persists the journal view mode and PNG background preference", () => {
+    localStorage.setItem("admin-sla-journal-mode", "infinite");
+    localStorage.setItem("admin-sla-png-background", "dark");
+    render(<AdminMetrics />);
+    expect(screen.getByRole("combobox", { name: "Journal view" })).toHaveTextContent("Infinite scroll");
+    expect(screen.getByRole("combobox", { name: "PNG background" })).toHaveTextContent("Dark");
+  });
+
   it("restores the owner language from localStorage", () => {
     localStorage.setItem("admin-locale", "es");
     render(<AdminMetrics />);

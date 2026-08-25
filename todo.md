@@ -426,3 +426,9 @@
 - [x] Add a branded PNG export header with the selected UTC date range and company logo
 - [x] Add regression tests for infinite-scroll mode and branded PNG export metadata/layout
 - [x] Run full validation, responsive checks, and save the infinite-scroll/export checkpoint
+
+- [x] Add light/dark background selection for SLA chart PNG export
+- [x] Persist the SLA journal pagination/infinite-scroll mode in localStorage
+- [x] Add animated skeleton rows while infinite-scroll pages are loading
+- [x] Add regression tests for PNG background selection, mode persistence, and loading state
+- [x] Run full validation, responsive checks, and save the dashboard polish checkpoint
