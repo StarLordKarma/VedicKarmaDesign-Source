@@ -33,6 +33,26 @@ vi.mock("@/lib/trpc", () => ({
 }));
 
 describe("Home booking payment UX", () => {
+  it("autosaves safe form values, restores a recent draft, and never restores consent", () => {
+    renderHome();
+    fireEvent.input(screen.getByLabelText("Preferred name"), { target: { value: "Maya" } });
+    expect(JSON.parse(localStorage.getItem("vedic-booking-draft-v1") ?? "{}")).toMatchObject({ name: "Maya", addon: false, currency: "USD" });
+    expect(screen.getByTestId("draft-status")).toHaveTextContent("Draft saved locally");
+
+    cleanup();
+    renderHome();
+    expect(screen.getByLabelText("Preferred name")).toHaveValue("Maya");
+    expect(screen.getByTestId("draft-status")).toHaveTextContent("Draft restored from this device");
+    expect(screen.getByLabelText("privacy consent")).not.toBeChecked();
+  });
+
+  it("removes a draft older than the retention window", () => {
+    localStorage.setItem("vedic-booking-draft-v1", JSON.stringify({ savedAt: Date.now() - 8 * 24 * 60 * 60 * 1000, currency: "USD", name: "Old" }));
+    renderHome();
+    expect(localStorage.getItem("vedic-booking-draft-v1")).toBeNull();
+    expect(screen.getByLabelText("Preferred name")).toHaveValue("");
+  });
+
   afterEach(() => cleanup());
 
   beforeEach(() => {

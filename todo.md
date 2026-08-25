@@ -514,3 +514,10 @@
 - [x] Add localized success-screen Share buttons for Web Share API and social links
 - [x] Add regression coverage for progress states and success-screen sharing actions
 - [x] Run full tests, TypeScript, build, logs, and responsive verification
+
+- [x] Add privacy-conscious booking draft persistence in localStorage
+- [x] Restore valid recent draft values and progress after reload
+- [x] Show localized draft saved/restored status with accessible live feedback
+- [x] Expire stale drafts and clear the draft after successful booking or starting a new request
+- [x] Add regression tests for draft serialization, restoration, expiry, and cleanup
+- [x] Run full tests, TypeScript, build, logs, and responsive verification
