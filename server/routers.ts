@@ -164,6 +164,7 @@ export const appRouter = router({
       if (input.promoCode && !validatePromoCode(input.promoCode).valid) throw new TRPCError({ code: "BAD_REQUEST", message: "This promo code is not valid." });
       const priceSnapshot = buildBookingPriceSnapshot({ addon: input.addon, currency: input.currency, basicAmount: pricing.basicUsd, addonAmount: pricing.numerologyAddonUsd, promoCode: input.promoCode });
       const totalUsd = priceSnapshot.totalAmount;
+      const uploadedAttachment = input.attachment ? await storagePut(`booking-attachments/${crypto.randomUUID()}-${input.attachment.fileName.replace(/[^a-zA-Z0-9._-]+/g, "-").slice(0, 200) || "attachment"}`, Buffer.from(input.attachment.contentBase64, "base64"), input.attachment.contentType) : null;
       const result = await createBookingRequest({
         name: input.name,
         email: input.email,
@@ -179,6 +180,7 @@ export const appRouter = router({
         totalUsd,
         currency: input.currency,
         interest: input.interest || null,
+        ...(input.attachment && uploadedAttachment ? { attachmentKey: uploadedAttachment.key, attachmentUrl: uploadedAttachment.url, attachmentName: input.attachment.fileName, attachmentType: input.attachment.contentType, attachmentSize: input.attachment.size, attachmentUploadedAt: new Date() } : {}),
         status: "new",
         paymentStatus: "creating",
       });

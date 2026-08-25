@@ -529,3 +529,10 @@
 - [x] Add regression coverage for clear draft, relative autosave time, and review navigation
 - [x] Run full tests, TypeScript, build, logs, and responsive verification
 - [x] Update existing success-flow tests to confirm the new review step before final submit
+
+- [x] Add smooth enter/exit animation to the order preview dialog with reduced-motion support
+- [x] Add optional file/image attachment input to the booking data step with type and size validation
+- [x] Show selected attachment metadata and allow removal before review/submit
+- [x] Keep attachment handling privacy-conscious and preserve existing draft/consent rules
+- [x] Add regression tests for dialog animation state and attachment validation/removal
+- [x] Run full tests, TypeScript, build, logs, and responsive verification

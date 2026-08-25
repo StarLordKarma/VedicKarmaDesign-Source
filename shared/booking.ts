@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { READING_PRICES } from "./pricing";
 
+const bookingAttachmentSchema = z.object({ fileName: z.string().trim().min(1).max(255), contentType: z.enum(["application/pdf", "image/jpeg", "image/png", "image/webp", "text/plain"]), size: z.number().int().positive().max(5 * 1024 * 1024), contentBase64: z.string().min(1).max(7_000_000) });
+
 export const bookingSchema = z.object({
   name: z.string().trim().min(2, "Please enter your name."),
   email: z.string().trim().email("Please enter a valid email."),
@@ -13,11 +15,13 @@ export const bookingSchema = z.object({
   currency: z.enum(["USD", "EUR", "GBP"]).default("USD"),
   interest: z.string().trim().max(1000).optional(),
   promoCode: z.string().trim().max(32).optional(),
+  attachment: bookingAttachmentSchema.optional(),
   smokeTest: z.boolean().optional().default(false),
   smokeTestRunId: z.string().regex(/^production-smoke-\d{10,}$/).optional(),
 });
 
 export type BookingInput = z.infer<typeof bookingSchema>;
+export type BookingAttachment = z.infer<typeof bookingAttachmentSchema>;
 
 export type BookingPriceSnapshot = {
   packageCode: "basic" | "basic_plus";

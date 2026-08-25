@@ -57,6 +57,13 @@ describe("Home booking payment UX", () => {
     expect(screen.queryByTestId("draft-status")).not.toBeInTheDocument();
   });
 
+  it("renders an optional attachment input with an allowlisted file policy", () => {
+    renderHome();
+    const input = screen.getByLabelText("Optional attachment");
+    expect(input).toHaveAttribute("type", "file");
+    expect(input).toHaveAttribute("accept", "application/pdf,image/jpeg,image/png,image/webp,text/plain");
+  });
+
   it("removes a draft older than the retention window", () => {
     localStorage.setItem("vedic-booking-draft-v1", JSON.stringify({ savedAt: Date.now() - 8 * 24 * 60 * 60 * 1000, currency: "USD", name: "Old" }));
     renderHome();
@@ -253,6 +260,8 @@ describe("Home booking payment UX", () => {
     fireEvent.click(screen.getByLabelText("privacy consent"));
     fireEvent.click(screen.getByRole("button", { name: /Request my reading/i }));
     expect(screen.getByRole("dialog", { name: "Review your order" })).toBeInTheDocument();
+    expect(document.querySelector(".order-preview-backdrop")).toBeInTheDocument();
+    expect(document.querySelector(".order-preview-panel")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Confirm and continue" }));
     expect(mutationState.mutate).toHaveBeenCalledOnce();
 
