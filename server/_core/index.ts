@@ -10,6 +10,7 @@ import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { registerNowPaymentsWebhook } from "../nowpayments.webhook";
 import { cleanupReceiptFilesHandler } from "../receipt-retention";
+import { evaluateSlaHandler } from "../sla-retention";
 import { requestObservabilityMiddleware, trpcRateLimitMiddleware } from "../observability";
 import { healthHandler, readinessHandler } from "../health";
 
@@ -46,6 +47,7 @@ async function startServer() {
   registerStorageProxy(app);
   registerOAuthRoutes(app);
   app.post("/api/scheduled/cleanup-receipts", cleanupReceiptFilesHandler);
+  app.post("/api/scheduled/evaluate-sla", evaluateSlaHandler);
   // tRPC API
   app.use("/api/trpc", trpcRateLimitMiddleware);
   app.use(

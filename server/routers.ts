@@ -19,6 +19,8 @@ import { buildActivityCsv, buildBookingsCsv, buildBookingsPdf, buildPricingHisto
 import { ENV } from "./_core/env";
 import { approveReportVersion, enqueueReportJobForBooking, getReportProcessingSettings, getReportReviewJob, listReportReviewJobs, processReportJob, retryReportDelivery, setReportProcessingSettings } from "./report-studio-db";
 import { AI_NARRATIVE_MODELS } from "./report-narrative";
+import { createClientStatusLink, getPublicClientStatus, listClientStatusLinks, revokeClientStatusLink } from "./client-status";
+import { evaluateSla, getOwnerMetrics, getSlaSettings, setSlaSettings } from "./sla";
 
 async function cleanupSmokeTestBooking(input: Parameters<typeof isProductionSmokeTestBooking>[0], bookingId: number, reason: "success" | "failure") {
   if (!isProductionSmokeTestBooking(input)) return false;
@@ -63,6 +65,13 @@ export const appRouter = router({
     exportActivityCsv: adminProcedure.input(activityDateRangeSchema.optional()).mutation(async ({ input }) => ({ filename: `jyotish-activity-${new Date().toISOString().slice(0, 10)}.csv`, contentBase64: Buffer.from(buildActivityCsv(await getAdminActivityEvents(input ?? {})), "utf8").toString("base64") })),
     exportPricingHistoryCsv: adminProcedure.input(pricingHistoryFilterSchema.optional()).mutation(async ({ input }) => { const history = await getPricingHistory(500, input); const namedHistory = history.map((entry) => ({ ...entry, changedByName: entry.changedBy === ENV.ownerOpenId ? ENV.ownerName : entry.changedBy })); return { filename: `jyotish-pricing-history-${new Date().toISOString().slice(0, 10)}.csv`, contentBase64: Buffer.from(buildPricingHistoryCsv(namedHistory), "utf8").toString("base64") }; }),
     exportPdf: adminProcedure.mutation(async () => ({ filename: `jyotish-bookings-${new Date().toISOString().slice(0, 10)}.pdf`, contentBase64: (await buildBookingsPdf(await getAllBookingRequests())).toString("base64") })),
+    clientStatusLinks: adminProcedure.query(() => listClientStatusLinks()),
+    createClientStatusLink: adminProcedure.input(z.object({ bookingId: z.number().int().positive(), expiryHours: z.number().int().min(1).max(720) })).mutation(({ input, ctx }) => createClientStatusLink({ ...input, createdBy: ctx.user.openId })),
+    revokeClientStatusLink: adminProcedure.input(z.object({ tokenId: z.number().int().positive() })).mutation(({ input, ctx }) => revokeClientStatusLink(input.tokenId, ctx.user.openId)),
+    metrics: adminProcedure.input(z.object({ since: z.coerce.date().optional() }).optional()).query(({ input }) => getOwnerMetrics(input?.since)),
+    slaSettings: adminProcedure.query(() => getSlaSettings()),
+    updateSlaSettings: adminProcedure.input(z.object({ enabled: z.boolean(), preparationHours: z.number().int().min(1).max(720), deliveryHours: z.number().int().min(1).max(720), alertCooldownMinutes: z.number().int().min(5).max(10080) })).mutation(({ input, ctx }) => setSlaSettings({ ...input, updatedBy: ctx.user.openId })),
+    evaluateSla: adminProcedure.mutation(() => evaluateSla()),
     attachNatalPdf: adminProcedure.input(attachNatalPdfSchema).mutation(async ({ input, ctx }) => {
       const buffer = decodePdfBase64(input.contentBase64);
       const safeName = sanitizePdfName(input.fileName);
@@ -112,6 +121,9 @@ export const appRouter = router({
     retryDelivery: adminProcedure.input(reportApprovalSchema.pick({ reportJobId: true, versionId: true })).mutation(({ input, ctx }) => retryReportDelivery({ ...input, actorId: ctx.user.openId })),
     processingSettings: adminProcedure.query(() => getReportProcessingSettings()),
     updateProcessingSettings: adminProcedure.input(z.object({ autoProcessEnabled: z.boolean(), aiModel: z.enum(AI_NARRATIVE_MODELS), maxTokens: z.number().int().min(1000).max(12000), maxSections: z.number().int().min(1).max(12), maxParagraphChars: z.number().int().min(300).max(1800) })).mutation(({ input, ctx }) => setReportProcessingSettings({ ...input, actorId: ctx.user.openId })),
+  }),
+  status: router({
+    get: publicProcedure.input(z.object({ token: z.string().min(32).max(100) })).query(({ input }) => getPublicClientStatus(input.token)),
   }),
   pricing: router({
     current: publicProcedure.input(pricingCurrencySchema.optional()).query(({ input }) => getServicePricing(input?.currency)),

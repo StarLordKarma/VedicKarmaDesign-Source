@@ -386,3 +386,14 @@
 - [x] Add owner-visible observability events and safe error correlation details
 - [x] Add regression tests for correlation IDs, PII masking, rate-limit responses, and health/readiness behavior
 - [x] Run full validation and save the Phase 2.0 checkpoint
+
+- [x] Add owner-created client status links with hashed tokens, configurable expiry, and revocation
+- [x] Add a public status endpoint exposing only minimal payment/preparation/delivery state
+- [x] Add localized client status page with loading, expired, revoked, not-found, and failure states
+- [x] Add owner-only usage metrics dashboard with safe aggregates and date filters
+- [x] Add persistent SLA thresholds and alert configuration with owner audit trail
+- [x] Add idempotent SLA evaluation endpoint/worker and owner notifications without PII logs
+- [x] Add regression tests for token security, expiry/revocation, status privacy, metrics, and SLA alerts
+- [x] Run full validation, visual checks, and save the Phase 2.1 checkpoint
+
+- [ ] Create the platform-managed Heartbeat schedule for SLA evaluation after the callback is checkpointed and production deployment is confirmed

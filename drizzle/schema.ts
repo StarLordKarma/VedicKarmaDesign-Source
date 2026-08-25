@@ -349,3 +349,54 @@ export const reportAuditEvents = mysqlTable("report_audit_events", {
 
 export type ReportAuditEvent = typeof reportAuditEvents.$inferSelect;
 export type InsertReportAuditEvent = typeof reportAuditEvents.$inferInsert;
+
+export const clientAccessTokens = mysqlTable("client_access_tokens", {
+  id: int("id").autoincrement().primaryKey(),
+  bookingId: int("bookingId").notNull(),
+  tokenHash: varchar("tokenHash", { length: 64 }).notNull().unique(),
+  expiresAt: timestamp("expiresAt").notNull(),
+  revokedAt: timestamp("revokedAt"),
+  lastAccessedAt: timestamp("lastAccessedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  createdBy: varchar("createdBy", { length: 64 }).notNull(),
+}, (table) => ({
+  bookingCreatedIdx: index("client_access_tokens_booking_created_idx").on(table.bookingId, table.createdAt),
+  expiryRevokedIdx: index("client_access_tokens_expiry_revoked_idx").on(table.expiresAt, table.revokedAt),
+}));
+
+export type ClientAccessToken = typeof clientAccessTokens.$inferSelect;
+export type InsertClientAccessToken = typeof clientAccessTokens.$inferInsert;
+
+export const slaSettings = mysqlTable("sla_settings", {
+  id: int("id").primaryKey(),
+  enabled: boolean("enabled").notNull().default(true),
+  preparationHours: int("preparationHours").notNull().default(48),
+  deliveryHours: int("deliveryHours").notNull().default(24),
+  alertCooldownMinutes: int("alertCooldownMinutes").notNull().default(60),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedBy: varchar("updatedBy", { length: 64 }).notNull(),
+});
+
+export type SlaSettings = typeof slaSettings.$inferSelect;
+export type InsertSlaSettings = typeof slaSettings.$inferInsert;
+
+export const operationalAlerts = mysqlTable("operational_alerts", {
+  id: int("id").autoincrement().primaryKey(),
+  alertType: varchar("alertType", { length: 64 }).notNull(),
+  fingerprint: varchar("fingerprint", { length: 160 }).notNull(),
+  severity: mysqlEnum("severity", ["warning", "critical"]).notNull().default("warning"),
+  status: mysqlEnum("status", ["open", "resolved"]).notNull().default("open"),
+  count: int("count").notNull().default(1),
+  summary: varchar("summary", { length: 500 }).notNull(),
+  firstSeenAt: timestamp("firstSeenAt").defaultNow().notNull(),
+  lastSeenAt: timestamp("lastSeenAt").defaultNow().notNull(),
+  lastNotifiedAt: timestamp("lastNotifiedAt"),
+  resolvedAt: timestamp("resolvedAt"),
+  metadataJson: text("metadataJson"),
+}, (table) => ({
+  fingerprintUnique: uniqueIndex("operational_alerts_fingerprint_unique").on(table.fingerprint),
+  statusLastSeenIdx: index("operational_alerts_status_last_seen_idx").on(table.status, table.lastSeenAt),
+}));
+
+export type OperationalAlert = typeof operationalAlerts.$inferSelect;
+export type InsertOperationalAlert = typeof operationalAlerts.$inferInsert;
