@@ -615,3 +615,8 @@
 - [x] Verify owner pricing management controls remain available and authorized
 - [x] Set USD Basic price to $15 and preserve the add-on price at $10 through the audited pricing flow
 - [x] Run focused tests, TypeScript, build, visual verification and checkpoint
+
+- [x] Persist an owner-selected cleanup notification language and use it for Resend summaries
+- [x] Add owner-facing retention cleanup history filters and a CSV export action
+- [x] Expand the pricing save confirmation with current versus proposed price comparison
+- [x] Add regression coverage, run validation, verify UI and save checkpoint

@@ -161,6 +161,7 @@ export type PaymentTestLabRun = typeof paymentTestLabRuns.$inferSelect;
 export const paymentTestLabRetentionSettings = mysqlTable("payment_test_lab_retention_settings", {
   id: int("id").primaryKey(),
   retentionDays: int("retentionDays").notNull().default(90),
+  notificationLocale: varchar("notificationLocale", { length: 8 }).notNull().default("en"),
   updatedBy: varchar("updatedBy", { length: 64 }).notNull().default("system"),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastCleanupAt: timestamp("lastCleanupAt"),
@@ -174,6 +175,18 @@ export const paymentTestLabRetentionChanges = mysqlTable("payment_test_lab_reten
   changedBy: varchar("changedBy", { length: 64 }).notNull(),
   changedAt: timestamp("changedAt").defaultNow().notNull(),
 });
+
+export const paymentTestLabCleanupHistory = mysqlTable("payment_test_lab_cleanup_history", {
+  id: int("id").autoincrement().primaryKey(),
+  triggeredBy: varchar("triggeredBy", { length: 64 }).notNull(),
+  retentionDays: int("retentionDays").notNull(),
+  deletedCount: int("deletedCount").notNull(),
+  cutoff: timestamp("cutoff").notNull(),
+  completedAt: timestamp("completedAt").defaultNow().notNull(),
+}, (table) => ({
+  completedAtIdx: index("payment_test_lab_cleanup_history_completed_idx").on(table.completedAt),
+  triggeredByCompletedIdx: index("payment_test_lab_cleanup_history_actor_completed_idx").on(table.triggeredBy, table.completedAt),
+}));
 
 export const receiptFiles = mysqlTable("receipt_files", {
   id: int("id").autoincrement().primaryKey(),

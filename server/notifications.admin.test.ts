@@ -187,6 +187,9 @@ describe("owner notifications and admin access", () => {
     await expect(caller.admin.exportCsv()).rejects.toMatchObject({ code: "FORBIDDEN" });
     await expect(caller.admin.exportPdf()).rejects.toMatchObject({ code: "FORBIDDEN" });
     await expect(caller.admin.exportActivityCsv()).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(caller.admin.updatePaymentTestLabNotificationLocale({ notificationLocale: "de" })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(caller.admin.paymentTestLabCleanupHistory()).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(caller.admin.exportPaymentTestLabCleanupHistoryCsv()).rejects.toMatchObject({ code: "FORBIDDEN" });
     await expect(caller.admin.attachNatalPdf({ bookingId: 1, fileName: "chart.pdf", contentBase64: "JVBERi0xLjQ=" })).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 
