@@ -549,3 +549,11 @@
 - [x] Apply user-authorized database migration 0023 to remove unused attachment metadata columns
 - [x] Remove attachment-specific tests and add regression assertion that the attachment UI is absent
 - [x] Run full tests, TypeScript, build, logs, and responsive verification after removal
+
+- [x] Add owner-only controls for viewing and changing active/inactive service package states
+- [x] Ensure public booking only exposes active package versions and preserves historical booking snapshots
+- [x] Add regression coverage for package activation authorization, validation, and public filtering
+- [x] Extend the owner-only Report Studio workflow for generation, review, PDF preview, opening, and download
+- [x] Add regression coverage for Report Studio generation preview actions and owner access controls
+- [x] Run a safe production checkout smoke test without transferring funds or creating a live customer booking
+- [x] Run full tests, TypeScript, build, logs, and desktop/mobile verification for the new owner workflows

@@ -227,3 +227,6 @@ html.theme-transition #root * {
 .order-preview-backdrop { animation: order-preview-backdrop-in 180ms cubic-bezier(0.23, 1, 0.32, 1); }
 .order-preview-panel { animation: order-preview-panel-in 220ms cubic-bezier(0.23, 1, 0.32, 1); }
 @media (prefers-reduced-motion: reduce) { .order-preview-backdrop, .order-preview-panel { animation: none; } }
+
+/* Public booking receives package availability from the server; unavailable package cards are not exposed for selection. */
+#book label:has(input[name="package"]:disabled) { display: none !important; }

@@ -7,13 +7,14 @@ const mocks = vi.hoisted(() => ({
   deleteBookingRequest: vi.fn(async () => undefined),
   createSmokeTestRun: vi.fn(async (runId: string) => ({ id: 1, runId })),
   finishSmokeTestRun: vi.fn(async () => undefined),
+  getActiveServicePackage: vi.fn(async (code: "basic" | "basic_plus") => ({ id: code === "basic" ? 1 : 2, code, version: 1, active: true })),
   createCheckoutForBooking: vi.fn(async (input: { totalUsd: number; addon: boolean; priceCurrency?: string }) => ({ id: "invoice-77", invoice_url: "https://checkout.test/invoice-77", totalUsd: input.totalUsd, addon: input.addon, priceCurrency: input.priceCurrency })),
   notifyOwner: vi.fn(),
 }));
 
 vi.mock("./db", async () => {
   const actual = await vi.importActual<typeof import("./db")>("./db");
-  return { ...actual, getServicePricing: mocks.getServicePricing, createBookingRequest: mocks.createBookingRequest, updateBookingPayment: mocks.updateBookingPayment, deleteBookingRequest: mocks.deleteBookingRequest, createSmokeTestRun: mocks.createSmokeTestRun, finishSmokeTestRun: mocks.finishSmokeTestRun };
+  return { ...actual, getServicePricing: mocks.getServicePricing, getActiveServicePackage: mocks.getActiveServicePackage, createBookingRequest: mocks.createBookingRequest, updateBookingPayment: mocks.updateBookingPayment, deleteBookingRequest: mocks.deleteBookingRequest, createSmokeTestRun: mocks.createSmokeTestRun, finishSmokeTestRun: mocks.finishSmokeTestRun };
 });
 vi.mock("./payment-flow", () => ({ createCheckoutForBooking: mocks.createCheckoutForBooking }));
 vi.mock("./_core/notification", () => ({ notifyOwner: mocks.notifyOwner }));
@@ -21,7 +22,7 @@ vi.mock("./_core/notification", () => ({ notifyOwner: mocks.notifyOwner }));
 import { appRouter } from "./routers";
 
 describe("booking pricing integration", () => {
-  beforeEach(() => { mocks.getServicePricing.mockClear(); mocks.createBookingRequest.mockClear(); mocks.createSmokeTestRun.mockClear(); mocks.finishSmokeTestRun.mockClear(); mocks.createCheckoutForBooking.mockReset(); mocks.createCheckoutForBooking.mockImplementation(async (input: { totalUsd: number; addon: boolean; priceCurrency?: string }) => ({ id: "invoice-77", invoice_url: "https://checkout.test/invoice-77", totalUsd: input.totalUsd, addon: input.addon, priceCurrency: input.priceCurrency })); mocks.deleteBookingRequest.mockClear(); });
+  beforeEach(() => { mocks.getServicePricing.mockClear(); mocks.getActiveServicePackage.mockReset(); mocks.getActiveServicePackage.mockImplementation(async (code: "basic" | "basic_plus") => ({ id: code === "basic" ? 1 : 2, code, version: 1, active: true })); mocks.createBookingRequest.mockClear(); mocks.createSmokeTestRun.mockClear(); mocks.finishSmokeTestRun.mockClear(); mocks.createCheckoutForBooking.mockReset(); mocks.createCheckoutForBooking.mockImplementation(async (input: { totalUsd: number; addon: boolean; priceCurrency?: string }) => ({ id: "invoice-77", invoice_url: "https://checkout.test/invoice-77", totalUsd: input.totalUsd, addon: input.addon, priceCurrency: input.priceCurrency })); mocks.deleteBookingRequest.mockClear(); });
 
   it("uses persisted non-default pricing for booking storage and checkout", async () => {
     const caller = appRouter.createCaller({
@@ -66,6 +67,14 @@ describe("booking pricing integration", () => {
   it("rejects unsupported booking currency before creating an invoice", async () => {
     const caller = appRouter.createCaller({ req: { protocol: "https", get: () => "example.test" } as never, res: {} as never, user: null });
     await expect(caller.booking.submit({ name: "Maya", email: "maya@example.com", birthDate: "1990-04-12", birthTime: "08:30", birthCity: "Berlin", birthCountry: "Germany", language: "English", addon: false, interest: "", currency: "JPY" as never })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    expect(mocks.createBookingRequest).not.toHaveBeenCalled();
+    expect(mocks.createCheckoutForBooking).not.toHaveBeenCalled();
+  });
+
+  it("rejects checkout before invoice creation when the requested package is inactive", async () => {
+    mocks.getActiveServicePackage.mockResolvedValueOnce(null);
+    const caller = appRouter.createCaller({ req: { protocol: "https", get: () => "example.test" } as never, res: {} as never, user: null });
+    await expect(caller.booking.submit({ name: "Maya", email: "maya@example.com", birthDate: "1990-04-12", birthTime: "08:30", birthCity: "Berlin", birthCountry: "Germany", language: "English", addon: true, interest: "" })).rejects.toMatchObject({ code: "PRECONDITION_FAILED" });
     expect(mocks.createBookingRequest).not.toHaveBeenCalled();
     expect(mocks.createCheckoutForBooking).not.toHaveBeenCalled();
   });

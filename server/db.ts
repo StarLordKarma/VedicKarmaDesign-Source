@@ -1,6 +1,6 @@
 import { drizzle } from "drizzle-orm/mysql2";
 import { and, asc, count, desc, eq, gte, gt, like, lt, sql } from "drizzle-orm";
-import { ClientChangeHistory, InsertBookingRequest, InsertUser, bookingRequests, clientChangeHistory, servicePricing, servicePricingCurrencies, servicePricingHistory, smokeTestRuns, users, receiptFiles, receiptRetentionSettings, receiptEmailAttempts, receiptEmailFailureAlerts, slaEmailAllowlist } from "../drizzle/schema";
+import { ClientChangeHistory, InsertBookingRequest, InsertUser, bookingRequests, clientChangeHistory, servicePackages, servicePricing, servicePricingCurrencies, servicePricingHistory, smokeTestRuns, users, receiptFiles, receiptRetentionSettings, receiptEmailAttempts, receiptEmailFailureAlerts, slaEmailAllowlist } from "../drizzle/schema";
 import { READING_PRICES } from "@shared/pricing";
 import { ENV } from './_core/env';
 
@@ -214,6 +214,47 @@ export async function recordReceiptEmailFailureAlert(recipientEmail: string, now
 
 export type SupportedCurrency = "USD" | "EUR" | "GBP";
 export const SUPPORTED_CURRENCIES: SupportedCurrency[] = ["USD", "EUR", "GBP"];
+export const SERVICE_PACKAGE_CODES = ["basic", "basic_plus"] as const;
+export type ServicePackageCode = (typeof SERVICE_PACKAGE_CODES)[number];
+const DEFAULT_SERVICE_PACKAGES = [
+  { code: "basic", version: 1, packageType: "basic", nameEn: "Basic reading", nameRu: "Базовое чтение", nameDe: "Basisdeutung", nameEs: "Lectura básica", active: true, createdBy: "system" },
+  { code: "basic_plus", version: 1, packageType: "basic_plus", nameEn: "Basic + numerology", nameRu: "Базовое + нумерология", nameDe: "Basisdeutung + Numerologie", nameEs: "Básica + numerología", active: true, createdBy: "system" },
+] as const;
+
+async function ensureServicePackageCatalog() {
+  const db = await getDb();
+  if (!db) return null;
+  const existing = await db.select({ id: servicePackages.id }).from(servicePackages).limit(1);
+  if (existing.length === 0) await db.insert(servicePackages).values([...DEFAULT_SERVICE_PACKAGES]);
+  return db;
+}
+
+export async function listServicePackages() {
+  const db = await ensureServicePackageCatalog();
+  if (!db) return [...DEFAULT_SERVICE_PACKAGES];
+  return db.select().from(servicePackages).orderBy(asc(servicePackages.code), desc(servicePackages.version));
+}
+
+export async function listActiveServicePackages() {
+  return (await listServicePackages()).filter((entry) => entry.active);
+}
+
+export async function getActiveServicePackage(code: ServicePackageCode) {
+  return (await listActiveServicePackages()).find((entry) => entry.code === code) ?? null;
+}
+
+export async function setServicePackageActive(input: { code: ServicePackageCode; version: number; active: boolean; actor: string }) {
+  const db = await ensureServicePackageCatalog();
+  if (!db) throw new Error("Database unavailable");
+  const target = (await db.select().from(servicePackages).where(and(eq(servicePackages.code, input.code), eq(servicePackages.version, input.version))).limit(1))[0];
+  if (!target) throw new Error("Service package version not found.");
+  if (!input.active && target.active) {
+    const activePackages = await listActiveServicePackages();
+    if (activePackages.length <= 1) throw new Error("At least one service package must remain active.");
+  }
+  await db.update(servicePackages).set({ active: input.active }).where(eq(servicePackages.id, target.id));
+  return (await db.select().from(servicePackages).where(eq(servicePackages.id, target.id)).limit(1))[0];
+}
 export type ServicePricingConfig = { basicUsd: number; numerologyAddonUsd: number };
 export type CurrencyPricingConfig = ServicePricingConfig & { currency: SupportedCurrency; updatedAt?: Date; updatedBy?: string };
 

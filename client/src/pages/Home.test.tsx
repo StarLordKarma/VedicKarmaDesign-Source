@@ -16,11 +16,12 @@ let pdfMutationOptions: { onSuccess?: (result: { filename: string; contentBase64
 let emailMutationOptions: { onSuccess?: () => void; onError?: () => void } = {};
 let promoMutationOptions: { onSuccess?: (result: { valid: boolean; code: string; discountPercent: number; discountAmount: number; totalAmount: number }) => void; onError?: () => void } = {};
 const pricingData = { basicUsd: 25, numerologyAddonUsd: 10 };
+let packageData: Array<{ code: "basic" | "basic_plus" }> = [{ code: "basic" }, { code: "basic_plus" }];
 const renderHome = () => render(<ThemeProvider switchable><Home /></ThemeProvider>);
 
 vi.mock("@/lib/trpc", () => ({
   trpc: {
-    pricing: { current: { useQuery: () => ({ data: pricingData }) }, validatePromo: { useMutation: (options: typeof promoMutationOptions) => { promoMutationOptions = options; return promoMutationState; } }, breakdownPdf: { useMutation: (options: typeof pdfMutationOptions) => { pdfMutationOptions = options; return pdfMutationState; } }, emailBreakdownPdf: { useMutation: (options: typeof emailMutationOptions) => { emailMutationOptions = options; return emailMutationState; } } },
+    pricing: { current: { useQuery: () => ({ data: pricingData }) }, packages: { useQuery: () => ({ data: packageData }) }, validatePromo: { useMutation: (options: typeof promoMutationOptions) => { promoMutationOptions = options; return promoMutationState; } }, breakdownPdf: { useMutation: (options: typeof pdfMutationOptions) => { pdfMutationOptions = options; return pdfMutationState; } }, emailBreakdownPdf: { useMutation: (options: typeof emailMutationOptions) => { emailMutationOptions = options; return emailMutationState; } } },
     booking: {
       submit: {
         useMutation: (options: typeof mutationOptions) => {
@@ -36,6 +37,13 @@ describe("Home booking payment UX", () => {
   it("does not expose a customer file attachment input", () => {
     renderHome();
     expect(document.querySelector('input[type="file"]')).toBeNull();
+  });
+
+  it("disables an inactive package and selects the remaining active package", () => {
+    packageData = [{ code: "basic_plus" }];
+    renderHome();
+    expect(screen.getByRole("radio", { name: "Basic reading" })).toBeDisabled();
+    expect(screen.getByRole("radio", { name: "Basic + numerology" })).toBeChecked();
   });
 
   it("autosaves safe form values, restores a recent draft, and never restores consent", () => {
@@ -73,6 +81,7 @@ describe("Home booking payment UX", () => {
 
   beforeEach(() => {
     localStorage.clear();
+    packageData = [{ code: "basic" }, { code: "basic_plus" }];
     window.history.replaceState({}, "", "/");
     vi.useFakeTimers();
     mutationState.isPending = false;

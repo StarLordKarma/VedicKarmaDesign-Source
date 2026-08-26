@@ -6,7 +6,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { bookingSchema, buildBookingPriceSnapshot, isProductionSmokeTestBooking, validatePromoCode } from "@shared/booking";
 import { addSlaEmailAllowlistSchema, removeSlaEmailAllowlistSchema, updateSlaEmailAllowlistSchema, activityDateRangeSchema, attachNatalPdfSchema, bulkSendNatalPdfSchema, clientHistorySchema, editBookingClientSchema, pricingCurrencySchema, pricingHistoryFilterSchema, pricingHistoryPageSchema, receiptEmailHistoryPageSchema, sendNatalPdfSchema, servicePricingSchema, smokeTestRunsPageSchema, slaEvaluationRunsPageSchema, updateBookingAdminSchema, reportRunSchema, reportApprovalSchema, sendSlaChartPdfSchema } from "@shared/admin";
-import { createBookingRequest, createSmokeTestRun, deleteBookingRequest, finishSmokeTestRun, getAdminActivityEvents, getAdminActivitySummary, getBookingRequestById, getClientChangeHistory, getPricingHistory, getPricingHistoryPage, getServicePricing, getSmokeTestRuns, getSmokeTestRunsForExport, getSmokeTestRunsPage, getReceiptRetentionHours, cleanupExpiredReceiptFiles, listServicePricing, getReceiptEmailHistoryPage, getLatestReceiptEmailAttempt, createReceiptEmailAttempt, finishReceiptEmailAttempt, normalizeReceiptEmail, isReceiptEmailCoolingDown, recordReceiptEmailFailureAlert, RECEIPT_EMAIL_COOLDOWN_MS, listSlaEmailAllowlist, addSlaEmailAllowlist, setSlaEmailAllowlistEnabled, removeSlaEmailAllowlist, isSlaEmailAllowed, updateBookingClient, updateBookingDelivery, updateBookingPayment, updateReceiptRetentionHours, updateServicePricing } from "./db";
+import { createBookingRequest, createSmokeTestRun, deleteBookingRequest, finishSmokeTestRun, getAdminActivityEvents, getAdminActivitySummary, getBookingRequestById, getClientChangeHistory, getPricingHistory, getPricingHistoryPage, getServicePricing, getSmokeTestRuns, getSmokeTestRunsForExport, getSmokeTestRunsPage, getReceiptRetentionHours, cleanupExpiredReceiptFiles, listServicePricing, getReceiptEmailHistoryPage, getLatestReceiptEmailAttempt, createReceiptEmailAttempt, finishReceiptEmailAttempt, normalizeReceiptEmail, isReceiptEmailCoolingDown, recordReceiptEmailFailureAlert, RECEIPT_EMAIL_COOLDOWN_MS, listSlaEmailAllowlist, addSlaEmailAllowlist, setSlaEmailAllowlistEnabled, removeSlaEmailAllowlist, isSlaEmailAllowed, updateBookingClient, updateBookingDelivery, updateBookingPayment, updateReceiptRetentionHours, updateServicePricing, getActiveServicePackage, listActiveServicePackages, listServicePackages, setServicePackageActive, SERVICE_PACKAGE_CODES } from "./db";
 import { notifyOwner } from "./_core/notification";
 import { buildCheckoutBreakdownPdf, buildSmokeTestRunsCsv } from "./export";
 import { createCheckoutForBooking } from "./payment-flow";
@@ -48,6 +48,8 @@ export const appRouter = router({
   admin: router({
     bookingList: adminProcedure.query(() => getAllBookingRequests()),
     pricing: adminProcedure.query(() => listServicePricing()),
+    servicePackages: adminProcedure.query(() => listServicePackages()),
+    updateServicePackageActive: adminProcedure.input(z.object({ code: z.enum(SERVICE_PACKAGE_CODES), version: z.number().int().positive(), active: z.boolean() })).mutation(({ input, ctx }) => setServicePackageActive({ ...input, actor: ctx.user.openId })),
     receiptRetention: adminProcedure.query(() => getReceiptRetentionHours()),
     updateReceiptRetention: adminProcedure.input(z.object({ retentionHours: z.union([z.literal(24), z.literal(48), z.literal(72)]) })).mutation(({ input, ctx }) => updateReceiptRetentionHours(input.retentionHours, ctx.user.openId)),
     cleanupExpiredReceipts: adminProcedure.mutation(async () => ({ deleted: await cleanupExpiredReceiptFiles() })),
@@ -134,6 +136,7 @@ export const appRouter = router({
   }),
   pricing: router({
     current: publicProcedure.input(pricingCurrencySchema.optional()).query(({ input }) => getServicePricing(input?.currency)),
+    packages: publicProcedure.query(() => listActiveServicePackages()),
     validatePromo: publicProcedure.input(z.object({ currency: pricingCurrencySchema.shape.currency, addon: z.boolean(), promoCode: z.string().trim().max(32) })).mutation(async ({ input }) => { const pricing = await getServicePricing(input.currency); const validation = validatePromoCode(input.promoCode); const subtotal = pricing.basicUsd + (input.addon ? pricing.numerologyAddonUsd : 0); const discountAmount = validation.valid ? Math.round(subtotal * validation.discountPercent) / 100 : 0; return { ...validation, discountAmount, totalAmount: Math.max(0, Math.round((subtotal - discountAmount) * 100) / 100) }; }),
     breakdownPdf: publicProcedure.input(z.object({ currency: pricingCurrencySchema.shape.currency, locale: z.string().min(2).max(20), addon: z.boolean(), labels: z.object({ title: z.string().min(1).max(120), currency: z.string().min(1).max(40), basic: z.string().min(1).max(120), addon: z.string().min(1).max(120), addonNotSelected: z.string().min(1).max(80), total: z.string().min(1).max(80), generated: z.string().min(1).max(80), disclaimer: z.string().min(1).max(3000) }) })).mutation(async ({ input }) => { const pricing = await getServicePricing(input.currency); const pdf = await buildCheckoutBreakdownPdf({ ...input, basicUsd: pricing.basicUsd, numerologyAddonUsd: pricing.numerologyAddonUsd }); const stored = await storagePut(`price-breakdowns/${new Date().toISOString().slice(0, 10)}/${crypto.randomUUID()}.pdf`, pdf, "application/pdf"); const receipt = await registerReceiptFile(stored.key); return { filename: `jyotish-price-breakdown-${input.currency.toLowerCase()}.pdf`, contentBase64: pdf.toString("base64"), url: stored.url, expiresAt: receipt.expiresAt.toISOString() }; }),
     emailBreakdownPdf: publicProcedure.input(z.object({ email: z.string().email().max(320), currency: pricingCurrencySchema.shape.currency, locale: z.string().min(2).max(20), addon: z.boolean(), labels: z.object({ title: z.string().min(1).max(120), currency: z.string().min(1).max(40), basic: z.string().min(1).max(120), addon: z.string().min(1).max(120), addonNotSelected: z.string().min(1).max(80), total: z.string().min(1).max(80), generated: z.string().min(1).max(80), disclaimer: z.string().min(1).max(3000) }), language: z.string().min(2).max(30) })).mutation(async ({ input }) => {
@@ -160,9 +163,11 @@ export const appRouter = router({
   }),
   booking: router({
     submit: publicProcedure.input(bookingSchema).mutation(async ({ input, ctx }) => {
+      const selectedPackage = await getActiveServicePackage(input.addon ? "basic_plus" : "basic");
+      if (!selectedPackage) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "The selected service package is currently unavailable." });
       const pricing = await getServicePricing(input.currency);
       if (input.promoCode && !validatePromoCode(input.promoCode).valid) throw new TRPCError({ code: "BAD_REQUEST", message: "This promo code is not valid." });
-      const priceSnapshot = buildBookingPriceSnapshot({ addon: input.addon, currency: input.currency, basicAmount: pricing.basicUsd, addonAmount: pricing.numerologyAddonUsd, promoCode: input.promoCode });
+      const priceSnapshot = { ...buildBookingPriceSnapshot({ addon: input.addon, currency: input.currency, basicAmount: pricing.basicUsd, addonAmount: pricing.numerologyAddonUsd, promoCode: input.promoCode }), packageVersion: selectedPackage.version };
       const totalUsd = priceSnapshot.totalAmount;
       const result = await createBookingRequest({
         name: input.name,

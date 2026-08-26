@@ -12,6 +12,7 @@ const ReportStudio = lazy(() => import("@/pages/ReportStudio"));
 const ClientStatus = lazy(() => import("@/pages/ClientStatus"));
 const AdminMetrics = lazy(() => import("@/pages/AdminMetrics"));
 const AdminStatusLinks = lazy(() => import("@/pages/AdminStatusLinks"));
+const ServicePackages = lazy(() => import("@/pages/ServicePackages"));
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -24,6 +25,7 @@ function Router() {
       <Route path={"/status/:token"} component={ClientStatus} />
       <Route path={"/admin/metrics"} component={AdminMetrics} />
       <Route path={"/admin/status-links"} component={AdminStatusLinks} />
+      <Route path={"/admin/packages"} component={ServicePackages} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />
