@@ -602,3 +602,10 @@
 - [x] Persist a retention-setting change audit with actor, old/new values and timestamp
 - [x] Add focused regression coverage for retention UI and owner-only contracts
 - [x] Run migrations, TypeScript and focused UI validation before checkpoint
+
+- [x] Localize core Payment Test Lab retention UI text for EN/RU/DE/ES
+- [x] Add an owner-only server preview of records eligible for retention cleanup
+- [x] Show the cleanup preview before confirmation using the selected retention period
+- [x] Add owner-visible retention-change history with actor, old/new value and timestamp
+- [x] Add focused regression coverage for localization, preview and history UI contracts
+- [x] Run TypeScript and focused UI validation before checkpoint
