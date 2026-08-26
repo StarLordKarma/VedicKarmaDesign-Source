@@ -10,4 +10,8 @@ This note supports the project’s legal-technical review. It is not legal advic
 | [EDPB Guidelines 05/2020 on consent](https://www.edpb.europa.eu/documents/guideline/guidelines-052020-on-consent-under-regulation-2016679_en) | Cookie/analytics choices should be separate from contract/service data processing; the visitor can refuse optional analytics without losing the essential site experience. |
 | [AEPD cookies policy](https://www.aepd.es/en/cookies-policy) | The Spanish-language visitor flow should distinguish technical browser storage from optional analytics/cookies and not treat a general site visit as blanket consent. |
 
+## Operational note
+
+The live Resend credentials probe is intentionally opt-in (`RUN_EXTERNAL_CREDENTIAL_TESTS=true`) because outbound provider availability is not a deterministic unit-test dependency. When enabled, it retries temporary transport failures but preserves a failing result for an invalid API key or other non-retryable `4xx` response.
+
 The public UI will not describe itself as legally compliant or claim to eliminate fines. Operator identity, address, privacy contact, retention schedule, processor agreements, transfer mechanisms, cookie classification, and any required notifications remain owner/legal-counsel responsibilities before relying on the public service.

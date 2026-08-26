@@ -567,3 +567,8 @@
 - [x] Audit and strengthen localized booking consent and privacy notices for EN/RU/DE/ES, including separate visitor analytics opt-in and server-recorded order acknowledgement
 - [x] Add regression tests for versioned packages, test report jobs, IPN simulation, consent validation, and localization
 - [x] Run tests, TypeScript, build, logs, responsive verification, and checkpoint the completed workflow
+
+- [x] Add a primary admin navigation link to the owner-only Payment Test Lab
+- [x] Verify the Payment Test Lab navigation entry in the owner desktop workflow
+- [x] Stabilize the external Resend credential health check with opt-in bounded retry while retaining failure for invalid credentials
+- [x] Run full validation, TypeScript, build, and visual verification
