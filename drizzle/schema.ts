@@ -167,6 +167,14 @@ export const paymentTestLabRetentionSettings = mysqlTable("payment_test_lab_rete
   lastCleanupDeleted: int("lastCleanupDeleted"),
 });
 
+export const paymentTestLabRetentionChanges = mysqlTable("payment_test_lab_retention_changes", {
+  id: int("id").autoincrement().primaryKey(),
+  oldRetentionDays: int("oldRetentionDays").notNull(),
+  newRetentionDays: int("newRetentionDays").notNull(),
+  changedBy: varchar("changedBy", { length: 64 }).notNull(),
+  changedAt: timestamp("changedAt").defaultNow().notNull(),
+});
+
 export const receiptFiles = mysqlTable("receipt_files", {
   id: int("id").autoincrement().primaryKey(),
   storageKey: varchar("storageKey", { length: 512 }).notNull().unique(),

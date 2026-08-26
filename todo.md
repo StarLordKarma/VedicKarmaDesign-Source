@@ -596,3 +596,9 @@
 - [x] Persist and display the last automatic/manual retention cleanup result and timestamp
 - [x] Add regression coverage for retention UI controls and owner-only API contracts
 - [x] Run migration, TypeScript and focused UI verification before checkpoint
+
+- [ ] Add confirmation dialog before owner-triggered Payment Test Lab retention cleanup
+- [ ] Send owner a safe Resend summary after each scheduled or manual retention cleanup
+- [ ] Persist a retention-setting change audit with actor, old/new values and timestamp
+- [ ] Add regression coverage for confirmation, email-safe summary, audit history and owner-only access
+- [ ] Run migration, tests, TypeScript, build, visual verification and checkpoint
