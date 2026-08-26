@@ -585,3 +585,8 @@
 - [x] Add CSV export for the currently filtered Payment Test Lab audit history
 - [x] Add regression coverage for alert recipient and Payment Test Lab history controls
 - [x] Run full tests, TypeScript and production build before checkpoint
+
+- [ ] Add a 90-day retention cleanup for Payment Test Lab audit records
+- [ ] Use managed scheduled execution rather than in-process timers for automated retention
+- [ ] Add owner-visible cleanup result and regression coverage for the 90-day cutoff
+- [ ] Run schedule, tests, TypeScript, build, and checkpoint validation

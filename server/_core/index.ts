@@ -11,6 +11,7 @@ import { serveStatic, setupVite } from "./vite";
 import { registerNowPaymentsWebhook } from "../nowpayments.webhook";
 import { cleanupReceiptFilesHandler } from "../receipt-retention";
 import { evaluateSlaHandler } from "../sla-retention";
+import { cleanupPaymentTestLabRunsHandler } from "../payment-test-retention";
 import { requestObservabilityMiddleware, trpcRateLimitMiddleware } from "../observability";
 import { healthHandler, readinessHandler } from "../health";
 
@@ -57,6 +58,7 @@ async function startServer() {
   registerOAuthRoutes(app);
   app.post("/api/scheduled/cleanup-receipts", scheduledTaskGuard, cleanupReceiptFilesHandler);
   app.post("/api/scheduled/evaluate-sla", scheduledTaskGuard, evaluateSlaHandler);
+  app.post("/api/scheduled/cleanup-payment-test-lab", scheduledTaskGuard, cleanupPaymentTestLabRunsHandler);
   // tRPC API
   app.use("/api/trpc", trpcRateLimitMiddleware);
   app.use(
