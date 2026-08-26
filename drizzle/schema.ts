@@ -142,6 +142,22 @@ export const smokeTestRuns = mysqlTable("smoke_test_runs", {
 export type SmokeTestRun = typeof smokeTestRuns.$inferSelect;
 export type InsertSmokeTestRun = typeof smokeTestRuns.$inferInsert;
 
+export const paymentTestLabRuns = mysqlTable("payment_test_lab_runs", {
+  id: int("id").autoincrement().primaryKey(),
+  runId: varchar("runId", { length: 128 }).notNull().unique(),
+  actorId: varchar("actorId", { length: 64 }).notNull(),
+  paymentStatus: varchar("paymentStatus", { length: 32 }).notNull(),
+  status: mysqlEnum("status", ["running", "succeeded", "failed"]).notNull(),
+  bookingId: int("bookingId"),
+  errorCode: varchar("errorCode", { length: 64 }),
+  errorMessage: varchar("errorMessage", { length: 500 }),
+  startedAt: timestamp("startedAt").defaultNow().notNull(),
+  finishedAt: timestamp("finishedAt"),
+  durationMs: int("durationMs"),
+}, (table) => ({ statusStartedIdx: index("payment_test_lab_runs_status_started_idx").on(table.status, table.startedAt), actorStartedIdx: index("payment_test_lab_runs_actor_started_idx").on(table.actorId, table.startedAt) }));
+
+export type PaymentTestLabRun = typeof paymentTestLabRuns.$inferSelect;
+
 export const receiptFiles = mysqlTable("receipt_files", {
   id: int("id").autoincrement().primaryKey(),
   storageKey: varchar("storageKey", { length: 512 }).notNull().unique(),

@@ -8,7 +8,7 @@ import PaymentTestLab from "./PaymentTestLab";
 const runSimulation = vi.fn();
 vi.mock("@/_core/hooks/useAuth", () => ({ useAuth: () => ({ user: { role: "admin", openId: "owner" }, loading: false }) }));
 vi.mock("@/components/DashboardLayout", () => ({ default: ({ children }: { children: React.ReactNode }) => <>{children}</> }));
-vi.mock("@/lib/trpc", () => ({ trpc: { admin: { runIpnSimulation: { useMutation: () => ({ mutate: runSimulation, isPending: false, error: null }) } } } }));
+vi.mock("@/lib/trpc", () => ({ trpc: { admin: { runIpnSimulation: { useMutation: () => ({ mutate: runSimulation, isPending: false, error: null }) }, resendStatus: { useQuery: () => ({ data: { configured: true } }) }, paymentTestLabRuns: { useQuery: () => ({ data: { items: [] } }) } } } }));
 
 describe("Payment Test Lab", () => {
   it("runs the owner-only confirmed signed-IPN simulation", () => {
@@ -16,5 +16,6 @@ describe("Payment Test Lab", () => {
     fireEvent.click(screen.getByRole("button", { name: "Run signed confirmation test" }));
     expect(runSimulation).toHaveBeenCalledWith({ paymentStatus: "confirmed" });
     expect(screen.getByText(/cryptocurrency transfers are suppressed/i)).toBeInTheDocument();
+    expect(screen.getByText(/Configured · delivery ready/i)).toBeInTheDocument();
   });
 });

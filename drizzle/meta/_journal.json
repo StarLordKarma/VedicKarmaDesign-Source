@@ -183,6 +183,13 @@
       "when": 1787710552632,
       "tag": "0025_ambitious_master_mold",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "5",
+      "when": 1787712868100,
+      "tag": "0026_oval_darkstar",
+      "breakpoints": true
     }
   ]
 }

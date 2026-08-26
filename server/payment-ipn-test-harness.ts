@@ -1,10 +1,12 @@
-import { createBookingRequest, deleteBookingRequest, getBookingRequestById } from "./db";
+import { createBookingRequest, deleteBookingRequest, finishPaymentTestLabRun, getBookingRequestById, startPaymentTestLabRun } from "./db";
 import { signNowPaymentsPayloadForTest } from "./nowpayments";
 import { processPaymentNotification } from "./payment-notification";
 import { processSignedNowPaymentsIpn, stableStringify } from "./nowpayments.webhook";
 
 export async function runSignedIpnSimulation(input: { paymentStatus: "confirmed" | "finished" | "partially_paid"; actorId: string }) {
   const runId = `ipn-simulation-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const startedAt = Date.now();
+  await startPaymentTestLabRun({ runId, actorId: input.actorId, paymentStatus: input.paymentStatus });
   const booking = await createBookingRequest({
     name: "IPN simulation — synthetic",
     email: `${runId}@example.com`,
@@ -38,7 +40,11 @@ export async function runSignedIpnSimulation(input: { paymentStatus: "confirmed"
     });
     const updated = await getBookingRequestById(booking.id);
     if (!result.accepted || updated?.paymentStatus !== input.paymentStatus) throw new Error("Signed IPN simulation did not reach the expected payment state.");
+    await finishPaymentTestLabRun({ runId, status: "succeeded", bookingId: booking.id, startedAt });
     return { runId, accepted: true as const, bookingId: booking.id, paymentStatus: updated.paymentStatus, paymentId: updated.paymentId, fundsTransferred: false as const, externalProviderCalled: false as const, deliverySuppressed: true as const };
+  } catch (error) {
+    await finishPaymentTestLabRun({ runId, status: "failed", errorCode: "simulation_failed", errorMessage: error instanceof Error ? error.message : "Simulation failed", startedAt });
+    throw error;
   } finally {
     await deleteBookingRequest(booking.id);
   }

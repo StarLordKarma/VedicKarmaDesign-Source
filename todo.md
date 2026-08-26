@@ -572,3 +572,9 @@
 - [x] Verify the Payment Test Lab navigation entry in the owner desktop workflow
 - [x] Stabilize the external Resend credential health check with opt-in bounded retry while retaining failure for invalid credentials
 - [x] Run full validation, TypeScript, build, and visual verification
+
+- [x] Add an owner-only Resend connection status indicator with safe health-state details
+- [x] Persist Payment Test Lab runs with non-secret audit metadata and outcome status
+- [x] Add owner-only Payment Test Lab audit history with search and status filtering
+- [x] Add regression coverage for Resend status and Payment Test Lab history UI/query contract
+- [x] Run migration, full tests, TypeScript, build, and desktop verification

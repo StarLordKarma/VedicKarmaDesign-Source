@@ -1,6 +1,6 @@
 import { drizzle } from "drizzle-orm/mysql2";
 import { and, asc, count, desc, eq, gte, gt, like, lt, sql } from "drizzle-orm";
-import { ClientChangeHistory, InsertBookingRequest, InsertUser, bookingRequests, clientChangeHistory, servicePackages, servicePricing, servicePricingCurrencies, servicePricingHistory, smokeTestRuns, users, receiptFiles, receiptRetentionSettings, receiptEmailAttempts, receiptEmailFailureAlerts, slaEmailAllowlist } from "../drizzle/schema";
+import { ClientChangeHistory, InsertBookingRequest, InsertUser, bookingRequests, clientChangeHistory, paymentTestLabRuns, servicePackages, servicePricing, servicePricingCurrencies, servicePricingHistory, smokeTestRuns, users, receiptFiles, receiptRetentionSettings, receiptEmailAttempts, receiptEmailFailureAlerts, slaEmailAllowlist } from "../drizzle/schema";
 import { READING_PRICES } from "@shared/pricing";
 import { ENV } from './_core/env';
 
@@ -607,6 +607,10 @@ export async function getAdminActivitySummary(filters: AdminActivityFilters = {}
 }
 
 export { getAdminActivityEvents };
+
+export async function startPaymentTestLabRun(input: { runId: string; actorId: string; paymentStatus: string }) { const db = await getDb(); if (!db) throw new Error("Database is not available"); await db.insert(paymentTestLabRuns).values({ ...input, status: "running" }); }
+export async function finishPaymentTestLabRun(input: { runId: string; status: "succeeded" | "failed"; bookingId?: number; errorCode?: string; errorMessage?: string; startedAt: number }) { const db = await getDb(); if (!db) throw new Error("Database is not available"); await db.update(paymentTestLabRuns).set({ status: input.status, bookingId: input.bookingId, errorCode: input.errorCode, errorMessage: input.errorMessage?.slice(0, 500), finishedAt: new Date(), durationMs: Date.now() - input.startedAt }).where(eq(paymentTestLabRuns.runId, input.runId)); }
+export async function getPaymentTestLabRuns(input: { status?: "running" | "succeeded" | "failed"; search?: string; page?: number; pageSize?: number } = {}) { const db = await getDb(); const pageSize = Math.min(50, Math.max(1, input.pageSize ?? 10)); const page = Math.max(1, input.page ?? 1); if (!db) return { items: [], total: 0, page, pageSize, totalPages: 0 }; const clauses = [input.status ? eq(paymentTestLabRuns.status, input.status) : undefined, input.search ? like(paymentTestLabRuns.runId, `%${input.search.trim().slice(0, 64)}%`) : undefined].filter(Boolean) as ReturnType<typeof eq>[]; const where = clauses.length ? and(...clauses) : undefined; const [{ total }] = await db.select({ total: count() }).from(paymentTestLabRuns).where(where); const items = await db.select().from(paymentTestLabRuns).where(where).orderBy(desc(paymentTestLabRuns.startedAt)).limit(pageSize).offset((page - 1) * pageSize); return { items, total, page, pageSize, totalPages: Math.ceil(total / pageSize) }; }
 
 export async function updateBookingAdmin(input: { id: number; status?: "new" | "in_progress" | "completed" | "cancelled"; adminNote?: string | null; statusUpdatedBy?: string }) {
   const db = await getDb();
