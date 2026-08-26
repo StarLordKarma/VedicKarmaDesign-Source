@@ -590,3 +590,9 @@
 - [x] Use managed daily Heartbeat execution at 03:15 UTC rather than in-process timers
 - [x] Add structured cleanup result and document the managed job task UID for operational control
 - [x] Validate TypeScript, cron-only handler startup, targeted tests and production build before checkpoint
+
+- [x] Add owner-only manual cleanup action for Payment Test Lab audit history
+- [x] Add configurable Payment Test Lab audit retention period with safe 7–3650 day boundaries
+- [x] Persist and display the last automatic/manual retention cleanup result and timestamp
+- [x] Add regression coverage for retention UI controls and owner-only API contracts
+- [x] Run migration, TypeScript and focused UI verification before checkpoint

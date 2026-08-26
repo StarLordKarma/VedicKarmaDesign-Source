@@ -158,6 +158,15 @@ export const paymentTestLabRuns = mysqlTable("payment_test_lab_runs", {
 
 export type PaymentTestLabRun = typeof paymentTestLabRuns.$inferSelect;
 
+export const paymentTestLabRetentionSettings = mysqlTable("payment_test_lab_retention_settings", {
+  id: int("id").primaryKey(),
+  retentionDays: int("retentionDays").notNull().default(90),
+  updatedBy: varchar("updatedBy", { length: 64 }).notNull().default("system"),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  lastCleanupAt: timestamp("lastCleanupAt"),
+  lastCleanupDeleted: int("lastCleanupDeleted"),
+});
+
 export const receiptFiles = mysqlTable("receipt_files", {
   id: int("id").autoincrement().primaryKey(),
   storageKey: varchar("storageKey", { length: 512 }).notNull().unique(),

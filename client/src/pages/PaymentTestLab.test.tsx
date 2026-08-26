@@ -8,14 +8,14 @@ import PaymentTestLab from "./PaymentTestLab";
 const runSimulation = vi.fn();
 vi.mock("@/_core/hooks/useAuth", () => ({ useAuth: () => ({ user: { role: "admin", openId: "owner" }, loading: false }) }));
 vi.mock("@/components/DashboardLayout", () => ({ default: ({ children }: { children: React.ReactNode }) => <>{children}</> }));
-vi.mock("@/lib/trpc", () => ({ trpc: { admin: { runIpnSimulation: { useMutation: () => ({ mutate: runSimulation, isPending: false, error: null }) }, resendStatus: { useQuery: () => ({ data: { configured: true } }) }, paymentTestLabRuns: { useQuery: () => ({ data: { items: [], totalPages: 0 } }) }, exportPaymentTestLabRunsCsv: { useMutation: () => ({ mutate: vi.fn(), isPending: false }) } } } }));
+vi.mock("@/lib/trpc", () => ({ trpc: { admin: { runIpnSimulation: { useMutation: () => ({ mutate: runSimulation, isPending: false, error: null }) }, resendStatus: { useQuery: () => ({ data: { configured: true } }) }, paymentTestLabRuns: { useQuery: () => ({ data: { items: [], totalPages: 0 }, refetch: vi.fn() }) }, exportPaymentTestLabRunsCsv: { useMutation: () => ({ mutate: vi.fn(), isPending: false }) }, paymentTestLabRetention: { useQuery: () => ({ data: { retentionDays: 90, lastCleanupAt: null, lastCleanupDeleted: null }, refetch: vi.fn() }) }, updatePaymentTestLabRetention: { useMutation: () => ({ mutate: vi.fn(), isPending: false }) }, cleanupPaymentTestLabRuns: { useMutation: () => ({ mutate: vi.fn(), isPending: false }) } } } }));
 
 describe("Payment Test Lab", () => {
   it("runs the owner-only confirmed signed-IPN simulation", () => {
     render(<PaymentTestLab />);
     fireEvent.click(screen.getByRole("button", { name: "Run signed confirmation test" }));
     expect(runSimulation).toHaveBeenCalledWith({ paymentStatus: "confirmed" });
-    expect(screen.getByText(/cryptocurrency transfers are suppressed/i)).toBeInTheDocument();
-    expect(screen.getByText(/Configured · delivery ready/i)).toBeInTheDocument();
+    expect(screen.getByText(/Audit retention/i)).toBeInTheDocument();
+    expect(screen.getByText(/Last cleanup:/i)).toBeInTheDocument();
   });
 });
