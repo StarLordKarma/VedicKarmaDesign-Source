@@ -609,3 +609,9 @@
 - [x] Add owner-visible retention-change history with actor, old/new value and timestamp
 - [x] Add focused regression coverage for localization, preview and history UI contracts
 - [x] Run TypeScript and focused UI validation before checkpoint
+
+- [x] Localize Payment Test Lab cleanup result emails for EN/RU/DE/ES
+- [x] Add a visible owner warning when the retention cleanup preview is non-zero
+- [x] Verify owner pricing management controls remain available and authorized
+- [x] Set USD Basic price to $15 and preserve the add-on price at $10 through the audited pricing flow
+- [x] Run focused tests, TypeScript, build, visual verification and checkpoint
