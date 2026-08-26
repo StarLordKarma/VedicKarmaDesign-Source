@@ -2,6 +2,13 @@ import { createBookingRequest, deleteBookingRequest, finishPaymentTestLabRun, ge
 import { signNowPaymentsPayloadForTest } from "./nowpayments";
 import { processPaymentNotification } from "./payment-notification";
 import { processSignedNowPaymentsIpn, stableStringify } from "./nowpayments.webhook";
+import { ENV } from "./_core/env";
+
+async function alertOwnerAboutFailedSimulation(input: { runId: string; paymentStatus: string; message: string }) {
+  const recipient = process.env.OWNER_ALERT_EMAIL;
+  if (!recipient || !ENV.resendApiKey || !ENV.resendFromEmail) return;
+  await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: `Bearer ${ENV.resendApiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ from: ENV.resendFromEmail, to: [recipient], subject: "Payment Test Lab simulation failed", html: `<p>A signed Payment Test Lab simulation failed.</p><ul><li>Run ID: <code>${input.runId}</code></li><li>Requested status: <code>${input.paymentStatus}</code></li><li>Outcome: <code>${input.message.slice(0, 180)}</code></li></ul><p>No funds moved, no provider request was made, and no IPN payload or secret is included.</p>` }), signal: AbortSignal.timeout(15_000) }).catch(() => undefined);
+}
 
 export async function runSignedIpnSimulation(input: { paymentStatus: "confirmed" | "finished" | "partially_paid"; actorId: string }) {
   const runId = `ipn-simulation-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -43,7 +50,9 @@ export async function runSignedIpnSimulation(input: { paymentStatus: "confirmed"
     await finishPaymentTestLabRun({ runId, status: "succeeded", bookingId: booking.id, startedAt });
     return { runId, accepted: true as const, bookingId: booking.id, paymentStatus: updated.paymentStatus, paymentId: updated.paymentId, fundsTransferred: false as const, externalProviderCalled: false as const, deliverySuppressed: true as const };
   } catch (error) {
-    await finishPaymentTestLabRun({ runId, status: "failed", errorCode: "simulation_failed", errorMessage: error instanceof Error ? error.message : "Simulation failed", startedAt });
+    const message = error instanceof Error ? error.message : "Simulation failed";
+    await finishPaymentTestLabRun({ runId, status: "failed", errorCode: "simulation_failed", errorMessage: message, startedAt });
+    await alertOwnerAboutFailedSimulation({ runId, paymentStatus: input.paymentStatus, message });
     throw error;
   } finally {
     await deleteBookingRequest(booking.id);

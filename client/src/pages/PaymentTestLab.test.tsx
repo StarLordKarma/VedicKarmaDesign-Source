@@ -8,7 +8,7 @@ import PaymentTestLab from "./PaymentTestLab";
 const runSimulation = vi.fn();
 vi.mock("@/_core/hooks/useAuth", () => ({ useAuth: () => ({ user: { role: "admin", openId: "owner" }, loading: false }) }));
 vi.mock("@/components/DashboardLayout", () => ({ default: ({ children }: { children: React.ReactNode }) => <>{children}</> }));
-vi.mock("@/lib/trpc", () => ({ trpc: { admin: { runIpnSimulation: { useMutation: () => ({ mutate: runSimulation, isPending: false, error: null }) }, resendStatus: { useQuery: () => ({ data: { configured: true } }) }, paymentTestLabRuns: { useQuery: () => ({ data: { items: [] } }) } } } }));
+vi.mock("@/lib/trpc", () => ({ trpc: { admin: { runIpnSimulation: { useMutation: () => ({ mutate: runSimulation, isPending: false, error: null }) }, resendStatus: { useQuery: () => ({ data: { configured: true } }) }, paymentTestLabRuns: { useQuery: () => ({ data: { items: [], totalPages: 0 } }) }, exportPaymentTestLabRunsCsv: { useMutation: () => ({ mutate: vi.fn(), isPending: false }) } } } }));
 
 describe("Payment Test Lab", () => {
   it("runs the owner-only confirmed signed-IPN simulation", () => {

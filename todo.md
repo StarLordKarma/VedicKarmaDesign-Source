@@ -578,3 +578,10 @@
 - [x] Add owner-only Payment Test Lab audit history with search and status filtering
 - [x] Add regression coverage for Resend status and Payment Test Lab history UI/query contract
 - [x] Run migration, full tests, TypeScript, build, and desktop verification
+
+- [x] Send an owner Resend alert after a failed Payment Test Lab simulation without including secrets or signed payloads
+- [x] Add Payment Test Lab history date-range filters with server-side validation
+- [x] Add pagination controls for Payment Test Lab audit history
+- [x] Add CSV export for the currently filtered Payment Test Lab audit history
+- [x] Add regression coverage for alert recipient and Payment Test Lab history controls
+- [x] Run full tests, TypeScript and production build before checkpoint
