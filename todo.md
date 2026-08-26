@@ -557,3 +557,13 @@
 - [x] Add regression coverage for Report Studio generation preview actions and owner access controls
 - [x] Run a safe production checkout smoke test without transferring funds or creating a live customer booking
 - [x] Run full tests, TypeScript, build, logs, and desktop/mobile verification for the new owner workflows
+
+- [x] Add owner-only package version creation with localized names, type, version, and initial active state
+- [x] Add owner-only editing for mutable package-version metadata while preserving booking snapshots
+- [x] Enforce version uniqueness, valid package types, and safe active-version transitions
+- [x] Add owner-only creation of a clearly marked Report Studio test job with synthetic non-customer data
+- [x] Allow the owner to generate, preview, download, and delete the test report without client delivery
+- [x] Add a safe signed IPN test harness that validates payment-status handling without provider funds or a real payment
+- [x] Audit and strengthen localized booking consent and privacy notices for EN/RU/DE/ES, including separate visitor analytics opt-in and server-recorded order acknowledgement
+- [x] Add regression tests for versioned packages, test report jobs, IPN simulation, consent validation, and localization
+- [x] Run tests, TypeScript, build, logs, responsive verification, and checkpoint the completed workflow

@@ -252,7 +252,29 @@ export async function setServicePackageActive(input: { code: ServicePackageCode;
     const activePackages = await listActiveServicePackages();
     if (activePackages.length <= 1) throw new Error("At least one service package must remain active.");
   }
+  if (input.active) await db.update(servicePackages).set({ active: false }).where(eq(servicePackages.code, input.code));
   await db.update(servicePackages).set({ active: input.active }).where(eq(servicePackages.id, target.id));
+  return (await db.select().from(servicePackages).where(eq(servicePackages.id, target.id)).limit(1))[0];
+}
+
+export async function createServicePackageVersion(input: { packageType: ServicePackageCode; nameEn: string; nameRu: string; nameDe: string; nameEs: string; active: boolean; actor: string }) {
+  const db = await ensureServicePackageCatalog();
+  if (!db) throw new Error("Database unavailable");
+  const existing = await db.select().from(servicePackages).where(eq(servicePackages.code, input.packageType)).orderBy(desc(servicePackages.version));
+  const nextVersion = (existing[0]?.version ?? 0) + 1;
+  if (input.active) await db.update(servicePackages).set({ active: false }).where(eq(servicePackages.code, input.packageType));
+  const inserted = await db.insert(servicePackages).values({ code: input.packageType, version: nextVersion, packageType: input.packageType, nameEn: input.nameEn, nameRu: input.nameRu, nameDe: input.nameDe, nameEs: input.nameEs, active: input.active, createdBy: input.actor });
+  return (await db.select().from(servicePackages).where(eq(servicePackages.id, Number(inserted[0].insertId))).limit(1))[0];
+}
+
+export async function updateServicePackageVersion(input: { id: number; nameEn: string; nameRu: string; nameDe: string; nameEs: string; active: boolean; actor: string }) {
+  const db = await ensureServicePackageCatalog();
+  if (!db) throw new Error("Database unavailable");
+  const target = (await db.select().from(servicePackages).where(eq(servicePackages.id, input.id)).limit(1))[0];
+  if (!target) throw new Error("Service package version not found.");
+  if (!input.active && target.active && (await listActiveServicePackages()).length <= 1) throw new Error("At least one service package must remain active.");
+  if (input.active) await db.update(servicePackages).set({ active: false }).where(eq(servicePackages.code, target.code));
+  await db.update(servicePackages).set({ nameEn: input.nameEn, nameRu: input.nameRu, nameDe: input.nameDe, nameEs: input.nameEs, active: input.active }).where(eq(servicePackages.id, target.id));
   return (await db.select().from(servicePackages).where(eq(servicePackages.id, target.id)).limit(1))[0];
 }
 export type ServicePricingConfig = { basicUsd: number; numerologyAddonUsd: number };

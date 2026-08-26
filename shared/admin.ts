@@ -81,6 +81,17 @@ export type UpdateBookingAdminInput = z.infer<typeof updateBookingAdminSchema>;
 export const reportJobIdSchema = z.object({ reportJobId: z.number().int().positive() });
 export const reportRunSchema = z.object({ reportJobId: z.number().int().positive() });
 export const reportApprovalSchema = z.object({ reportJobId: z.number().int().positive(), versionId: z.number().int().positive(), summary: z.string().trim().max(1000).optional() });
+export const servicePackageTypeSchema = z.enum(["basic", "basic_plus"]);
+const localizedPackageNames = {
+  nameEn: z.string().trim().min(2).max(160),
+  nameRu: z.string().trim().min(2).max(160),
+  nameDe: z.string().trim().min(2).max(160),
+  nameEs: z.string().trim().min(2).max(160),
+};
+export const createServicePackageVersionSchema = z.object({ packageType: servicePackageTypeSchema, ...localizedPackageNames, active: z.boolean().default(true) });
+export const updateServicePackageVersionSchema = z.object({ id: z.number().int().positive(), ...localizedPackageNames, active: z.boolean() });
+export const createReportStudioTestJobSchema = z.object({ packageType: servicePackageTypeSchema.default("basic"), language: z.enum(["en", "ru", "de"]).default("en") });
+export const runIpnSimulationSchema = z.object({ paymentStatus: z.enum(["confirmed", "finished", "partially_paid"]).default("confirmed") });
 
 
 export const slaEvaluationStatusSchema = z.enum(["succeeded", "disabled", "failed"]);

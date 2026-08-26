@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { READING_PRICES } from "./pricing";
 
+export const PRIVACY_NOTICE_VERSION = "privacy-2026-08";
+
 export const bookingSchema = z.object({
   name: z.string().trim().min(2, "Please enter your name."),
   email: z.string().trim().email("Please enter a valid email."),
@@ -13,6 +15,9 @@ export const bookingSchema = z.object({
   currency: z.enum(["USD", "EUR", "GBP"]).default("USD"),
   interest: z.string().trim().max(1000).optional(),
   promoCode: z.string().trim().max(32).optional(),
+  privacyAcknowledged: z.literal(true),
+  privacyNoticeVersion: z.literal(PRIVACY_NOTICE_VERSION),
+  privacyLocale: z.enum(["en", "ru", "de", "es"]),
   smokeTest: z.boolean().optional().default(false),
   smokeTestRunId: z.string().regex(/^production-smoke-\d{10,}$/).optional(),
 });
@@ -21,7 +26,7 @@ export type BookingInput = z.infer<typeof bookingSchema>;
 
 export type BookingPriceSnapshot = {
   packageCode: "basic" | "basic_plus";
-  packageVersion: 1;
+  packageVersion: number;
   currency: "USD" | "EUR" | "GBP";
   basicAmount: number;
   addonAmount: number;

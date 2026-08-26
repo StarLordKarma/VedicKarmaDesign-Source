@@ -6,6 +6,7 @@ import Privacy from "@/pages/Privacy";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import VisitorPrivacyChoices from "./components/VisitorPrivacyChoices";
 import Home from "./pages/Home";
 const Admin = lazy(() => import("./pages/Admin"));
 const ReportStudio = lazy(() => import("@/pages/ReportStudio"));
@@ -13,6 +14,7 @@ const ClientStatus = lazy(() => import("@/pages/ClientStatus"));
 const AdminMetrics = lazy(() => import("@/pages/AdminMetrics"));
 const AdminStatusLinks = lazy(() => import("@/pages/AdminStatusLinks"));
 const ServicePackages = lazy(() => import("@/pages/ServicePackages"));
+const PaymentTestLab = lazy(() => import("@/pages/PaymentTestLab"));
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -26,6 +28,7 @@ function Router() {
       <Route path={"/admin/metrics"} component={AdminMetrics} />
       <Route path={"/admin/status-links"} component={AdminStatusLinks} />
       <Route path={"/admin/packages"} component={ServicePackages} />
+      <Route path={"/admin/payment-test"} component={PaymentTestLab} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />
@@ -49,6 +52,7 @@ function App() {
           <Toaster />
           <Suspense fallback={<div className="grid min-h-screen place-items-center bg-[#f8f5f0] text-sm text-[#635a52]">Loading workspace…</div>}>
             <Router />
+            <VisitorPrivacyChoices />
           </Suspense>
         </TooltipProvider>
       </ThemeProvider>

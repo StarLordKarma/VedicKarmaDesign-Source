@@ -5,19 +5,20 @@ import { adminProcedure, publicProcedure, router } from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { bookingSchema, buildBookingPriceSnapshot, isProductionSmokeTestBooking, validatePromoCode } from "@shared/booking";
-import { addSlaEmailAllowlistSchema, removeSlaEmailAllowlistSchema, updateSlaEmailAllowlistSchema, activityDateRangeSchema, attachNatalPdfSchema, bulkSendNatalPdfSchema, clientHistorySchema, editBookingClientSchema, pricingCurrencySchema, pricingHistoryFilterSchema, pricingHistoryPageSchema, receiptEmailHistoryPageSchema, sendNatalPdfSchema, servicePricingSchema, smokeTestRunsPageSchema, slaEvaluationRunsPageSchema, updateBookingAdminSchema, reportRunSchema, reportApprovalSchema, sendSlaChartPdfSchema } from "@shared/admin";
-import { createBookingRequest, createSmokeTestRun, deleteBookingRequest, finishSmokeTestRun, getAdminActivityEvents, getAdminActivitySummary, getBookingRequestById, getClientChangeHistory, getPricingHistory, getPricingHistoryPage, getServicePricing, getSmokeTestRuns, getSmokeTestRunsForExport, getSmokeTestRunsPage, getReceiptRetentionHours, cleanupExpiredReceiptFiles, listServicePricing, getReceiptEmailHistoryPage, getLatestReceiptEmailAttempt, createReceiptEmailAttempt, finishReceiptEmailAttempt, normalizeReceiptEmail, isReceiptEmailCoolingDown, recordReceiptEmailFailureAlert, RECEIPT_EMAIL_COOLDOWN_MS, listSlaEmailAllowlist, addSlaEmailAllowlist, setSlaEmailAllowlistEnabled, removeSlaEmailAllowlist, isSlaEmailAllowed, updateBookingClient, updateBookingDelivery, updateBookingPayment, updateReceiptRetentionHours, updateServicePricing, getActiveServicePackage, listActiveServicePackages, listServicePackages, setServicePackageActive, SERVICE_PACKAGE_CODES } from "./db";
+import { addSlaEmailAllowlistSchema, removeSlaEmailAllowlistSchema, updateSlaEmailAllowlistSchema, activityDateRangeSchema, attachNatalPdfSchema, bulkSendNatalPdfSchema, clientHistorySchema, createReportStudioTestJobSchema, createServicePackageVersionSchema, editBookingClientSchema, pricingCurrencySchema, pricingHistoryFilterSchema, pricingHistoryPageSchema, receiptEmailHistoryPageSchema, runIpnSimulationSchema, sendNatalPdfSchema, servicePricingSchema, smokeTestRunsPageSchema, slaEvaluationRunsPageSchema, updateBookingAdminSchema, updateServicePackageVersionSchema, reportRunSchema, reportApprovalSchema, sendSlaChartPdfSchema } from "@shared/admin";
+import { createBookingRequest, createSmokeTestRun, deleteBookingRequest, finishSmokeTestRun, getAdminActivityEvents, getAdminActivitySummary, getBookingRequestById, getClientChangeHistory, getPricingHistory, getPricingHistoryPage, getServicePricing, getSmokeTestRuns, getSmokeTestRunsForExport, getSmokeTestRunsPage, getReceiptRetentionHours, cleanupExpiredReceiptFiles, listServicePricing, getReceiptEmailHistoryPage, getLatestReceiptEmailAttempt, createReceiptEmailAttempt, finishReceiptEmailAttempt, normalizeReceiptEmail, isReceiptEmailCoolingDown, recordReceiptEmailFailureAlert, RECEIPT_EMAIL_COOLDOWN_MS, listSlaEmailAllowlist, addSlaEmailAllowlist, setSlaEmailAllowlistEnabled, removeSlaEmailAllowlist, isSlaEmailAllowed, updateBookingClient, updateBookingDelivery, updateBookingPayment, updateReceiptRetentionHours, updateServicePricing, createServicePackageVersion, getActiveServicePackage, listActiveServicePackages, listServicePackages, setServicePackageActive, SERVICE_PACKAGE_CODES, updateServicePackageVersion } from "./db";
 import { notifyOwner } from "./_core/notification";
 import { buildCheckoutBreakdownPdf, buildSmokeTestRunsCsv } from "./export";
 import { createCheckoutForBooking } from "./payment-flow";
 import { runManualSmokeTest } from "./manual-smoke-test";
+import { runSignedIpnSimulation } from "./payment-ipn-test-harness";
 import { applyAdminBookingUpdate } from "./admin-update-flow";
 import { attachNatalPdf, getAllBookingRequests, registerReceiptFile } from "./db";
 import { sendClientNatalPdf, sendClientReceiptPdf, sendSlaChartPdf } from "./client-delivery";
 import { storagePut } from "./storage";
 import { buildActivityCsv, buildBookingsCsv, buildBookingsPdf, buildPricingHistoryCsv, buildSlaEvaluationRunsCsv, decodePdfBase64, sanitizePdfName } from "./export";
 import { ENV } from "./_core/env";
-import { approveReportVersion, enqueueReportJobForBooking, getReportProcessingSettings, getReportReviewJob, listReportReviewJobs, processReportJob, retryReportDelivery, setReportProcessingSettings } from "./report-studio-db";
+import { approveReportVersion, createReportStudioTestJob, deleteReportStudioTestJob, enqueueReportJobForBooking, getReportProcessingSettings, getReportReviewJob, listReportReviewJobs, processReportJob, retryReportDelivery, setReportProcessingSettings } from "./report-studio-db";
 import { AI_NARRATIVE_MODELS } from "./report-narrative";
 import { createClientStatusLink, getPublicClientStatus, listClientStatusLinks, revokeClientStatusLink } from "./client-status";
 import { evaluateSla, getOwnerMetrics, getSlaEvaluationRuns, getSlaSettings, setSlaSettings } from "./sla";
@@ -50,6 +51,8 @@ export const appRouter = router({
     pricing: adminProcedure.query(() => listServicePricing()),
     servicePackages: adminProcedure.query(() => listServicePackages()),
     updateServicePackageActive: adminProcedure.input(z.object({ code: z.enum(SERVICE_PACKAGE_CODES), version: z.number().int().positive(), active: z.boolean() })).mutation(({ input, ctx }) => setServicePackageActive({ ...input, actor: ctx.user.openId })),
+    createServicePackageVersion: adminProcedure.input(createServicePackageVersionSchema).mutation(({ input, ctx }) => createServicePackageVersion({ ...input, actor: ctx.user.openId })),
+    updateServicePackageVersion: adminProcedure.input(updateServicePackageVersionSchema).mutation(({ input, ctx }) => updateServicePackageVersion({ ...input, actor: ctx.user.openId })),
     receiptRetention: adminProcedure.query(() => getReceiptRetentionHours()),
     updateReceiptRetention: adminProcedure.input(z.object({ retentionHours: z.union([z.literal(24), z.literal(48), z.literal(72)]) })).mutation(({ input, ctx }) => updateReceiptRetentionHours(input.retentionHours, ctx.user.openId)),
     cleanupExpiredReceipts: adminProcedure.mutation(async () => ({ deleted: await cleanupExpiredReceiptFiles() })),
@@ -58,6 +61,7 @@ export const appRouter = router({
     smokeTestRuns: adminProcedure.input(smokeTestRunsPageSchema.optional()).query(({ input }) => getSmokeTestRunsPage(input ?? {})),
     exportSmokeTestRunsCsv: adminProcedure.input(smokeTestRunsPageSchema.omit({ page: true, pageSize: true }).optional()).mutation(async ({ input }) => { const rows = await getSmokeTestRunsForExport(input ?? {}); return { filename: `smoke-test-runs-${new Date().toISOString().slice(0, 10)}.csv`, contentBase64: Buffer.from(buildSmokeTestRunsCsv(rows), "utf8").toString("base64") }; }),
     runManualSmokeTest: adminProcedure.mutation(({ ctx }) => runManualSmokeTest(`${ctx.req.protocol}://${ctx.req.get("host")}`)),
+    runIpnSimulation: adminProcedure.input(runIpnSimulationSchema).mutation(({ input, ctx }) => runSignedIpnSimulation({ ...input, actorId: ctx.user.openId })),
     updatePricing: adminProcedure.input(servicePricingSchema).mutation(({ input, ctx }) => updateServicePricing({ ...input, updatedBy: ctx.user.openId })),
     activitySummary: adminProcedure.input(activityDateRangeSchema.optional()).query(({ input }) => getAdminActivitySummary(input ?? {})),
     clientHistory: adminProcedure.input(clientHistorySchema).query(({ input }) => getClientChangeHistory(input.bookingId)),
@@ -125,6 +129,8 @@ export const appRouter = router({
   reportStudio: router({
     queue: adminProcedure.query(() => listReportReviewJobs()),
     getJob: adminProcedure.input(z.object({ reportJobId: z.number().int().positive() })).query(({ input }) => getReportReviewJob(input.reportJobId)),
+    createTestJob: adminProcedure.input(createReportStudioTestJobSchema).mutation(({ input, ctx }) => createReportStudioTestJob({ ...input, actorId: ctx.user.openId })),
+    deleteTestJob: adminProcedure.input(reportRunSchema).mutation(({ input, ctx }) => deleteReportStudioTestJob({ ...input, actorId: ctx.user.openId })),
     runCalculation: adminProcedure.input(reportRunSchema).mutation(({ input, ctx }) => processReportJob({ ...input, actorId: ctx.user.openId })),
     approve: adminProcedure.input(reportApprovalSchema).mutation(({ input, ctx }) => approveReportVersion({ ...input, actorId: ctx.user.openId })),
     retryDelivery: adminProcedure.input(reportApprovalSchema.pick({ reportJobId: true, versionId: true })).mutation(({ input, ctx }) => retryReportDelivery({ ...input, actorId: ctx.user.openId })),
@@ -184,6 +190,9 @@ export const appRouter = router({
         totalUsd,
         currency: input.currency,
         interest: input.interest || null,
+        privacyConsentVersion: input.privacyNoticeVersion,
+        privacyConsentLocale: input.privacyLocale,
+        privacyConsentAt: new Date(),
         status: "new",
         paymentStatus: "creating",
       });

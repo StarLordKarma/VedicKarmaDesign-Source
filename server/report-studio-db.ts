@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { and, desc, eq, inArray } from "drizzle-orm";
-import { calculationResults, calculationSnapshots, narrativeDrafts, reportAuditEvents, reportDeliveryAttempts, reportJobs, reportStudioProcessingSettings, reportVersions } from "../drizzle/schema";
-import { getBookingRequestById, getDb } from "./db";
+import { calculationResults, calculationSnapshots, narrativeDrafts, reportAuditEvents, reportDeliveryAttempts, reportJobs, reportSections, reportStudioProcessingSettings, reportVersions } from "../drizzle/schema";
+import { createBookingRequest, deleteBookingRequest, getBookingRequestById, getDb } from "./db";
 import { calculateVedicSnapshot } from "./vedic-astrology-calculator";
 import { buildFullNatalReportPdf } from "./export";
 import { resolveBirthLocation } from "./report-geocoding";
@@ -56,6 +56,39 @@ export async function listReportReviewJobs() {
   const db = await getDb();
   if (!db) return [];
   return db.select({ job: reportJobs, version: reportVersions }).from(reportJobs).leftJoin(reportVersions, eq(reportVersions.reportJobId, reportJobs.id)).orderBy(desc(reportJobs.createdAt));
+}
+
+export async function createReportStudioTestJob(input: { packageType: "basic" | "basic_plus"; language: "en" | "ru" | "de"; actorId: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const runId = `report-studio-test-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const booking = await createBookingRequest({ name: "Report Studio synthetic test", email: `${runId}@example.com`, birthDate: "1990-01-01", birthTime: "12:00", birthCity: "Berlin", birthCountry: "Germany", language: input.language === "ru" ? "Русский" : input.language === "de" ? "Deutsch" : "English", addon: input.packageType === "basic_plus" ? 1 : 0, packageCode: input.packageType, packageVersion: 1, priceSnapshotJson: JSON.stringify({ testJob: true, packageCode: input.packageType }), totalUsd: 0, currency: "USD", interest: "Synthetic owner-only Report Studio test. Never deliver to a client.", paymentStatus: "confirmed", status: "in_progress" });
+  const inputHash = sha256(JSON.stringify({ runId, bookingId: booking.id, packageType: input.packageType, language: input.language }));
+  const inserted = await db.insert(reportJobs).values({ bookingId: booking.id, reportVersion: 1, packageType: input.packageType, language: input.language, status: "queued", testJob: true, idempotencyKey: `test:${runId}`, inputHash, queuedAt: new Date() });
+  const jobId = Number(inserted[0].insertId);
+  await db.insert(reportAuditEvents).values({ reportJobId: jobId, eventType: "test_job_queued", actorType: "owner", actorId: input.actorId, fromStatus: "paid", toStatus: "queued", metadataJson: JSON.stringify({ synthetic: true, bookingId: booking.id }) });
+  return { jobId, bookingId: booking.id, testJob: true as const };
+}
+
+export async function deleteReportStudioTestJob(input: { reportJobId: number; actorId: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const job = (await db.select().from(reportJobs).where(eq(reportJobs.id, input.reportJobId)).limit(1))[0];
+  if (!job || !job.testJob) throw new Error("Only synthetic test jobs can be deleted.");
+  const versions = await db.select({ id: reportVersions.id }).from(reportVersions).where(eq(reportVersions.reportJobId, job.id));
+  const versionIds = versions.map((entry) => entry.id);
+  if (versionIds.length) {
+    await db.delete(reportSections).where(inArray(reportSections.reportVersionId, versionIds));
+    await db.delete(reportDeliveryAttempts).where(inArray(reportDeliveryAttempts.reportVersionId, versionIds));
+    await db.delete(reportVersions).where(inArray(reportVersions.id, versionIds));
+  }
+  await db.delete(calculationSnapshots).where(eq(calculationSnapshots.reportJobId, job.id));
+  await db.delete(calculationResults).where(eq(calculationResults.reportJobId, job.id));
+  await db.delete(narrativeDrafts).where(eq(narrativeDrafts.reportJobId, job.id));
+  await db.delete(reportAuditEvents).where(eq(reportAuditEvents.reportJobId, job.id));
+  await db.delete(reportJobs).where(eq(reportJobs.id, job.id));
+  await deleteBookingRequest(job.bookingId);
+  return { deleted: true as const, reportJobId: input.reportJobId };
 }
 
 export async function getReportReviewJob(reportJobId: number) {
@@ -124,6 +157,7 @@ export async function deliverApprovedReport(input: { reportJobId: number; versio
   if (!current || current.status !== "approved" || !current.pdfStorageKey) throw new Error("Only an approved report version can be delivered.");
   const job = (await db.select().from(reportJobs).where(eq(reportJobs.id, input.reportJobId)).limit(1))[0];
   if (!job) throw new Error("Report job not found");
+  if (job.testJob) throw new Error("Synthetic test reports cannot be delivered to clients.");
   const bookingRequest = await getBookingRequestById(job.bookingId);
   if (!bookingRequest) throw new Error("Booking request not found");
   const idempotencyKey = `report:${current.id}:approved:${current.pdfSha256 ?? current.versionNumber}`;

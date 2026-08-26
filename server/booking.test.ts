@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyPromoDiscount, bookingSchema, buildBookingPriceSnapshot, getBookingTotal, isProductionSmokeTestBooking, validatePromoCode } from "@shared/booking";
+import { applyPromoDiscount, bookingSchema, buildBookingPriceSnapshot, getBookingTotal, isProductionSmokeTestBooking, PRIVACY_NOTICE_VERSION, validatePromoCode } from "@shared/booking";
 
 describe("booking validation", () => {
   const validBooking = {
@@ -12,6 +12,9 @@ describe("booking validation", () => {
     language: "English" as const,
     addon: false,
     interest: "Career themes",
+    privacyAcknowledged: true as const,
+    privacyNoticeVersion: PRIVACY_NOTICE_VERSION,
+    privacyLocale: "en" as const,
   };
 
   it("accepts a complete booking request", () => {

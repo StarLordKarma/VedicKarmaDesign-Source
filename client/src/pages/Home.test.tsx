@@ -234,13 +234,13 @@ describe("Home booking payment UX", () => {
     fireEvent.click(screen.getByRole("button", { name: /Request my reading/i }));
 
     expect(mutationState.mutate).not.toHaveBeenCalled();
-    expect(screen.getByRole("alert")).toHaveTextContent("Please read and accept the privacy information before submitting.");
+    expect(screen.getByRole("alert")).toHaveTextContent("Please read and confirm the privacy information before submitting.");
     expect(screen.getByLabelText("privacy consent")).toHaveAttribute("aria-invalid", "true");
     expect(screen.getByLabelText("privacy consent").closest("label")).toHaveClass("consent-error-shake");
 
     fireEvent.click(screen.getByLabelText("privacy consent"));
     expect(screen.getByLabelText("privacy consent")).toHaveAttribute("aria-invalid", "false");
-    expect(screen.queryByText("Please read and accept the privacy information before submitting.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Please read and confirm the privacy information before submitting.")).not.toBeInTheDocument();
   });
 
   it("shows pending loading, success confirmation, and schedules the checkout redirect", async () => {

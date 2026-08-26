@@ -1,7 +1,7 @@
 import React, { FormEvent, useEffect, useRef, useState } from "react";
 import { READING_PRICES } from "@shared/pricing";
 import { formatCurrency, type SupportedCurrency } from "@shared/currency";
-import { bookingSchema, getCheckoutErrorMessage } from "@shared/booking";
+import { bookingSchema, getCheckoutErrorMessage, PRIVACY_NOTICE_VERSION } from "@shared/booking";
 import { CHECKOUT_REDIRECT_DELAY_MS, getCheckoutButtonLabel, getCheckoutSuccessMessage } from "@shared/payment-ux";
 import { COPY, Locale } from "@shared/i18n";
 import { trpc } from "@/lib/trpc";
@@ -31,7 +31,7 @@ import {
 
 const SUPPORTED_LOCALES: Locale[] = ["en", "ru", "de", "es"];
 const LOCALE_LABELS: Record<Locale, string> = { en: "EN", ru: "RU", de: "DE", es: "ES" };
-const privacyFormCopy: Record<Locale, { label: string; link: string; required: string }> = { en: { label: "I have read and accept the privacy information.", link: "Privacy & data protection", required: "Please read and accept the privacy information before submitting." }, ru: { label: "Я прочитал(а) и принимаю информацию о конфиденциальности.", link: "Конфиденциальность и данные", required: "Перед отправкой прочитайте и примите информацию о конфиденциальности." }, de: { label: "Ich habe die Datenschutzhinweise gelesen und akzeptiere sie.", link: "Datenschutz", required: "Bitte lesen und akzeptieren Sie die Datenschutzhinweise vor dem Absenden." }, es: { label: "He leído y acepto la información de privacidad.", link: "Privacidad y datos", required: "Lee y acepta la información de privacidad antes de enviar." } };
+const privacyFormCopy: Record<Locale, { label: string; link: string; required: string }> = { en: { label: "I confirm that I have read the privacy information and agree to the processing of my booking data to provide this requested service.", link: "Privacy & data protection", required: "Please read and confirm the privacy information before submitting." }, ru: { label: "Я подтверждаю, что прочитал(а) информацию о конфиденциальности и согласен(на) на обработку данных заказа для оказания запрошенной услуги.", link: "Конфиденциальность и данные", required: "Перед отправкой прочитайте и подтвердите информацию о конфиденциальности." }, de: { label: "Ich bestätige, dass ich die Datenschutzhinweise gelesen habe und der Verarbeitung meiner Buchungsdaten zur Erbringung der angeforderten Leistung zustimme.", link: "Datenschutz", required: "Bitte lesen und bestätigen Sie die Datenschutzhinweise vor dem Absenden." }, es: { label: "Confirmo que he leído la información de privacidad y acepto el tratamiento de los datos de mi reserva para prestar el servicio solicitado.", link: "Privacidad y datos", required: "Lee y confirma la información de privacidad antes de enviar." } };
 const themeCopy: Record<Locale, { dark: string; light: string }> = { en: { dark: "Dark mode", light: "Light mode" }, ru: { dark: "Тёмная тема", light: "Светлая тема" }, de: { dark: "Dunkler Modus", light: "Heller Modus" }, es: { dark: "Modo oscuro", light: "Modo claro" } };
 const packageCopy: Record<Locale, { label: string; basic: string; basicPlus: string; basicHint: string; basicPlusHint: string }> = { en: { label: "Choose your reading", basic: "Basic reading", basicPlus: "Basic + numerology", basicHint: "A focused natal reading with the core chart interpretation and a detailed PDF.", basicPlusHint: "Everything in Basic, plus Indian numerology, supportive numbers, days, and stones." }, ru: { label: "Выберите чтение", basic: "Базовое чтение", basicPlus: "Базовое + нумерология", basicHint: "Основной разбор натальной карты с ключевой интерпретацией и подробным PDF.", basicPlusHint: "Всё из базового пакета плюс индийская нумерология, числа, дни и камни." }, de: { label: "Lesung auswählen", basic: "Basisdeutung", basicPlus: "Basisdeutung + Numerologie", basicHint: "Fokussierte Deutung der Geburtskarte mit Kerninterpretation und ausführlichem PDF.", basicPlusHint: "Alles aus der Basisdeutung plus indische Numerologie, Zahlen, Tage und Steine." }, es: { label: "Elige tu lectura", basic: "Lectura básica", basicPlus: "Básica + numerología", basicHint: "Una lectura natal centrada con la interpretación esencial y un PDF detallado.", basicPlusHint: "Todo lo incluido en Básica, más numerología india, números, días y piedras." } };
 const promoCopy: Record<Locale, { label: string; placeholder: string; apply: string; applied: string; invalid: string; discount: string }> = { en: { label: "Promo code", placeholder: "Enter code", apply: "Apply", applied: "Promo code applied", invalid: "This promo code is not valid.", discount: "Discount" }, ru: { label: "Промокод", placeholder: "Введите код", apply: "Применить", applied: "Промокод применён", invalid: "Этот промокод недействителен.", discount: "Скидка" }, de: { label: "Promo-Code", placeholder: "Code eingeben", apply: "Anwenden", applied: "Promo-Code angewendet", invalid: "Dieser Promo-Code ist nicht gültig.", discount: "Rabatt" }, es: { label: "Código promocional", placeholder: "Introduce el código", apply: "Aplicar", applied: "Código promocional aplicado", invalid: "Este código promocional no es válido.", discount: "Descuento" } };
@@ -125,7 +125,7 @@ export default function Home() {
   const pricingBreakdownPdf = trpc.pricing.breakdownPdf.useMutation({ onSuccess: (result) => { const absoluteUrl = new URL(result.url, window.location.origin).toString(); setReceiptUrl(absoluteUrl); setReceiptPdfBase64(result.contentBase64); setReceiptFilename(result.filename); setLinkCopied(false); downloadBase64File(result.contentBase64, result.filename, "application/pdf"); }, onError: (error) => setFormError(getCheckoutErrorMessage(error.message)) });
   const emailReceipt = trpc.pricing.emailBreakdownPdf.useMutation({ onSuccess: () => { setReceiptEmailSent(true); setFormError(""); const until = Date.now() + 60_000; setReceiptCooldownUntil(until); window.setTimeout(() => setReceiptCooldownUntil(0), 60_000); }, onError: (error) => setFormError(error?.data?.code === "TOO_MANY_REQUESTS" ? copy.receiptEmailCooldown : copy.receiptEmailFailed) });
 
-  function changeLocale(next: Locale) { setLocale(next); window.localStorage.setItem("public-locale", next); const url = new URL(window.location.href); url.searchParams.set("lang", next); window.history.replaceState({}, "", url.toString()); }
+  function changeLocale(next: Locale) { setLocale(next); window.localStorage.setItem("public-locale", next); window.dispatchEvent(new CustomEvent("public-locale-changed", { detail: next })); const url = new URL(window.location.href); url.searchParams.set("lang", next); window.history.replaceState({}, "", url.toString()); }
 
   useEffect(() => { window.localStorage.setItem("public-locale", locale); }, [locale]);
 
@@ -158,6 +158,9 @@ export default function Home() {
       currency,
       interest: form.get("interest") || undefined,
       promoCode: appliedPromo?.code || undefined,
+      privacyAcknowledged: privacyAccepted,
+      privacyNoticeVersion: PRIVACY_NOTICE_VERSION,
+      privacyLocale: locale,
     });
 
     if (!privacyAccepted) { setFormError(""); setConsentError(true); setConsentErrorPulse((current) => current + 1); return; }

@@ -1,0 +1,1 @@
+ALTER TABLE `report_jobs` ADD `testJob` boolean DEFAULT false NOT NULL;

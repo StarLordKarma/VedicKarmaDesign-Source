@@ -108,3 +108,8 @@ export function verifyNowPaymentsSignature(rawBody: string, signature: string) {
   const receivedBuffer = Buffer.from(signature, "utf8");
   return expectedBuffer.length === receivedBuffer.length && timingSafeEqual(expectedBuffer, receivedBuffer);
 }
+
+/** Server-only helper. It is never exposed through a public route or browser bundle. */
+export function signNowPaymentsPayloadForTest(rawBody: string) {
+  return createHmac("sha512", ENV.nowpaymentsIpnSecret).update(rawBody).digest("hex");
+}

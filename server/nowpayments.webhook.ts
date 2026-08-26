@@ -5,7 +5,7 @@ import { processPaymentNotification } from "./payment-notification";
 import { verifyNowPaymentsSignature } from "./nowpayments";
 import { createRateLimit, logStructuredEvent } from "./observability";
 
-function stableStringify(value: unknown): string {
+export function stableStringify(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
   if (value && typeof value === "object") {
     const record = value as Record<string, unknown>;
@@ -22,33 +22,37 @@ export function shouldNotifyPayment(previousStatus: string | null, nextStatus: s
   return ["finished", "confirmed", "partially_paid"].includes(nextStatus) && previousStatus !== nextStatus;
 }
 
+export async function processSignedNowPaymentsIpn(input: {
+  body: { order_id?: string; payment_id?: number; payment_status?: string };
+  signature?: string;
+  processNotification?: typeof processPaymentNotification;
+}) {
+  const rawBody = stableStringify(input.body);
+  if (!input.signature || !verifyNowPaymentsSignature(rawBody, input.signature)) return { accepted: false as const, status: 401 as const, error: "Invalid payment signature" };
+  const orderId = input.body.order_id ?? "";
+  const bookingId = Number(orderId.replace(/^booking-/, ""));
+  if (!Number.isInteger(bookingId) || bookingId <= 0) return { accepted: false as const, status: 400 as const, error: "Invalid order id" };
+  const result = await (input.processNotification ?? processPaymentNotification)({ bookingId, paymentId: input.body.payment_id, paymentStatus: input.body.payment_status ?? "unknown" });
+  return { accepted: true as const, status: 200 as const, bookingId, result };
+}
+
 export function registerNowPaymentsWebhook(app: Express) {
   const ipnRateLimit = createRateLimit({ name: "payment-ipn", windowMs: 60_000, max: 60 });
-  app.post("/api/nowpayments/ipn", ipnRateLimit, (req, res) => {
+  app.post("/api/nowpayments/ipn", ipnRateLimit, async (req, res) => {
     const signature = req.header("x-nowpayments-sig");
-    if (!signature || !verifyNowPaymentsSignature(stableStringify(req.body), signature)) {
+    const result = await processSignedNowPaymentsIpn({ body: req.body as { order_id?: string; payment_id?: number; payment_status?: string }, signature });
+    if (!result.accepted && result.status === 401) {
       logStructuredEvent("warn", "payment.ipn.rejected", { requestId: (req as unknown as CorrelatedRequest).requestId, reason: "invalid_signature" });
       res.status(401).json({ error: "Invalid payment signature", requestId: (req as unknown as CorrelatedRequest).requestId });
       return;
     }
-
-    const payload = req.body as { order_id?: string; payment_id?: number; payment_status?: string };
-    const orderId = payload.order_id ?? "";
-    const bookingId = Number(orderId.replace(/^booking-/, ""));
-    if (!Number.isInteger(bookingId) || bookingId <= 0) {
+    if (!result.accepted) {
       res.status(400).json({ error: "Invalid order id" });
       return;
     }
 
     const requestId = (req as unknown as CorrelatedRequest).requestId;
-    logStructuredEvent("info", "payment.ipn.accepted", { requestId, bookingId });
-    void processPaymentNotification({
-      bookingId,
-      paymentId: payload.payment_id,
-      paymentStatus: payload.payment_status ?? "unknown",
-    }).then(() => res.status(200).json({ received: true, requestId })).catch(() => {
-      logStructuredEvent("error", "payment.ipn.processing_failed", { requestId, bookingId });
-      res.status(500).json({ error: "Could not update payment status", requestId });
-    });
+    logStructuredEvent("info", "payment.ipn.accepted", { requestId, bookingId: result.bookingId });
+    res.status(200).json({ received: true, requestId });
   });
 }
