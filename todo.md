@@ -621,9 +621,9 @@
 - [x] Expand the pricing save confirmation with current versus proposed price comparison
 - [x] Add regression coverage, run validation, verify UI and save checkpoint
 
-- [ ] Verify GitHub repository state and prepare a privacy-safe project export
-- [ ] Write detailed project history and AI handoff/deployment instructions
-- [ ] Write an actionable technical roadmap for the next site development phase
-- [ ] Build a single ZIP archive containing current code and the three handoff documents
-- [ ] Commit and push the current documented version to private GitHub
-- [ ] Save checkpoint and deliver the GitHub repository and ZIP archive
+- [x] Verify GitHub repository state and prepare a privacy-safe project export
+- [x] Write detailed project history and AI handoff/deployment instructions
+- [x] Write an actionable technical roadmap for the next site development phase
+- [x] Build a single ZIP archive containing current code and the three handoff documents
+- [x] Commit and push the current documented version to private GitHub
+- [x] Save checkpoint and deliver the GitHub repository and ZIP archive
