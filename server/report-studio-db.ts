@@ -9,7 +9,7 @@ import { generateNarrativeDraft } from "./report-narrative";
 import { storagePut } from "./storage";
 import { sendClientReportPdf } from "./client-delivery";
 
-const CONFIRMED_PAYMENT_STATUSES = new Set(["finished", "confirmed", "partially_paid"]);
+const CONFIRMED_PAYMENT_STATUSES = new Set(["finished", "confirmed"]);
 const REPORT_TEMPLATE_VERSION = "parasara-light-9-v1";
 const EMPTY_BACKGROUND = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64");
 
@@ -112,7 +112,12 @@ export async function processReportJob(input: { reportJobId: number; actorId: st
   const booking = await getBookingRequestById(current.bookingId);
   if (!booking) throw new Error("Booking request not found");
   try {
-    await db.update(reportJobs).set({ status: "calculating", startedAt: new Date(), attemptCount: current.attemptCount + 1, lastErrorCode: null, lastErrorMessage: null }).where(eq(reportJobs.id, current.id));
+    const claim = await db.update(reportJobs)
+      .set({ status: "calculating", startedAt: new Date(), attemptCount: current.attemptCount + 1, lastErrorCode: null, lastErrorMessage: null })
+      .where(and(eq(reportJobs.id, current.id), eq(reportJobs.status, current.status)));
+    if (Number(claim[0].affectedRows ?? 0) !== 1) {
+      return { skipped: true, job: current, reason: "already-claimed" as const };
+    }
   const location = await resolveBirthLocation({ city: booking.birthCity, country: booking.birthCountry, birthDate: booking.birthDate, birthTime: booking.birthTime });
   const birthUtc = new Date(Date.UTC(Number(booking.birthDate.slice(0, 4)), Number(booking.birthDate.slice(5, 7)) - 1, Number(booking.birthDate.slice(8, 10)), Number(booking.birthTime.slice(0, 2)), Number(booking.birthTime.slice(3, 5))) - location.timeZoneOffsetMinutes * 60_000);
   const chartSettings = { zodiac: "sidereal", ayanamsa: "lahiri", dasha: "vimshottari", houseSystem: "whole-sign", packageType: current.packageType };
@@ -161,10 +166,22 @@ export async function deliverApprovedReport(input: { reportJobId: number; versio
   const bookingRequest = await getBookingRequestById(job.bookingId);
   if (!bookingRequest) throw new Error("Booking request not found");
   const idempotencyKey = `report:${current.id}:approved:${current.pdfSha256 ?? current.versionNumber}`;
-  const existing = (await db.select().from(reportDeliveryAttempts).where(eq(reportDeliveryAttempts.idempotencyKey, idempotencyKey)).limit(1))[0];
+  let existing = (await db.select().from(reportDeliveryAttempts).where(eq(reportDeliveryAttempts.idempotencyKey, idempotencyKey)).limit(1))[0];
   if (existing?.status === "sent") return { status: "sent" as const, providerMessageId: existing.providerMessageId };
-  let attemptId = existing?.id;
-  if (!attemptId) { const inserted = await db.insert(reportDeliveryAttempts).values({ reportVersionId: current.id, recipientEmail: bookingRequest.email.toLowerCase(), status: "sending", idempotencyKey, requestedBy: input.actorId }).onDuplicateKeyUpdate({ set: { status: "sending" } }); attemptId = Number(inserted[0].insertId); }
+  if (!existing) {
+    await db.insert(reportDeliveryAttempts)
+      .values({ reportVersionId: current.id, recipientEmail: bookingRequest.email.toLowerCase(), status: "queued", idempotencyKey, requestedBy: input.actorId })
+      .onDuplicateKeyUpdate({ set: { idempotencyKey } });
+    existing = (await db.select().from(reportDeliveryAttempts).where(eq(reportDeliveryAttempts.idempotencyKey, idempotencyKey)).limit(1))[0];
+  }
+  if (!existing) throw new Error("Could not create report delivery attempt.");
+  const claim = await db.update(reportDeliveryAttempts)
+    .set({ status: "sending", errorCode: null, errorMessage: null, completedAt: null })
+    .where(and(eq(reportDeliveryAttempts.id, existing.id), inArray(reportDeliveryAttempts.status, ["queued", "failed"])));
+  if (Number(claim[0].affectedRows ?? 0) !== 1) {
+    return { status: existing.status === "sent" ? "sent" as const : "sending" as const, providerMessageId: existing.providerMessageId };
+  }
+  const attemptId = existing.id;
   try {
     const result = await sendClientReportPdf({ email: bookingRequest.email, name: bookingRequest.name, pdfKey: current.pdfStorageKey, pdfName: `vedic-report-${bookingRequest.id}.pdf`, language: bookingRequest.language });
     await db.update(reportDeliveryAttempts).set({ status: "sent", providerMessageId: result.id ?? null, completedAt: new Date() }).where(eq(reportDeliveryAttempts.id, attemptId));

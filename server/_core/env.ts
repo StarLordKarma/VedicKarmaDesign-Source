@@ -12,4 +12,6 @@ export const ENV = {
   nowpaymentsIpnSecret: process.env.NOWPAYMENTS_IPN_SECRET ?? "",
   resendApiKey: process.env.RESEND_API_KEY ?? "",
   resendFromEmail: process.env.RESEND_FROM_EMAIL ?? "",
+  publicBaseUrl: process.env.PUBLIC_BASE_URL ?? "",
+  productionSmokeSecret: process.env.PRODUCTION_SMOKE_SECRET ?? "",
 };

@@ -14,6 +14,7 @@ import { evaluateSlaHandler } from "../sla-retention";
 import { cleanupPaymentTestLabRunsHandler } from "../payment-test-retention";
 import { requestObservabilityMiddleware, trpcRateLimitMiddleware } from "../observability";
 import { healthHandler, readinessHandler } from "../health";
+import { scheduledTaskGuard } from "./scheduledAuth";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -32,15 +33,6 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
     }
   }
   throw new Error(`No available port found starting from ${startPort}`);
-}
-
-async function scheduledTaskGuard(req: express.Request, res: express.Response, next: express.NextFunction) {
-  const expected = process.env.SCHEDULED_TASK_SECRET;
-  if (!expected) return next();
-  const bearer = req.header("authorization")?.replace(/^Bearer\s+/i, "");
-  const provided = bearer ?? req.header("x-scheduled-task-secret");
-  if (provided !== expected) return res.status(401).json({ error: "Unauthorized scheduled task" });
-  next();
 }
 
 async function startServer() {

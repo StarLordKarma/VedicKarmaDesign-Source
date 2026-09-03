@@ -24,6 +24,8 @@ function context(role: "user" | "admin", openId = "test-owner"): TrpcContext {
   };
 }
 
+const dbIt = process.env.DATABASE_URL ? it : it.skip;
+
 describe("owner notifications and admin access", () => {
   it("dispatches an owner notification through the configured service", async () => {
     const fetchMock = vi.fn(async () => new Response("ok", { status: 200 }));
@@ -38,7 +40,7 @@ describe("owner notifications and admin access", () => {
     await expect(caller.admin.bookingList()).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 
-  it("loads the activity summary for the configured owner", async () => {
+  dbIt("loads the activity summary for the configured owner", async () => {
     const caller = appRouter.createCaller(context("admin", ENV.ownerOpenId));
     const summary = await caller.admin.activitySummary({ from: "2020-01-01", to: "2099-12-31" });
     const pricing = await caller.admin.pricing();
@@ -53,7 +55,7 @@ describe("owner notifications and admin access", () => {
     }));
   });
 
-  it("persists owner pricing updates and reads them back", async () => {
+  dbIt("persists owner pricing updates and reads them back", async () => {
     const caller = appRouter.createCaller(context("admin", ENV.ownerOpenId));
     const original = await getServicePricing("USD");
     try {
@@ -69,7 +71,7 @@ describe("owner notifications and admin access", () => {
     }
   });
 
-  it("persists owner receipt retention and rejects non-owner changes", async () => {
+  dbIt("persists owner receipt retention and rejects non-owner changes", async () => {
     const owner = appRouter.createCaller(context("admin", ENV.ownerOpenId));
     const nonOwner = appRouter.createCaller(context("admin", "another-admin"));
     const original = await getReceiptRetentionHours();
@@ -87,7 +89,7 @@ describe("owner notifications and admin access", () => {
     await expect(nonOwner.admin.runManualSmokeTest()).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 
-  it("exports pricing history CSV only for the configured owner", async () => {
+  dbIt("exports pricing history CSV only for the configured owner", async () => {
     const owner = appRouter.createCaller(context("admin", ENV.ownerOpenId));
     const nonOwner = appRouter.createCaller(context("admin", "another-admin"));
     const result = await owner.admin.exportPricingHistoryCsv();
@@ -96,7 +98,7 @@ describe("owner notifications and admin access", () => {
     await expect(nonOwner.admin.exportPricingHistoryCsv()).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 
-  it("filters pricing history by currency and inclusive UTC date range", async () => {
+  dbIt("filters pricing history by currency and inclusive UTC date range", async () => {
     const caller = appRouter.createCaller(context("admin", ENV.ownerOpenId));
     const eurHistory = await caller.admin.pricingHistory({ currency: "EUR" });
     expect(eurHistory.items.every((entry) => entry.currency === "EUR")).toBe(true);
@@ -105,7 +107,7 @@ describe("owner notifications and admin access", () => {
     await expect(caller.admin.pricingHistory({ from: "2026-08-22", to: "2026-08-01" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
   });
 
-  it("paginates pricing history while preserving filter metadata", async () => {
+  dbIt("paginates pricing history while preserving filter metadata", async () => {
     const caller = appRouter.createCaller(context("admin", ENV.ownerOpenId));
     const page = await caller.admin.pricingHistory({ page: 2, pageSize: 2, currency: "USD" });
     expect(page.page).toBe(2);
@@ -114,7 +116,7 @@ describe("owner notifications and admin access", () => {
     expect(page.items.every((entry) => entry.currency === "USD")).toBe(true);
   });
 
-  it("records smoke-test runs and exposes them only to the owner", async () => {
+  dbIt("records smoke-test runs and exposes them only to the owner", async () => {
     const runId = `production-smoke-${Date.now()}`;
     const owner = appRouter.createCaller(context("admin", ENV.ownerOpenId));
     const nonOwner = appRouter.createCaller(context("admin", "another-admin"));
@@ -126,7 +128,7 @@ describe("owner notifications and admin access", () => {
     await expect(owner.admin.smokeTestRuns({ status: "succeeded", sort: "duration_desc", page: 1, pageSize: 10 })).resolves.toEqual(expect.objectContaining({ total: expect.any(Number), items: expect.any(Array) }));
   });
 
-  it("filters, sorts, and paginates smoke-test runs with correct metadata", async () => {
+  dbIt("filters, sorts, and paginates smoke-test runs with correct metadata", async () => {
     const owner = appRouter.createCaller(context("admin", ENV.ownerOpenId));
     const base = Date.now();
     const runIds = [0, 1, 2].map((offset) => `production-smoke-${base + offset}`);
@@ -151,7 +153,7 @@ describe("owner notifications and admin access", () => {
     expect(startedTimes.every((time, index) => index === 0 || startedTimes[index - 1] >= time)).toBe(true);
   });
 
-  it("rejects unsupported currencies and defaults missing public currency to USD", async () => {
+  dbIt("rejects unsupported currencies and defaults missing public currency to USD", async () => {
     const owner = appRouter.createCaller(context("admin", ENV.ownerOpenId));
     const publicCaller = appRouter.createCaller(context("user"));
     await expect(owner.admin.updatePricing({ currency: "JPY" as never, basicUsd: 40, numerologyAddonUsd: 15 })).rejects.toMatchObject({ code: "BAD_REQUEST" });
@@ -166,7 +168,7 @@ describe("owner notifications and admin access", () => {
     await expect(caller.admin.activitySummary({ from: "2026-02-01", to: "2026-01-01" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
   });
 
-  it("exports the owner activity CSV for the configured owner", async () => {
+  dbIt("exports the owner activity CSV for the configured owner", async () => {
     const caller = appRouter.createCaller(context("admin", ENV.ownerOpenId));
     const result = await caller.admin.exportActivityCsv({ from: "2020-01-01", to: "2099-12-31" });
     expect(result.filename).toMatch(/^jyotish-activity-\d{4}-\d{2}-\d{2}\.csv$/);

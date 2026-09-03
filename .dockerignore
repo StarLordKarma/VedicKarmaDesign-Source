@@ -1,0 +1,14 @@
+.git
+.github
+.manus-logs
+.env
+.env.*
+!.env.example
+!deploy/.env.standalone.example
+node_modules
+dist
+coverage
+*.log
+*.tar
+*.tar.gz
+*.zip

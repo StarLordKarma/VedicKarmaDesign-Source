@@ -1,4 +1,5 @@
 import PDFDocument from "pdfkit";
+import { existsSync } from "node:fs";
 import type { BookingRequest, ServicePricingHistory } from "../drizzle/schema";
 import type { AdminActivityEvents } from "./db";
 import { formatCurrency, type SupportedCurrency } from "../shared/currency";
@@ -218,8 +219,11 @@ export async function buildFullNatalReportPdf(input: { background: Buffer; local
   const result = new Promise<Buffer>((resolve, reject) => { doc.on("data", (chunk) => chunks.push(Buffer.from(chunk))); doc.on("end", () => resolve(Buffer.concat(chunks))); doc.on("error", reject); });
   const width = doc.page.width;
   const height = doc.page.height;
-  const fontName = input.fontPath ? "ReportSans" : "Helvetica";
-  if (input.fontPath) doc.registerFont(fontName, input.fontPath);
+  const configuredFont = input.fontPath || process.env.REPORT_FONT_PATH || "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf";
+  const fontPath = existsSync(configuredFont) ? configuredFont : undefined;
+  if (input.locale === "ru" && !fontPath) throw new Error("A Unicode REPORT_FONT_PATH is required for Russian PDF reports.");
+  const fontName = fontPath ? "ReportSans" : "Helvetica";
+  if (fontPath) doc.registerFont(fontName, fontPath);
   const factsText = JSON.stringify(input.facts).slice(0, 1800);
   const sectionLabels = input.locale === "ru" ? ["Обзор карты", "Асцендент и дома", "Планетные акценты", "Накшатры", "Vimshottari dasha", "Практика рефлексии"] : input.locale === "de" ? ["Kartenübersicht", "Aszendent und Häuser", "Planetenbetonungen", "Nakshatras", "Vimshottari-Dasha", "Reflexionspraxis"] : ["Chart overview", "Ascendant and houses", "Planetary emphasis", "Nakshatras", "Vimshottari dasha", "Reflective practice"];
   const disclaimer = copy.disclaimer;

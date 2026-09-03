@@ -1,6 +1,16 @@
 import type { Express } from "express";
 import { ENV } from "./env";
 import { isReceiptFileActive } from "../db";
+import { sdk } from "./sdk";
+
+async function isOwnerRequest(req: Parameters<typeof sdk.authenticateRequest>[0]) {
+  try {
+    const user = await sdk.authenticateRequest(req);
+    return Boolean(ENV.ownerOpenId) && user.openId === ENV.ownerOpenId;
+  } catch {
+    return false;
+  }
+}
 
 export function registerStorageProxy(app: Express) {
   app.get("/manus-storage/*", async (req, res) => {
@@ -10,8 +20,13 @@ export function registerStorageProxy(app: Express) {
       return;
     }
 
-    if (key.startsWith("price-breakdowns/") && !(await isReceiptFileActive(key))) {
-      res.status(410).send("Receipt link expired");
+    if (key.startsWith("price-breakdowns/")) {
+      if (!(await isReceiptFileActive(key))) {
+        res.status(410).send("Receipt link expired");
+        return;
+      }
+    } else if (!(await isOwnerRequest(req))) {
+      res.status(403).send("Owner authorization required");
       return;
     }
 

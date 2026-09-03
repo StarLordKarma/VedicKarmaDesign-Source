@@ -488,7 +488,9 @@ export async function updateBookingPaymentStatus(input: {
     .limit(1);
   if (!current[0]) return { previousStatus: null, isConfirmed: false, missing: true };
   const previousStatus = current[0].paymentStatus;
-  const isConfirmed = ["finished", "confirmed", "partially_paid"].includes(input.paymentStatus);
+  // A fixed-price order must never be fulfilled from an underpayment. NOWPayments
+  // reports those separately so the owner can reconcile or request the remainder.
+  const isConfirmed = ["finished", "confirmed"].includes(input.paymentStatus);
   await db.update(bookingRequests).set({
     ...(input.paymentId ? { paymentId: input.paymentId } : {}),
     paymentStatus: input.paymentStatus,

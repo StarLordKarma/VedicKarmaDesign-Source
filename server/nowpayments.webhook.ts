@@ -15,11 +15,11 @@ export function stableStringify(value: unknown): string {
 }
 
 export function mapPaymentStatusToBookingStatus(paymentStatus: string) {
-  return ["finished", "confirmed", "partially_paid"].includes(paymentStatus) ? "in_progress" : "new";
+  return ["finished", "confirmed"].includes(paymentStatus) ? "in_progress" : "new";
 }
 
 export function shouldNotifyPayment(previousStatus: string | null, nextStatus: string) {
-  return ["finished", "confirmed", "partially_paid"].includes(nextStatus) && previousStatus !== nextStatus;
+  return ["finished", "confirmed"].includes(nextStatus) && previousStatus !== nextStatus;
 }
 
 export async function processSignedNowPaymentsIpn(input: {

@@ -21,6 +21,12 @@ vi.mock("./_core/notification", () => ({ notifyOwner: mocks.notifyOwner }));
 
 import { appRouter } from "./routers";
 
+const smokeRequest = () => ({
+  protocol: "https",
+  get: () => "example.test",
+  header: (name: string) => name.toLowerCase() === "x-production-smoke-secret" ? process.env.PRODUCTION_SMOKE_SECRET : undefined,
+}) as never;
+
 describe("booking pricing integration", () => {
   beforeEach(() => { mocks.getServicePricing.mockClear(); mocks.getActiveServicePackage.mockReset(); mocks.getActiveServicePackage.mockImplementation(async (code: "basic" | "basic_plus") => ({ id: code === "basic" ? 1 : 2, code, version: 1, active: true })); mocks.createBookingRequest.mockClear(); mocks.createSmokeTestRun.mockClear(); mocks.finishSmokeTestRun.mockClear(); mocks.createCheckoutForBooking.mockReset(); mocks.createCheckoutForBooking.mockImplementation(async (input: { totalUsd: number; addon: boolean; priceCurrency?: string }) => ({ id: "invoice-77", invoice_url: "https://checkout.test/invoice-77", totalUsd: input.totalUsd, addon: input.addon, priceCurrency: input.priceCurrency })); mocks.deleteBookingRequest.mockClear(); });
 
@@ -54,7 +60,7 @@ describe("booking pricing integration", () => {
   });
 
   it("cleans up a marked smoke-test booking after successful checkout creation", async () => {
-    const caller = appRouter.createCaller({ req: { protocol: "https", get: () => "example.test" } as never, res: {} as never, user: null });
+    const caller = appRouter.createCaller({ req: smokeRequest(), res: {} as never, user: null });
     const result = await caller.booking.submit({ name: "Smoke Test", email: "production-smoke-1724320000100@example.com", birthDate: "1990-04-12", birthTime: "08:30", birthCity: "Berlin", birthCountry: "Germany", language: "English", addon: false, interest: "Automated production checkout verification", privacyAcknowledged: true, privacyNoticeVersion: "privacy-2026-08", privacyLocale: "en", smokeTest: true, smokeTestRunId: "production-smoke-1724320000100" });
     expect(result.smokeTestCleanup).toBe("completed");
     expect(mocks.deleteBookingRequest).toHaveBeenCalledWith(77);
@@ -62,7 +68,7 @@ describe("booking pricing integration", () => {
 
   it("cleans up a marked smoke-test booking when checkout creation fails", async () => {
     mocks.createCheckoutForBooking.mockRejectedValueOnce(new Error("provider unavailable"));
-    const caller = appRouter.createCaller({ req: { protocol: "https", get: () => "example.test" } as never, res: {} as never, user: null });
+    const caller = appRouter.createCaller({ req: smokeRequest(), res: {} as never, user: null });
     await expect(caller.booking.submit({ name: "Smoke Test", email: "production-smoke-1724320000101@example.com", birthDate: "1990-04-12", birthTime: "08:30", birthCity: "Berlin", birthCountry: "Germany", language: "English", addon: false, interest: "Automated production checkout verification", privacyAcknowledged: true, privacyNoticeVersion: "privacy-2026-08", privacyLocale: "en", smokeTest: true, smokeTestRunId: "production-smoke-1724320000101" })).rejects.toMatchObject({ code: "INTERNAL_SERVER_ERROR" });
     expect(mocks.deleteBookingRequest).toHaveBeenCalledWith(77);
   });

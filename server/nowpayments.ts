@@ -100,8 +100,9 @@ export async function createNowPaymentsPayment(input: {
   });
 }
 
-export function verifyNowPaymentsSignature(rawBody: string, signature: string) {
-  const expected = createHmac("sha512", ENV.nowpaymentsIpnSecret)
+export function verifyNowPaymentsSignature(rawBody: string, signature: string, secret = ENV.nowpaymentsIpnSecret) {
+  if (!secret) return false;
+  const expected = createHmac("sha512", secret)
     .update(rawBody)
     .digest("hex");
   const expectedBuffer = Buffer.from(expected, "utf8");
@@ -110,6 +111,7 @@ export function verifyNowPaymentsSignature(rawBody: string, signature: string) {
 }
 
 /** Server-only helper. It is never exposed through a public route or browser bundle. */
-export function signNowPaymentsPayloadForTest(rawBody: string) {
-  return createHmac("sha512", ENV.nowpaymentsIpnSecret).update(rawBody).digest("hex");
+export function signNowPaymentsPayloadForTest(rawBody: string, secret = ENV.nowpaymentsIpnSecret) {
+  if (!secret) throw new Error("NOWPAYMENTS_IPN_SECRET is required to sign a test payload.");
+  return createHmac("sha512", secret).update(rawBody).digest("hex");
 }

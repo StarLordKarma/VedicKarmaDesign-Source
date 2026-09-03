@@ -4,12 +4,12 @@ import { READING_PRICES } from "./pricing";
 export const PRIVACY_NOTICE_VERSION = "privacy-2026-08";
 
 export const bookingSchema = z.object({
-  name: z.string().trim().min(2, "Please enter your name."),
-  email: z.string().trim().email("Please enter a valid email."),
-  birthDate: z.string().min(1, "Birth date is required."),
-  birthTime: z.string().min(1, "Exact birth time is required."),
-  birthCity: z.string().trim().min(2, "Birth city is required."),
-  birthCountry: z.string().trim().min(2, "Birth country is required."),
+  name: z.string().trim().min(2, "Please enter your name.").max(160),
+  email: z.string().trim().email("Please enter a valid email.").max(320),
+  birthDate: z.string().date("Please enter a valid birth date."),
+  birthTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Please enter a valid birth time."),
+  birthCity: z.string().trim().min(2, "Birth city is required.").max(160),
+  birthCountry: z.string().trim().min(2, "Birth country is required.").max(160),
   language: z.enum(["English", "Русский", "Deutsch", "Español"]),
   addon: z.boolean(),
   currency: z.enum(["USD", "EUR", "GBP"]).default("USD"),

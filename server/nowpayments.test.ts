@@ -1,6 +1,5 @@
-import { createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { buildInvoicePayload, verifyNowPaymentsSignature } from "./nowpayments";
+import { buildInvoicePayload, signNowPaymentsPayloadForTest, verifyNowPaymentsSignature } from "./nowpayments";
 import { mapPaymentStatusToBookingStatus, shouldNotifyPayment } from "./nowpayments.webhook";
 import { CHECKOUT_REDIRECT_DELAY_MS, getCheckoutButtonLabel, getCheckoutSuccessMessage } from "@shared/payment-ux";
 
@@ -30,18 +29,20 @@ describe("NOWPayments integration helpers", () => {
 
   it("accepts a valid IPN signature and rejects a tampered one", () => {
     const body = JSON.stringify({ order_id: "booking-42", payment_status: "finished" });
-    const secret = process.env.NOWPAYMENTS_IPN_SECRET ?? "test-secret";
-    const signature = createHmac("sha512", secret).update(body).digest("hex");
-    expect(verifyNowPaymentsSignature(body, signature)).toBe(true);
-    expect(verifyNowPaymentsSignature(body + "x", signature)).toBe(false);
+    const signature = signNowPaymentsPayloadForTest(body, "test-secret");
+    expect(verifyNowPaymentsSignature(body, signature, "test-secret")).toBe(true);
+    expect(verifyNowPaymentsSignature(body + "x", signature, "test-secret")).toBe(false);
+    expect(verifyNowPaymentsSignature(body, signature, "")).toBe(false);
   });
 
   it("maps settled statuses into an actionable booking status", () => {
     expect(mapPaymentStatusToBookingStatus("finished")).toBe("in_progress");
+    expect(mapPaymentStatusToBookingStatus("partially_paid")).toBe("new");
     expect(mapPaymentStatusToBookingStatus("waiting")).toBe("new");
     expect(mapPaymentStatusToBookingStatus("failed")).toBe("new");
     expect(shouldNotifyPayment("waiting", "finished")).toBe(true);
     expect(shouldNotifyPayment("finished", "finished")).toBe(false);
+    expect(shouldNotifyPayment("waiting", "partially_paid")).toBe(false);
   });
 
   it("keeps payment UX states deterministic", () => {

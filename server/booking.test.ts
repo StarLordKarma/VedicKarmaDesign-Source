@@ -36,6 +36,12 @@ describe("booking validation", () => {
     expect(bookingSchema.safeParse({ ...validBooking, currency: "JPY" }).success).toBe(false);
   });
 
+  it("rejects malformed or oversized birth details", () => {
+    expect(bookingSchema.safeParse({ ...validBooking, birthDate: "1990-99-99" }).success).toBe(false);
+    expect(bookingSchema.safeParse({ ...validBooking, birthTime: "29:75" }).success).toBe(false);
+    expect(bookingSchema.safeParse({ ...validBooking, birthCity: "x".repeat(161) }).success).toBe(false);
+  });
+
   it("creates immutable package snapshots with deterministic totals", () => {
     expect(buildBookingPriceSnapshot({ addon: false, currency: "USD", basicAmount: 25, addonAmount: 10 })).toEqual({ packageCode: "basic", packageVersion: 1, currency: "USD", basicAmount: 25, addonAmount: 0, totalAmount: 25 });
     expect(buildBookingPriceSnapshot({ addon: true, currency: "EUR", basicAmount: 23, addonAmount: 9 })).toEqual({ packageCode: "basic_plus", packageVersion: 1, currency: "EUR", basicAmount: 23, addonAmount: 9, totalAmount: 32 });

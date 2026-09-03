@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { existsSync } from "node:fs";
 import { buildActivityCsv, buildBookingsCsv, buildCheckoutBreakdownPdf, buildReportStylePreviewPdf, buildPricingHistoryCsv, buildSlaEvaluationRunsCsv, buildSmokeTestRunsCsv, decodePdfBase64, sanitizePdfName } from "./export";
 import { attachNatalPdfSchema } from "@shared/admin";
 import type { BookingRequest } from "../drizzle/schema";
@@ -95,7 +96,9 @@ describe("admin exports and PDF validation", () => {
 
   it("builds a one-page localized report style prototype with a background image", async () => {
     const background = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64");
-    const pdf = await buildReportStylePreviewPdf({ background, locale: "ru", packageType: "basic", fontPath: "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf" });
+    const fontPath = [process.env.REPORT_FONT_PATH, "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", "/System/Library/Fonts/Supplemental/Arial.ttf"].find((candidate) => candidate && existsSync(candidate));
+    expect(fontPath).toBeTruthy();
+    const pdf = await buildReportStylePreviewPdf({ background, locale: "ru", packageType: "basic", fontPath: fontPath! });
     expect(pdf.subarray(0, 8).toString("ascii")).toContain("%PDF");
     expect(pdf.length).toBeGreaterThan(2000);
     expect(pdf.toString("latin1")).toContain("/Count 1");

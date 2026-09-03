@@ -22,6 +22,20 @@ import { approveReportVersion, createReportStudioTestJob, deleteReportStudioTest
 import { AI_NARRATIVE_MODELS } from "./report-narrative";
 import { createClientStatusLink, getPublicClientStatus, listClientStatusLinks, revokeClientStatusLink } from "./client-status";
 import { evaluateSla, getOwnerMetrics, getSlaEvaluationRuns, getSlaSettings, setSlaSettings } from "./sla";
+import { timingSafeEqual } from "node:crypto";
+
+function secretsMatch(expected: string, provided: string | undefined) {
+  if (!expected || !provided) return false;
+  const left = Buffer.from(expected);
+  const right = Buffer.from(provided);
+  return left.length === right.length && timingSafeEqual(left, right);
+}
+
+function getPublicOrigin(req: { protocol: string; get(name: string): string | undefined }) {
+  if (ENV.publicBaseUrl) return ENV.publicBaseUrl.replace(/\/+$/, "");
+  if (ENV.isProduction) throw new Error("PUBLIC_BASE_URL must be configured in production.");
+  return `${req.protocol}://${req.get("host")}`;
+}
 
 async function cleanupSmokeTestBooking(input: Parameters<typeof isProductionSmokeTestBooking>[0], bookingId: number, reason: "success" | "failure") {
   if (!isProductionSmokeTestBooking(input)) return false;
@@ -208,14 +222,19 @@ export const appRouter = router({
         paymentStatus: "creating",
       });
       const smokeRunStartedAt = Date.now();
-      const isSmokeRun = isProductionSmokeTestBooking(input);
+      const requestedSmokeRun = isProductionSmokeTestBooking(input);
+      const isSmokeRun = requestedSmokeRun && secretsMatch(ENV.productionSmokeSecret, ctx.req.header("x-production-smoke-secret"));
+      if (requestedSmokeRun && !isSmokeRun) {
+        await deleteBookingRequest(result.id);
+        throw new TRPCError({ code: "FORBIDDEN", message: "Production smoke-test authorization failed." });
+      }
       if (isSmokeRun) await createSmokeTestRun(input.smokeTestRunId!);
       void notifyOwner({
         title: "New Vedic astrology booking",
         content: `${input.name} (${input.email}) requested a $${totalUsd} reading. Birth details: ${input.birthCity}, ${input.birthCountry}; ${input.birthDate} at ${input.birthTime}. Payment checkout is being created.`,
       });
       try {
-        const origin = `${ctx.req.protocol}://${ctx.req.get("host")}`;
+        const origin = getPublicOrigin(ctx.req);
         const invoice = await createCheckoutForBooking({
           bookingId: result.id,
           totalUsd,
