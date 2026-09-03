@@ -39,6 +39,7 @@ export async function processSignedNowPaymentsIpn(input: {
 export function registerNowPaymentsWebhook(app: Express) {
   const ipnRateLimit = createRateLimit({ name: "payment-ipn", windowMs: 60_000, max: 60 });
   app.post("/api/nowpayments/ipn", ipnRateLimit, async (req, res) => {
+    try {
     const signature = req.header("x-nowpayments-sig");
     const result = await processSignedNowPaymentsIpn({ body: req.body as { order_id?: string; payment_id?: number; payment_status?: string }, signature });
     if (!result.accepted && result.status === 401) {
@@ -54,5 +55,9 @@ export function registerNowPaymentsWebhook(app: Express) {
     const requestId = (req as unknown as CorrelatedRequest).requestId;
     logStructuredEvent("info", "payment.ipn.accepted", { requestId, bookingId: result.bookingId });
     res.status(200).json({ received: true, requestId });
+    } catch {
+      logStructuredEvent("error", "payment.ipn.processing_failed", { requestId: (req as unknown as CorrelatedRequest).requestId });
+      res.status(503).json({ error: "Payment notification could not be processed; retry later." });
+    }
   });
 }

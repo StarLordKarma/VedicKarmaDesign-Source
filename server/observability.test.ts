@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createRateLimit, sanitizeLogMeta, trpcRateLimitMiddleware } from "./observability";
+import { createRateLimit, sanitizeLogMeta, trpcRateLimitMiddleware, redactRequestPath } from "./observability";
 
 function request(ip = "203.0.113.10") {
   return { ip, socket: { remoteAddress: ip }, header: () => undefined } as any;
@@ -17,6 +17,11 @@ function response() {
 }
 
 describe("observability", () => {
+  it("does not log private status tokens or document keys", () => {
+    expect(redactRequestPath("/status/private-token")).toBe("/status/[redacted]");
+    expect(redactRequestPath("/manus-storage/reports/private.pdf")).toBe("/manus-storage/[redacted]");
+    expect(redactRequestPath("/health")).toBe("/health");
+  });
   it("redacts sensitive keys without changing safe metadata", () => {
     expect(sanitizeLogMeta({ requestId: "req-1", bookingId: 12, email: "person@example.com", birthDate: "1990-01-01", nested: { token: "secret" } })).toEqual({
       requestId: "req-1",

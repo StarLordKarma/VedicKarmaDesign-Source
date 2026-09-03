@@ -1,11 +1,11 @@
 import { createHash } from "node:crypto";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { calculationResults, calculationSnapshots, narrativeDrafts, reportAuditEvents, reportDeliveryAttempts, reportJobs, reportSections, reportStudioProcessingSettings, reportVersions } from "../drizzle/schema";
 import { createBookingRequest, deleteBookingRequest, getBookingRequestById, getDb } from "./db";
 import { calculateVedicSnapshot } from "./vedic-astrology-calculator";
 import { buildFullNatalReportPdf } from "./export";
 import { resolveBirthLocation } from "./report-geocoding";
-import { generateNarrativeDraft } from "./report-narrative";
+import { generateNarrativeDraft, validateNarrativeDraft } from "./report-narrative";
 import { storagePut } from "./storage";
 import { sendClientReportPdf } from "./client-delivery";
 
@@ -24,10 +24,14 @@ export async function enqueueReportJobForBooking(bookingId: number, confirmedBy 
   const idempotencyKey = `${bookingId}:1:${inputHash}:${REPORT_TEMPLATE_VERSION}`;
   const db = await getDb();
   if (!db) return { created: false, reason: "database-unavailable" as const };
-  const existing = await db.select().from(reportJobs).where(eq(reportJobs.idempotencyKey, idempotencyKey)).limit(1);
+  const existing = await db.select().from(reportJobs).where(and(eq(reportJobs.bookingId, bookingId), eq(reportJobs.reportVersion, 1))).limit(1);
   if (existing[0]) return { created: false, duplicate: true, job: existing[0] };
-  const result = await db.insert(reportJobs).values({ bookingId, reportVersion: 1, packageType: booking.addon ? "basic_plus" : "basic", language: input.language, status: "queued", idempotencyKey, inputHash, queuedAt: new Date() });
+  const result = await db.insert(reportJobs).values({ bookingId, reportVersion: 1, packageType: booking.addon ? "basic_plus" : "basic", language: input.language, status: "queued", idempotencyKey, inputHash, queuedAt: new Date() }).onDuplicateKeyUpdate({ set: { idempotencyKey } });
   const jobId = Number(result[0].insertId);
+  if (!jobId) {
+    const duplicate = (await db.select().from(reportJobs).where(eq(reportJobs.idempotencyKey, idempotencyKey)).limit(1))[0];
+    return { created: false, duplicate: true, job: duplicate };
+  }
   await db.insert(reportAuditEvents).values({ reportJobId: jobId, eventType: "job_queued", actorType: "system", actorId: confirmedBy, fromStatus: "paid", toStatus: "queued", metadataJson: JSON.stringify({ bookingId }) });
   return { created: true, jobId, idempotencyKey };
 }
@@ -41,10 +45,11 @@ export async function getReportProcessingSettings() {
   return (await db.select().from(reportStudioProcessingSettings).where(eq(reportStudioProcessingSettings.id, 1)).limit(1))[0];
 }
 
-export async function setReportProcessingSettings(input: { autoProcessEnabled: boolean; actorId: string }) {
+export async function setReportProcessingSettings(input: { autoProcessEnabled: boolean; actorId: string; aiModel?: string; maxTokens?: number; maxSections?: number; maxParagraphChars?: number }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
-  await db.insert(reportStudioProcessingSettings).values({ id: 1, autoProcessEnabled: input.autoProcessEnabled, updatedBy: input.actorId }).onDuplicateKeyUpdate({ set: { autoProcessEnabled: input.autoProcessEnabled, updatedBy: input.actorId } });
+  const values = { autoProcessEnabled: input.autoProcessEnabled, updatedBy: input.actorId, ...(input.aiModel !== undefined ? { aiModel: input.aiModel } : {}), ...(input.maxTokens !== undefined ? { maxTokens: input.maxTokens } : {}), ...(input.maxSections !== undefined ? { maxSections: input.maxSections } : {}), ...(input.maxParagraphChars !== undefined ? { maxParagraphChars: input.maxParagraphChars } : {}) };
+  await db.insert(reportStudioProcessingSettings).values({ id: 1, ...values }).onDuplicateKeyUpdate({ set: values });
   return getReportProcessingSettings();
 }
 
@@ -55,7 +60,7 @@ export async function isReportStudioAutoProcessingEnabled() {
 export async function listReportReviewJobs() {
   const db = await getDb();
   if (!db) return [];
-  return db.select({ job: reportJobs, version: reportVersions }).from(reportJobs).leftJoin(reportVersions, eq(reportVersions.reportJobId, reportJobs.id)).orderBy(desc(reportJobs.createdAt));
+  return db.select({ job: reportJobs, version: reportVersions }).from(reportJobs).leftJoin(reportVersions, and(eq(reportVersions.reportJobId, reportJobs.id), sql`${reportVersions.versionNumber} = (select max(rv.versionNumber) from report_versions rv where rv.reportJobId = ${reportJobs.id})`)).orderBy(desc(reportJobs.createdAt));
 }
 
 export async function createReportStudioTestJob(input: { packageType: "basic" | "basic_plus"; language: "en" | "ru" | "de"; actorId: string }) {
@@ -99,7 +104,7 @@ export async function getReportReviewJob(reportJobId: number) {
   const booking = await getBookingRequestById(job.bookingId);
   const versions = await db.select().from(reportVersions).where(eq(reportVersions.reportJobId, reportJobId)).orderBy(desc(reportVersions.versionNumber));
   const result = (await db.select().from(calculationResults).where(eq(calculationResults.reportJobId, reportJobId)).limit(1))[0];
-  const narrative = (await db.select().from(narrativeDrafts).where(eq(narrativeDrafts.reportJobId, reportJobId)).orderBy(desc(narrativeDrafts.createdAt)).limit(1))[0];
+  const narrative = (await db.select().from(narrativeDrafts).where(eq(narrativeDrafts.reportJobId, reportJobId)).orderBy(desc(narrativeDrafts.createdAt), desc(narrativeDrafts.id)).limit(1))[0];
   return { job, booking, versions, calculation: result, narrative };
 }
 
@@ -111,6 +116,11 @@ export async function processReportJob(input: { reportJobId: number; actorId: st
   if (!["queued", "paid", "calculation_failed", "render_failed"].includes(current.status)) return { skipped: true, job: current };
   const booking = await getBookingRequestById(current.bookingId);
   if (!booking) throw new Error("Booking request not found");
+  if (current.attemptCount >= 3) throw new Error("Retry limit reached. Review the cause before creating a new report job.");
+  if (!current.testJob) {
+    const frozenHash = sha256(JSON.stringify({ bookingId: booking.id, birthDate: booking.birthDate, birthTime: booking.birthTime, birthCity: booking.birthCity, birthCountry: booking.birthCountry, language: languageCode(booking.language), addon: Boolean(booking.addon) }));
+    if (frozenHash !== current.inputHash) throw new Error("Birth details changed after payment. A new reviewed snapshot is required.");
+  }
   try {
     const claim = await db.update(reportJobs)
       .set({ status: "calculating", startedAt: new Date(), attemptCount: current.attemptCount + 1, lastErrorCode: null, lastErrorMessage: null })
@@ -119,6 +129,7 @@ export async function processReportJob(input: { reportJobId: number; actorId: st
       return { skipped: true, job: current, reason: "already-claimed" as const };
     }
   const location = await resolveBirthLocation({ city: booking.birthCity, country: booking.birthCountry, birthDate: booking.birthDate, birthTime: booking.birthTime });
+  if (location.qualityFlags.length) throw new Error(`Birth location requires manual review: ${location.qualityFlags.join(", ")}`);
   const birthUtc = new Date(Date.UTC(Number(booking.birthDate.slice(0, 4)), Number(booking.birthDate.slice(5, 7)) - 1, Number(booking.birthDate.slice(8, 10)), Number(booking.birthTime.slice(0, 2)), Number(booking.birthTime.slice(3, 5))) - location.timeZoneOffsetMinutes * 60_000);
   const chartSettings = { zodiac: "sidereal", ayanamsa: "lahiri", dasha: "vimshottari", houseSystem: "whole-sign", packageType: current.packageType };
   const qualityFlags = { source: location.source, timezone: location.timezone, formattedAddress: location.formattedAddress, locationType: location.locationType, warnings: location.qualityFlags };
@@ -203,9 +214,49 @@ export async function approveReportVersion(input: { reportJobId: number; version
   if (!db) throw new Error("Database is not available");
   const version = (await db.select().from(reportVersions).where(and(eq(reportVersions.id, input.versionId), eq(reportVersions.reportJobId, input.reportJobId))).limit(1))[0];
   if (!version || !version.pdfStorageKey) throw new Error("Report version with PDF not found");
-  await db.update(reportVersions).set({ status: "approved", approvedAt: new Date(), approvedBy: input.actorId, editorSummary: input.summary?.slice(0, 1000) ?? null }).where(eq(reportVersions.id, version.id));
-  await db.update(reportJobs).set({ status: "approved", updatedAt: new Date() }).where(eq(reportJobs.id, input.reportJobId));
-  await db.insert(reportAuditEvents).values({ reportJobId: input.reportJobId, eventType: "pdf_approved", actorType: "owner", actorId: input.actorId, fromStatus: "needs_review", toStatus: "approved", metadataJson: JSON.stringify({ versionId: input.versionId }) });
+  const job = (await db.select().from(reportJobs).where(eq(reportJobs.id, input.reportJobId)).limit(1))[0];
+  if (!job || job.testJob) throw new Error("Synthetic test reports cannot be approved or delivered.");
+  if (job.status !== "needs_review") throw new Error("This job is not awaiting owner review.");
+  const calculation = (await db.select().from(calculationResults).where(eq(calculationResults.reportJobId, job.id)).limit(1))[0];
+  if (calculation?.validationStatus !== "valid") throw new Error("Validated calculation facts are required before approval.");
+  if (version.status !== "needs_review") throw new Error("Only a report awaiting review can be approved.");
+  await db.transaction(async tx => {
+    const claim = await tx.update(reportJobs).set({ status: "approved", updatedAt: new Date() }).where(and(eq(reportJobs.id, input.reportJobId), eq(reportJobs.status, "needs_review")));
+    if (Number(claim[0].affectedRows ?? 0) !== 1) throw new Error("The report is being changed. Refresh the job.");
+    const approval = await tx.update(reportVersions).set({ status: "approved", approvedAt: new Date(), approvedBy: input.actorId, editorSummary: input.summary?.slice(0, 1000) ?? null }).where(and(eq(reportVersions.id, version.id), eq(reportVersions.status, "needs_review")));
+    if (Number(approval[0].affectedRows ?? 0) !== 1) throw new Error("This version has already been reviewed. Refresh the job.");
+    await tx.insert(reportAuditEvents).values({ reportJobId: input.reportJobId, eventType: "pdf_approved", actorType: "owner", actorId: input.actorId, fromStatus: "needs_review", toStatus: "approved", metadataJson: JSON.stringify({ versionId: input.versionId }) });
+  });
   const delivery = await deliverApprovedReport({ reportJobId: input.reportJobId, versionId: version.id, actorId: input.actorId });
   return { approved: true, versionId: version.id, delivery };
+}
+
+export async function reviseReportNarrative(input: { reportJobId: number; baseVersionId: number; narrativeJson: string; actorId: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const detail = await getReportReviewJob(input.reportJobId);
+  const base = detail?.versions[0];
+  if (!detail?.booking || !base || base.id !== input.baseVersionId || base.status !== "needs_review" || detail.job.status !== "needs_review") throw new Error("Only the current unapproved draft can be edited. Refresh the report.");
+  if (detail.calculation?.validationStatus !== "valid") throw new Error("Validated facts are required.");
+  const facts = JSON.parse(detail.calculation.factsJson);
+  const narrative = validateNarrativeDraft(JSON.parse(input.narrativeJson), facts);
+  if (narrative.locale !== detail.job.language) throw new Error("Narrative language must match the report.");
+  const claim = await db.update(reportJobs).set({ status: "rendering" }).where(and(eq(reportJobs.id, detail.job.id), eq(reportJobs.status, "needs_review")));
+  if (Number(claim[0].affectedRows ?? 0) !== 1) throw new Error("This report is being changed by another request.");
+  try {
+    const versionNumber = base.versionNumber + 1;
+    const pdf = await buildFullNatalReportPdf({ background: EMPTY_BACKGROUND, locale: narrative.locale, clientName: detail.booking.name, packageType: detail.job.packageType, narrative, facts });
+    const stored = await storagePut(`report-studio/${detail.job.id}/v${versionNumber}-preview.pdf`, pdf, "application/pdf");
+    await db.transaction(async tx => {
+      await tx.insert(narrativeDrafts).values({ reportJobId: detail.job.id, locale: narrative.locale, modelName: detail.narrative?.modelName ?? "owner-edited", modelVersion: narrative.modelVersion, promptVersion: narrative.promptVersion, narrativeJson: JSON.stringify(narrative), validationStatus: "valid", createdBy: input.actorId });
+      await tx.insert(reportVersions).values({ reportJobId: detail.job.id, versionNumber, templateVersion: base.templateVersion, locale: narrative.locale, pdfStorageKey: stored.key, pdfSha256: sha256(pdf.toString("base64")), status: "needs_review", editorSummary: "Owner revised narrative" });
+      await tx.update(reportVersions).set({ status: "superseded" }).where(and(eq(reportVersions.id, base.id), eq(reportVersions.status, "needs_review")));
+      await tx.update(reportJobs).set({ status: "needs_review" }).where(eq(reportJobs.id, detail.job.id));
+      await tx.insert(reportAuditEvents).values({ reportJobId: detail.job.id, eventType: "narrative_revised", actorType: "owner", actorId: input.actorId, fromStatus: "needs_review", toStatus: "needs_review", metadataJson: JSON.stringify({ baseVersionId: base.id, versionNumber }) });
+    });
+    return { versionNumber };
+  } catch (error) {
+    await db.update(reportJobs).set({ status: "needs_review" }).where(and(eq(reportJobs.id, detail.job.id), eq(reportJobs.status, "rendering")));
+    throw error;
+  }
 }

@@ -25,11 +25,11 @@ describe("payment notification processor", () => {
     const sendNotification = vi.fn(async () => true);
     const enqueueJob = vi.fn(async () => ({ created: true, jobId: 42, idempotencyKey: "7:1:hash:template" }));
     const processJob = vi.fn(async () => ({ skipped: false, status: "needs_review" as const, pdfUrl: "/manus-storage/report.pdf" }));
-    const repeated = await processPaymentNotification({ bookingId: 7, paymentStatus: "finished", updateStatus: vi.fn(async () => ({ previousStatus: "finished", isConfirmed: true })), sendNotification, enqueueJob, processJob });
+    const repeated = await processPaymentNotification({ bookingId: 7, paymentStatus: "finished", updateStatus: vi.fn(async () => ({ previousStatus: "finished", isConfirmed: true })), sendNotification, enqueueJob, processJob, isAutoProcessingEnabled: vi.fn(async () => false) });
     const waiting = await processPaymentNotification({ bookingId: 7, paymentStatus: "waiting", updateStatus: vi.fn(async () => ({ previousStatus: "waiting", isConfirmed: false })), sendNotification, enqueueJob });
     expect(repeated.notified).toBe(false);
     expect(waiting.notified).toBe(false);
     expect(sendNotification).not.toHaveBeenCalled();
-    expect(enqueueJob).not.toHaveBeenCalled();
+    expect(enqueueJob).toHaveBeenCalledOnce();
   });
 });

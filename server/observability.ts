@@ -17,6 +17,10 @@ export function getClientIp(req: Request) {
   return candidate.replace(/^::ffff:/, "").slice(0, 80) || "unknown";
 }
 
+export function redactRequestPath(path: string) {
+  return path.replace(/\/status\/[^/]+/g, "/status/[redacted]").replace(/\/manus-storage\/.*/, "/manus-storage/[redacted]");
+}
+
 function sanitize(value: unknown, key = ""): unknown {
   if (SENSITIVE_KEY.test(key)) return "[REDACTED]";
   if (value instanceof Error) return { name: value.name, message: value.message.slice(0, 240) };
@@ -56,7 +60,7 @@ export const requestObservabilityMiddleware: RequestHandler = (req, res, next) =
     logStructuredEvent(res.statusCode >= 500 ? "error" : res.statusCode >= 400 ? "warn" : "info", "http.request.completed", {
       requestId: request.requestId,
       method: req.method,
-      path: req.path,
+      path: redactRequestPath(req.path),
       statusCode: res.statusCode,
       durationMs: Date.now() - startedAt,
     });

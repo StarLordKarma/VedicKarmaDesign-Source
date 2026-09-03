@@ -32,6 +32,8 @@ const menuItems = [
   { icon: Layers3, label: "Service packages", path: "/admin/packages" },
   { icon: FileCheck2, label: "Report Studio", path: "/admin/report-studio" },
   { icon: CreditCard, label: "Payment Test Lab", path: "/admin/payment-test" },
+  { icon: LayoutDashboard, label: "Metrics & SLA", path: "/admin/metrics" },
+  { icon: FileCheck2, label: "Client status links", path: "/admin/status-links" },
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";

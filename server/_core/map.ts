@@ -19,6 +19,7 @@ type MapsConfig = {
 };
 
 function getMapsConfig(): MapsConfig {
+  if (process.env.GOOGLE_MAPS_API_KEY) return { baseUrl: "https://maps.googleapis.com", apiKey: process.env.GOOGLE_MAPS_API_KEY };
   const baseUrl = ENV.forgeApiUrl;
   const apiKey = ENV.forgeApiKey;
 
@@ -59,7 +60,8 @@ export async function makeRequest<T = unknown>(
   const { baseUrl, apiKey } = getMapsConfig();
 
   // Construct full URL: baseUrl + /v1/maps/proxy + endpoint
-  const url = new URL(`${baseUrl}/v1/maps/proxy${endpoint}`);
+  if (!endpoint.startsWith("/maps/api/")) throw new Error("Invalid Maps endpoint");
+  const url = new URL(`${baseUrl}${process.env.GOOGLE_MAPS_API_KEY ? "" : "/v1/maps/proxy"}${endpoint}`);
 
   // Add API key as query parameter (standard Google Maps API authentication)
   url.searchParams.append("key", apiKey);
@@ -77,12 +79,12 @@ export async function makeRequest<T = unknown>(
       "Content-Type": "application/json",
     },
     body: options.body ? JSON.stringify(options.body) : undefined,
+    signal: AbortSignal.timeout(15_000),
   });
 
   if (!response.ok) {
-    const errorText = await response.text();
     throw new Error(
-      `Google Maps API request failed (${response.status} ${response.statusText}): ${errorText}`
+      `Google Maps API request failed (HTTP ${response.status})`
     );
   }
 
@@ -313,7 +315,5 @@ export type RoadsResult = {
  * Output: Image URL (not JSON) - use directly in <img src={url} />
  * Note: Construct URL manually with getMapsConfig() for auth
  */
-
-
 
 

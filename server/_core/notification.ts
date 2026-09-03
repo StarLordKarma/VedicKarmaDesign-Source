@@ -68,18 +68,25 @@ export async function notifyOwner(
 ): Promise<boolean> {
   const { title, content } = validatePayload(payload);
 
+  if (process.env.NOTIFICATION_PROVIDER === "resend") {
+    if (!ENV.resendApiKey || !ENV.resendFromEmail || !process.env.OWNER_ALERT_EMAIL) return false;
+    try {
+      const response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${ENV.resendApiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ from: ENV.resendFromEmail, to: [process.env.OWNER_ALERT_EMAIL], subject: title, text: content }),
+        signal: AbortSignal.timeout(15_000),
+      });
+      return response.ok;
+    } catch { return false; }
+  }
+
   if (!ENV.forgeApiUrl) {
-    throw new TRPCError({
-      code: "INTERNAL_SERVER_ERROR",
-      message: "Notification service URL is not configured.",
-    });
+    return false;
   }
 
   if (!ENV.forgeApiKey) {
-    throw new TRPCError({
-      code: "INTERNAL_SERVER_ERROR",
-      message: "Notification service API key is not configured.",
-    });
+    return false;
   }
 
   const endpoint = buildEndpointUrl(ENV.forgeApiUrl);

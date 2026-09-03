@@ -28,9 +28,11 @@ From the repository root, build with `docker build -f deploy/Dockerfile.independ
 | `REPORT_FONT_PATH` | Unicode font used for localized PDFs | The provided container installs DejaVu Sans and supplies its path automatically. |
 | `VITE_APP_TITLE`, `VITE_APP_LOGO` | Branding | Set public, non-secret branding values. |
 
-## Platform dependency boundary
+## Independent adapters
 
-The portable container and database contract are independent, but the current application still contains explicit Manus adapters for OAuth, Forge LLM/storage/notifications, and the managed scheduled-task callback. To run without Manus, implement replacements behind those boundaries: a local/OIDC authentication provider, S3-compatible storage, an LLM provider adapter, an email/notification provider, and an external scheduler. Do not remove the existing Manus adapters until the replacements are configured and tested.
+Set `DEPLOYMENT_MODE=independent`, `AUTH_PROVIDER=oidc`, `STORAGE_PROVIDER=s3` and `NOTIFICATION_PROVIDER=resend` using the updated environment example. Configure `OIDC_*`, `S3_*` and standard AWS credentials, `LLM_BASE_URL` (including `/v1`), `LLM_API_KEY`, and `GOOGLE_MAPS_API_KEY`. The server refuses independent startup with missing required configuration. No Manus account is required for those adapters. Leave the `VITE_*FORGE*` and Manus OAuth values empty. Existing managed deployments retain their previous adapters unless explicitly switched.
+
+See [RELEASE-RUNBOOK.md](RELEASE-RUNBOOK.md) for the Compose/HTTPS deployment, OIDC requirements, migration commands, backup rehearsal, rollback and live acceptance gates. Verify these gates on staging before customer traffic.
 
 Scheduled work must be invoked by the host scheduler or a platform scheduler. Call `POST /api/scheduled/cleanup-receipts`, `POST /api/scheduled/cleanup-payment-test-lab`, and `POST /api/scheduled/evaluate-sla` from authenticated, private jobs; when `SCHEDULED_TASK_SECRET` is set, send it as a Bearer token. Do not run cron inside the container.
 

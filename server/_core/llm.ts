@@ -213,13 +213,16 @@ const normalizeToolChoice = (
 };
 
 const resolveApiUrl = () =>
+  process.env.LLM_BASE_URL
+    ? `${process.env.LLM_BASE_URL.replace(/\/$/, "")}/chat/completions`
+    :
   ENV.forgeApiUrl && ENV.forgeApiUrl.trim().length > 0
     ? `${ENV.forgeApiUrl.replace(/\/$/, "")}/v1/chat/completions`
     : "https://forge.manus.im/v1/chat/completions";
 
 const assertApiKey = () => {
-  if (!ENV.forgeApiKey) {
-    throw new Error("OPENAI_API_KEY is not configured");
+  if (!(process.env.LLM_BASE_URL ? process.env.LLM_API_KEY : ENV.forgeApiKey)) {
+    throw new Error("LLM API credentials are not configured");
   }
 };
 
@@ -308,7 +311,7 @@ const fetchWithBackoff = async (
   for (let attempt = 0; attempt <= RETRY_MAX_RETRIES; attempt++) {
     try {
       const response = await fetch(url, init);
-      if (response.ok || attempt === RETRY_MAX_RETRIES) {
+      if (response.ok || (response.status < 500 && response.status !== 429) || attempt === RETRY_MAX_RETRIES) {
         return response;
       }
 
@@ -405,15 +408,14 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      authorization: `Bearer ${ENV.forgeApiKey}`,
+      authorization: `Bearer ${process.env.LLM_BASE_URL ? process.env.LLM_API_KEY : ENV.forgeApiKey}`,
     },
     body: JSON.stringify(payload),
   });
 
   if (!response.ok) {
-    const errorText = await response.text();
     throw new Error(
-      `LLM invoke failed: ${response.status} ${response.statusText} – ${errorText}`
+      `LLM invoke failed: HTTP ${response.status}`
     );
   }
 
@@ -435,18 +437,17 @@ export type ModelsResponse = {
 export async function listLLMModels(): Promise<ModelsResponse> {
   assertApiKey();
 
-  const url = ENV.forgeApiUrl && ENV.forgeApiUrl.trim().length > 0
+  const url = process.env.LLM_BASE_URL ? `${process.env.LLM_BASE_URL.replace(/\/$/, "")}/models` : ENV.forgeApiUrl && ENV.forgeApiUrl.trim().length > 0
     ? `${ENV.forgeApiUrl.replace(/\/$/, "")}/v1/models`
     : "https://forge.manus.im/v1/models";
 
   const response = await fetchWithBackoff(url, {
-    headers: { authorization: `Bearer ${ENV.forgeApiKey}` },
+    headers: { authorization: `Bearer ${process.env.LLM_BASE_URL ? process.env.LLM_API_KEY : ENV.forgeApiKey}` },
   });
 
   if (!response.ok) {
-    const errorText = await response.text();
     throw new Error(
-      `List LLM models failed: ${response.status} ${response.statusText} – ${errorText}`
+      `List LLM models failed: HTTP ${response.status}`
     );
   }
 

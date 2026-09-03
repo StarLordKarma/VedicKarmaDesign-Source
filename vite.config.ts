@@ -150,7 +150,8 @@ function vitePluginManusDebugCollector(): Plugin {
   };
 }
 
-const plugins = [react(), tailwindcss(), jsxLocPlugin(), vitePluginManusRuntime(), vitePluginManusDebugCollector()];
+// Debug collectors and platform runtime are opt-in, never bundled for visitors.
+const plugins = [react(), tailwindcss(), ...(process.env.MANUS_DEVELOPMENT_TOOLS === "true" ? [jsxLocPlugin(), vitePluginManusRuntime(), vitePluginManusDebugCollector()] : [])];
 
 export default defineConfig({
   plugins,

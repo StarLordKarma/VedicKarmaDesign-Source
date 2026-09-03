@@ -3,6 +3,19 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Local system fonts keep the reading experience private: no font-provider requests. */
+html { scroll-padding-top: 6rem; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; }
+.font-serif { font-family: Georgia, "Times New Roman", serif; }
+.public-page h1, .public-page h2 { text-wrap: balance; }
+.public-page p { text-wrap: pretty; }
+.editorial-hero { background-image: linear-gradient(90deg, transparent 49.8%, rgba(181,91,57,.035) 50%, transparent 50.2%); background-size: 96px 100%; }
+.public-page :is(a, button, input, select, textarea):focus-visible { outline: 2px solid #b97838; outline-offset: 4px; }
+.public-page #reading article { transition: transform .2s ease, box-shadow .2s ease; }
+@media (hover: hover) { .public-page #reading article:hover { transform: translateY(-3px); box-shadow: 0 16px 40px #28231f0d; } }
+@media (max-width: 640px) { .public-page input, .public-page select, .public-page textarea { font-size: 16px; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
+
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -43,9 +56,9 @@
 }
 
 :root {
-  --primary: var(--color-blue-700);
-  --primary-foreground: var(--color-blue-50);
-  --sidebar-primary: var(--color-blue-600);
+  --primary: #a04d30;
+  --primary-foreground: #fffaf4;
+  --sidebar-primary: #a04d30;
   --sidebar-primary-foreground: var(--color-blue-50);
   --chart-1: var(--color-blue-300);
   --chart-2: var(--color-blue-500);
@@ -79,8 +92,8 @@
 }
 
 .dark {
-  --primary: var(--color-blue-700);
-  --primary-foreground: var(--color-blue-50);
+  --primary: #e6b382;
+  --primary-foreground: #28231f;
   --sidebar-primary: var(--color-blue-500);
   --sidebar-primary-foreground: var(--color-blue-50);
   --background: oklch(0.141 0.005 285.823);

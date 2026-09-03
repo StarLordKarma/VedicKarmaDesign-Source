@@ -19,6 +19,7 @@ vi.mock("@/lib/trpc", () => ({
       runCalculation: { useMutation: () => ({ mutate: vi.fn(), isPending: false }) },
       approve: { useMutation: () => ({ mutate: vi.fn(), isPending: false }) },
       retryDelivery: { useMutation: () => ({ mutate: vi.fn(), isPending: false }) },
+      reviseNarrative: { useMutation: () => ({ mutate: vi.fn(), isPending: false }) },
     },
     useUtils: () => ({ reportStudio: { queue: { invalidate: vi.fn() } } }),
   },
@@ -45,6 +46,9 @@ describe("Report Studio review screen", () => {
     fireEvent.click(screen.getByRole("button", { name: /booking #17/i }));
     expect(screen.getByRole("link", { name: "Open PDF" })).toHaveAttribute("href", "/manus-storage/report-studio/7/v1-preview.pdf");
     expect(screen.getByRole("link", { name: "Download PDF" })).toHaveAttribute("download");
+    expect(screen.getByRole("button", { name: "Approve PDF for delivery" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("checkbox"));
+    expect(screen.getByRole("button", { name: "Approve PDF for delivery" })).toBeEnabled();
   });
 
   it("creates a clearly synthetic owner-only test job without a client delivery action", () => {

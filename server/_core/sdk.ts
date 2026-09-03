@@ -31,7 +31,7 @@ const GET_USER_INFO_WITH_JWT_PATH = `/webdev.v1.WebDevAuthPublicService/GetUserI
 class OAuthService {
   constructor(private client: ReturnType<typeof axios.create>) {
     console.log("[OAuth] Initialized with baseURL:", ENV.oAuthServerUrl);
-    if (!ENV.oAuthServerUrl) {
+    if (!ENV.oAuthServerUrl && process.env.AUTH_PROVIDER !== "oidc") {
       console.error(
         "[OAuth] ERROR: OAUTH_SERVER_URL is not configured! Set OAUTH_SERVER_URL environment variable."
       );
@@ -219,6 +219,7 @@ class SDKServer {
         console.warn("[Auth] Session payload missing required fields");
         return null;
       }
+      if (appId !== ENV.appId) return null;
 
       return {
         openId,
@@ -277,6 +278,7 @@ class SDKServer {
     }
 
     if (session.openId.startsWith(CRON_OPEN_ID_PREFIX)) {
+      if (process.env.AUTH_PROVIDER === "oidc") throw ForbiddenError("Platform cron sessions disabled");
       const userInfo = await this.getUserInfoWithJwt(sessionToken ?? "");
       const taskUid = userInfo.taskUid ?? null;
       if (!taskUid) {
@@ -291,6 +293,7 @@ class SDKServer {
 
     // If user not in DB, sync from OAuth server automatically
     if (!user) {
+      if (process.env.AUTH_PROVIDER === "oidc") throw ForbiddenError("Owner session no longer exists");
       try {
         const userInfo = await this.getUserInfoWithJwt(sessionToken ?? "");
         await db.upsertUser({

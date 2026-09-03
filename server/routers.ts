@@ -23,6 +23,7 @@ import { AI_NARRATIVE_MODELS } from "./report-narrative";
 import { createClientStatusLink, getPublicClientStatus, listClientStatusLinks, revokeClientStatusLink } from "./client-status";
 import { evaluateSla, getOwnerMetrics, getSlaEvaluationRuns, getSlaSettings, setSlaSettings } from "./sla";
 import { timingSafeEqual } from "node:crypto";
+import { reviseReportNarrative } from "./report-studio-db";
 
 function secretsMatch(expected: string, provided: string | undefined) {
   if (!expected || !provided) return false;
@@ -74,7 +75,7 @@ export const appRouter = router({
     pricingHistory: adminProcedure.input(pricingHistoryPageSchema.optional()).query(async ({ input }) => { const page = await getPricingHistoryPage(input?.page ?? 1, input?.pageSize ?? 10, input); return { ...page, items: page.items.map((entry) => ({ ...entry, changedByName: entry.changedBy === ENV.ownerOpenId ? ENV.ownerName : entry.changedBy })) }; }),
     smokeTestRuns: adminProcedure.input(smokeTestRunsPageSchema.optional()).query(({ input }) => getSmokeTestRunsPage(input ?? {})),
     exportSmokeTestRunsCsv: adminProcedure.input(smokeTestRunsPageSchema.omit({ page: true, pageSize: true }).optional()).mutation(async ({ input }) => { const rows = await getSmokeTestRunsForExport(input ?? {}); return { filename: `smoke-test-runs-${new Date().toISOString().slice(0, 10)}.csv`, contentBase64: Buffer.from(buildSmokeTestRunsCsv(rows), "utf8").toString("base64") }; }),
-    runManualSmokeTest: adminProcedure.mutation(({ ctx }) => runManualSmokeTest(`${ctx.req.protocol}://${ctx.req.get("host")}`)),
+    runManualSmokeTest: adminProcedure.mutation(({ ctx }) => runManualSmokeTest(getPublicOrigin(ctx.req))),
     runIpnSimulation: adminProcedure.input(runIpnSimulationSchema).mutation(({ input, ctx }) => runSignedIpnSimulation({ ...input, actorId: ctx.user.openId })),
     paymentTestLabRetention: adminProcedure.query(() => getPaymentTestLabRetentionSettings()),
     paymentTestLabRetentionPreview: adminProcedure.input(z.object({ retentionDays: z.number().int().min(7).max(3650).optional() }).optional()).query(({ input }) => previewPaymentTestLabRetentionCleanup(input?.retentionDays)),
@@ -158,6 +159,7 @@ export const appRouter = router({
     deleteTestJob: adminProcedure.input(reportRunSchema).mutation(({ input, ctx }) => deleteReportStudioTestJob({ ...input, actorId: ctx.user.openId })),
     runCalculation: adminProcedure.input(reportRunSchema).mutation(({ input, ctx }) => processReportJob({ ...input, actorId: ctx.user.openId })),
     approve: adminProcedure.input(reportApprovalSchema).mutation(({ input, ctx }) => approveReportVersion({ ...input, actorId: ctx.user.openId })),
+    reviseNarrative: adminProcedure.input(z.object({ reportJobId: z.number().int().positive(), baseVersionId: z.number().int().positive(), narrativeJson: z.string().max(100_000) })).mutation(({ input, ctx }) => reviseReportNarrative({ ...input, actorId: ctx.user.openId })),
     retryDelivery: adminProcedure.input(reportApprovalSchema.pick({ reportJobId: true, versionId: true })).mutation(({ input, ctx }) => retryReportDelivery({ ...input, actorId: ctx.user.openId })),
     processingSettings: adminProcedure.query(() => getReportProcessingSettings()),
     updateProcessingSettings: adminProcedure.input(z.object({ autoProcessEnabled: z.boolean(), aiModel: z.enum(AI_NARRATIVE_MODELS), maxTokens: z.number().int().min(1000).max(12000), maxSections: z.number().int().min(1).max(12), maxParagraphChars: z.number().int().min(300).max(1800) })).mutation(({ input, ctx }) => setReportProcessingSettings({ ...input, actorId: ctx.user.openId })),
@@ -231,7 +233,7 @@ export const appRouter = router({
       if (isSmokeRun) await createSmokeTestRun(input.smokeTestRunId!);
       void notifyOwner({
         title: "New Vedic astrology booking",
-        content: `${input.name} (${input.email}) requested a $${totalUsd} reading. Birth details: ${input.birthCity}, ${input.birthCountry}; ${input.birthDate} at ${input.birthTime}. Payment checkout is being created.`,
+        content: `Booking #${result.id} received. Open the owner dashboard to review it. Payment checkout is being created.`,
       });
       try {
         const origin = getPublicOrigin(ctx.req);

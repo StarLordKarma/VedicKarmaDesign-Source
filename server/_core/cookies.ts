@@ -42,7 +42,7 @@ export function getSessionCookieOptions(
   return {
     httpOnly: true,
     path: "/",
-    sameSite: "none",
+    sameSite: process.env.AUTH_PROVIDER === "oidc" ? "lax" : "none",
     secure: isSecureRequest(req),
   };
 }
