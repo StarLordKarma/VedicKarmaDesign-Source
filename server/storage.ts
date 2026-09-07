@@ -3,18 +3,25 @@
 // Downloads return /manus-storage/{key} paths served via 307 redirect.
 
 import { ENV } from "./_core/env";
-import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+} from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 function s3Config() {
   const bucket = process.env.S3_BUCKET;
   if (!bucket) throw new Error("S3_BUCKET is required for S3 storage.");
-  return { bucket, client: new S3Client({
-    region: process.env.S3_REGION || "us-east-1",
-    endpoint: process.env.S3_ENDPOINT || undefined,
-    forcePathStyle: process.env.S3_FORCE_PATH_STYLE === "true",
-    // Standard AWS credential chain supports environment secrets or IAM roles.
-  }) };
+  return {
+    bucket,
+    client: new S3Client({
+      region: process.env.S3_REGION || "us-east-1",
+      endpoint: process.env.S3_ENDPOINT || undefined,
+      forcePathStyle: process.env.S3_FORCE_PATH_STYLE === "true",
+      // Standard AWS credential chain supports environment secrets or IAM roles.
+    }),
+  };
 }
 
 function getForgeConfig() {
@@ -23,7 +30,7 @@ function getForgeConfig() {
 
   if (!forgeUrl || !forgeKey) {
     throw new Error(
-      "Storage config missing: set BUILT_IN_FORGE_API_URL and BUILT_IN_FORGE_API_KEY",
+      "Storage config missing: set BUILT_IN_FORGE_API_URL and BUILT_IN_FORGE_API_KEY"
     );
   }
 
@@ -32,7 +39,12 @@ function getForgeConfig() {
 
 function normalizeKey(relKey: string): string {
   const key = relKey.replace(/^\/+/, "");
-  if (!key || key.split("/").some((part) => part === ".." || part === ".") || /[\\\x00-\x1f]/.test(key)) throw new Error("Invalid storage key");
+  if (
+    !key ||
+    key.split("/").some(part => part === ".." || part === ".") ||
+    /[\\\x00-\x1f]/.test(key)
+  )
+    throw new Error("Invalid storage key");
   return key;
 }
 
@@ -46,12 +58,20 @@ function appendHashSuffix(relKey: string): string {
 export async function storagePut(
   relKey: string,
   data: Buffer | Uint8Array | string,
-  contentType = "application/octet-stream",
+  contentType = "application/octet-stream"
 ): Promise<{ key: string; url: string }> {
   const key = appendHashSuffix(normalizeKey(relKey));
   if (process.env.STORAGE_PROVIDER === "s3") {
     const { client, bucket } = s3Config();
-    await client.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: data, ContentType: contentType, CacheControl: "private, no-store" }));
+    await client.send(
+      new PutObjectCommand({
+        Bucket: bucket,
+        Key: key,
+        Body: data,
+        ContentType: contentType,
+        CacheControl: "private, no-store",
+      })
+    );
     return { key, url: `/manus-storage/${key}` };
   }
   const { forgeUrl, forgeKey } = getForgeConfig();
@@ -91,16 +111,35 @@ export async function storagePut(
   return { key, url: `/manus-storage/${key}` };
 }
 
-export async function storageGet(relKey: string): Promise<{ key: string; url: string }> {
+export async function storageGet(
+  relKey: string
+): Promise<{ key: string; url: string }> {
   const key = normalizeKey(relKey);
   return { key, url: `/manus-storage/${key}` };
 }
 
-export async function storageGetSignedUrl(relKey: string): Promise<string> {
+export async function storageGetSignedUrl(
+  relKey: string,
+  downloadName?: string
+): Promise<string> {
   const key = normalizeKey(relKey);
   if (process.env.STORAGE_PROVIDER === "s3") {
     const { client, bucket } = s3Config();
-    return getSignedUrl(client, new GetObjectCommand({ Bucket: bucket, Key: key, ResponseCacheControl: "private, no-store" }), { expiresIn: 300 });
+    const safeName = downloadName
+      ?.replace(/[^A-Za-z0-9._-]/g, "_")
+      .slice(0, 120);
+    return getSignedUrl(
+      client,
+      new GetObjectCommand({
+        Bucket: bucket,
+        Key: key,
+        ResponseCacheControl: "private, no-store",
+        ...(safeName
+          ? { ResponseContentDisposition: `attachment; filename="${safeName}"` }
+          : {}),
+      }),
+      { expiresIn: 300 }
+    );
   }
   const { forgeUrl, forgeKey } = getForgeConfig();
 

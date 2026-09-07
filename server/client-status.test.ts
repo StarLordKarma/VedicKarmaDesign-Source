@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { getPublicClientStatus, normalizeExpiryHours } from "./client-status";
+import {
+  getPublicClientStatus,
+  isValidClientAccessToken,
+  normalizeExpiryHours,
+} from "./client-status";
 
 describe("client status links", () => {
   it("accepts bounded integer expiry values", () => {
@@ -11,6 +15,15 @@ describe("client status links", () => {
   });
 
   it("does not query or disclose data for malformed tokens", async () => {
-    await expect(getPublicClientStatus("not-a-token")).resolves.toEqual({ kind: "not_found" });
+    await expect(getPublicClientStatus("not-a-token")).resolves.toEqual({
+      kind: "not_found",
+    });
+  });
+
+  it("accepts only bounded URL-safe access tokens", () => {
+    expect(isValidClientAccessToken("a".repeat(32))).toBe(true);
+    expect(isValidClientAccessToken("A-_9".repeat(8))).toBe(true);
+    expect(isValidClientAccessToken("a".repeat(31))).toBe(false);
+    expect(isValidClientAccessToken(`${"a".repeat(31)}/`)).toBe(false);
   });
 });

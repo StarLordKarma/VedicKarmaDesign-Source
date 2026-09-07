@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { createRateLimit, sanitizeLogMeta, trpcRateLimitMiddleware, redactRequestPath } from "./observability";
+import {
+  createRateLimit,
+  sanitizeLogMeta,
+  trpcRateLimitMiddleware,
+  redactRequestPath,
+} from "./observability";
 
 function request(ip = "203.0.113.10") {
   return { ip, socket: { remoteAddress: ip }, header: () => undefined } as any;
@@ -9,21 +14,41 @@ function response() {
   const headers = new Map<string, string | number>();
   return {
     headers,
-    setHeader(name: string, value: string | number) { headers.set(name, value); },
+    setHeader(name: string, value: string | number) {
+      headers.set(name, value);
+    },
     statusCode: 200,
-    status(code: number) { this.statusCode = code; return this; },
+    status(code: number) {
+      this.statusCode = code;
+      return this;
+    },
     json: vi.fn(),
   } as any;
 }
 
 describe("observability", () => {
   it("does not log private status tokens or document keys", () => {
-    expect(redactRequestPath("/status/private-token")).toBe("/status/[redacted]");
-    expect(redactRequestPath("/manus-storage/reports/private.pdf")).toBe("/manus-storage/[redacted]");
+    expect(redactRequestPath("/status/private-token")).toBe(
+      "/status/[redacted]"
+    );
+    expect(redactRequestPath("/api/client/report/private-token")).toBe(
+      "/api/client/report/[redacted]"
+    );
+    expect(redactRequestPath("/manus-storage/reports/private.pdf")).toBe(
+      "/manus-storage/[redacted]"
+    );
     expect(redactRequestPath("/health")).toBe("/health");
   });
   it("redacts sensitive keys without changing safe metadata", () => {
-    expect(sanitizeLogMeta({ requestId: "req-1", bookingId: 12, email: "person@example.com", birthDate: "1990-01-01", nested: { token: "secret" } })).toEqual({
+    expect(
+      sanitizeLogMeta({
+        requestId: "req-1",
+        bookingId: 12,
+        email: "person@example.com",
+        birthDate: "1990-01-01",
+        nested: { token: "secret" },
+      })
+    ).toEqual({
       requestId: "req-1",
       bookingId: 12,
       email: "[REDACTED]",
@@ -44,11 +69,17 @@ describe("observability", () => {
     expect(next).toHaveBeenCalledTimes(2);
     expect(third.statusCode).toBe(429);
     expect(third.headers.get("Retry-After")).toBeTypeOf("number");
-    expect(third.json).toHaveBeenCalledWith(expect.objectContaining({ error: "rate_limited" }));
+    expect(third.json).toHaveBeenCalledWith(
+      expect.objectContaining({ error: "rate_limited" })
+    );
   });
 
   it("does not share buckets between client keys", () => {
-    const limiter = createRateLimit({ name: "test-isolated", windowMs: 60_000, max: 1 });
+    const limiter = createRateLimit({
+      name: "test-isolated",
+      windowMs: 60_000,
+      max: 1,
+    });
     const next = vi.fn();
     limiter(request("203.0.113.10"), response(), next);
     limiter(request("203.0.113.11"), response(), next);
@@ -58,7 +89,10 @@ describe("observability", () => {
   it("matches mounted tRPC procedures through originalUrl", () => {
     const next = vi.fn();
     for (let index = 0; index < 6; index += 1) {
-      const req = { ...request("198.51.100.20"), originalUrl: "/api/trpc/booking.submit" };
+      const req = {
+        ...request("198.51.100.20"),
+        originalUrl: "/api/trpc/booking.submit",
+      };
       const res = response();
       trpcRateLimitMiddleware(req, res, next);
       if (index === 5) expect(res.statusCode).toBe(429);

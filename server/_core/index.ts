@@ -12,11 +12,15 @@ import { registerNowPaymentsWebhook } from "../nowpayments.webhook";
 import { cleanupReceiptFilesHandler } from "../receipt-retention";
 import { evaluateSlaHandler } from "../sla-retention";
 import { cleanupPaymentTestLabRunsHandler } from "../payment-test-retention";
-import { requestObservabilityMiddleware, trpcRateLimitMiddleware } from "../observability";
+import {
+  requestObservabilityMiddleware,
+  trpcRateLimitMiddleware,
+} from "../observability";
 import { healthHandler, readinessHandler } from "../health";
 import { scheduledTaskGuard } from "./scheduledAuth";
 import { registerOidcRoutes } from "./oidc";
 import { independentConfigurationErrors } from "./configuration";
+import { registerClientReportDownload } from "../client-report-download";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -39,9 +43,15 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 
 async function startServer() {
   const errors = independentConfigurationErrors();
-  if (errors.length) throw new Error(`Independent deployment configuration: ${errors.join("; ")}`);
+  if (errors.length)
+    throw new Error(
+      `Independent deployment configuration: ${errors.join("; ")}`
+    );
   const app = express();
-  app.set("trust proxy", process.env.TRUST_PROXY_HOPS ? Number(process.env.TRUST_PROXY_HOPS) : false);
+  app.set(
+    "trust proxy",
+    process.env.TRUST_PROXY_HOPS ? Number(process.env.TRUST_PROXY_HOPS) : false
+  );
   app.use(requestObservabilityMiddleware);
   const server = createServer(app);
   // Configure body parser with larger size limit for file uploads
@@ -51,11 +61,24 @@ async function startServer() {
   app.get("/ready", readinessHandler);
   registerNowPaymentsWebhook(app);
   registerStorageProxy(app);
+  registerClientReportDownload(app);
   registerOAuthRoutes(app);
   registerOidcRoutes(app);
-  app.post("/api/scheduled/cleanup-receipts", scheduledTaskGuard, cleanupReceiptFilesHandler);
-  app.post("/api/scheduled/evaluate-sla", scheduledTaskGuard, evaluateSlaHandler);
-  app.post("/api/scheduled/cleanup-payment-test-lab", scheduledTaskGuard, cleanupPaymentTestLabRunsHandler);
+  app.post(
+    "/api/scheduled/cleanup-receipts",
+    scheduledTaskGuard,
+    cleanupReceiptFilesHandler
+  );
+  app.post(
+    "/api/scheduled/evaluate-sla",
+    scheduledTaskGuard,
+    evaluateSlaHandler
+  );
+  app.post(
+    "/api/scheduled/cleanup-payment-test-lab",
+    scheduledTaskGuard,
+    cleanupPaymentTestLabRunsHandler
+  );
   // tRPC API
   app.use("/api/trpc", trpcRateLimitMiddleware);
   app.use(
@@ -73,15 +96,25 @@ async function startServer() {
   }
 
   const preferredPort = parseInt(process.env.PORT || "3000");
-  const port = process.env.NODE_ENV === "development" ? await findAvailablePort(preferredPort) : preferredPort;
+  const port =
+    process.env.NODE_ENV === "development"
+      ? await findAvailablePort(preferredPort)
+      : preferredPort;
 
   if (port !== preferredPort) {
     console.log(`Port ${preferredPort} is busy, using port ${port} instead`);
   }
 
-  server.listen(port, process.env.NODE_ENV === "development" ? "127.0.0.1" : "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${port}/`);
-  });
+  server.listen(
+    port,
+    process.env.NODE_ENV === "development" ? "127.0.0.1" : "0.0.0.0",
+    () => {
+      console.log(`Server running on http://localhost:${port}/`);
+    }
+  );
 }
 
-startServer().catch(error => { console.error(error); process.exitCode = 1; });
+startServer().catch(error => {
+  console.error(error);
+  process.exitCode = 1;
+});
