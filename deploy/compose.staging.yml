@@ -1,0 +1,98 @@
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: vedic_staging
+      MYSQL_USER: vedic_staging
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD}
+    ports: ["127.0.0.1:3307:3306"]
+    volumes: ["mysql_staging_data:/var/lib/mysql"]
+    healthcheck:
+      test: [CMD, mysqladmin, ping, -h, 127.0.0.1, -u, root, "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  minio:
+    image: minio/minio:RELEASE.2025-07-23T15-54-02Z
+    command: server /data --console-address :9001
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?Set MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD}
+    ports: ["127.0.0.1:9000:9000", "127.0.0.1:9001:9001"]
+    volumes: ["minio_staging_data:/data"]
+    healthcheck:
+      test: [CMD, mc, ready, local]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  minio-init:
+    image: minio/mc:RELEASE.2025-07-21T05-28-08Z
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: [/bin/sh, -c]
+    command:
+      - >-
+        mc alias set local http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}" &&
+        mc mb --ignore-existing local/vedic-staging &&
+        mc anonymous set none local/vedic-staging
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+
+  migrate:
+    profiles: [tools]
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.independent
+      target: build
+      args:
+        VITE_SOURCE_CODE_URL: ${VITE_SOURCE_CODE_URL:?Set VITE_SOURCE_CODE_URL}
+    env_file: .env.staging
+    depends_on:
+      mysql:
+        condition: service_healthy
+    command: [corepack, pnpm, "db:migrate"]
+
+  seed:
+    profiles: [tools]
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.independent
+      target: build
+      args:
+        VITE_SOURCE_CODE_URL: ${VITE_SOURCE_CODE_URL:?Set VITE_SOURCE_CODE_URL}
+    env_file: .env.staging
+    environment:
+      STAGING_SEED_CONFIRM: "true"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    command: [corepack, pnpm, "db:seed"]
+
+  app:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.independent
+      args:
+        VITE_SOURCE_CODE_URL: ${VITE_SOURCE_CODE_URL:?Set VITE_SOURCE_CODE_URL}
+    env_file: .env.staging
+    ports: ["127.0.0.1:3000:3000"]
+    depends_on:
+      mysql:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    init: true
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+
+volumes:
+  mysql_staging_data:
+  minio_staging_data:

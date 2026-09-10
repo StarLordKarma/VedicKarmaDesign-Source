@@ -34,6 +34,8 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+      - run: cp deploy/.env.staging.example deploy/.env.staging
+      - run: docker compose --env-file deploy/.env.staging -f deploy/compose.staging.yml config --quiet
       - run: docker build -f deploy/Dockerfile.independent -t vedic-karma-design:${{ github.sha }} .
 
   database-integration:

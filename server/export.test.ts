@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { existsSync } from "node:fs";
-import { buildActivityCsv, buildBookingsCsv, buildCheckoutBreakdownPdf, buildReportStylePreviewPdf, buildPricingHistoryCsv, buildSlaEvaluationRunsCsv, buildSmokeTestRunsCsv, decodePdfBase64, sanitizePdfName } from "./export";
+import { buildActivityCsv, buildBookingsCsv, buildCheckoutBreakdownPdf, buildFullNatalReportPdf, buildReportStylePreviewPdf, buildPricingHistoryCsv, buildSlaEvaluationRunsCsv, buildSmokeTestRunsCsv, decodePdfBase64, sanitizePdfName, type ReportPreviewLocale } from "./export";
 import { attachNatalPdfSchema } from "@shared/admin";
 import type { BookingRequest } from "../drizzle/schema";
 
@@ -123,10 +123,26 @@ describe("full natal report PDF", () => {
   const facts = { d1: [{ planet: "Ascendant", sign: 0, degreeInSign: 12.3 }], d9: [{ planet: "Ascendant", sign: 5, degreeInSign: 3.2 }] };
   const narrative = { sections: [{ sectionKey: "core-themes", title: "Core themes", paragraphs: ["A cautious reflective summary."], factRefs: ["d1[0].sign"] }] };
   it("renders the requested Basic and Basic+ page counts with chart panels", async () => {
-    const { buildFullNatalReportPdf } = await import("./export");
     const basic = await buildFullNatalReportPdf({ background, locale: "en", clientName: "Test Client", packageType: "basic", narrative, facts });
     const plus = await buildFullNatalReportPdf({ background, locale: "en", clientName: "Test Client", packageType: "basic_plus", narrative, facts });
     expect((basic.toString("latin1").match(/\/Type \/Page\b/g) ?? []).length).toBe(22);
     expect((plus.toString("latin1").match(/\/Type \/Page\b/g) ?? []).length).toBe(25);
   });
+
+  it.each(["ru", "en", "de", "es"] as ReportPreviewLocale[])(
+    "renders a complete %s report with localized narrative",
+    async locale => {
+      const fontPath = [process.env.REPORT_FONT_PATH, "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", "/System/Library/Fonts/Supplemental/Arial.ttf"].find(candidate => candidate && existsSync(candidate));
+      const localized = {
+        ru: "Осторожная интерпретация карты.",
+        en: "A cautious chart interpretation.",
+        de: "Eine vorsichtige Deutung der Karte.",
+        es: "Una interpretación prudente de la carta.",
+      }[locale];
+      const pdf = await buildFullNatalReportPdf({ background, locale, clientName: "Locale Test", packageType: "basic", narrative: { sections: [{ ...narrative.sections[0], paragraphs: [localized] }] }, facts, fontPath });
+      expect(pdf.subarray(0, 8).toString("ascii")).toContain("%PDF");
+      expect((pdf.toString("latin1").match(/\/Type \/Page\b/g) ?? []).length).toBe(22);
+      expect(pdf.length).toBeGreaterThan(10_000);
+    }
+  );
 });

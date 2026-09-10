@@ -13,6 +13,8 @@ build/
 .env.development.local
 .env.test.local
 .env.production.local
+deploy/.env.staging
+deploy/.env.standalone
 
 # IDE and editor files
 .vscode/

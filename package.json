@@ -14,7 +14,12 @@
     "format": "prettier --write .",
     "test": "vitest run",
     "smoke:production": "node scripts/production-smoke-test.mjs",
-    "db:push": "drizzle-kit generate && drizzle-kit migrate"
+    "db:push": "drizzle-kit generate && drizzle-kit migrate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:seed": "tsx scripts/seed-staging.ts",
+    "db:seed:staging": "STAGING_SEED_CONFIRM=true tsx scripts/seed-staging.ts",
+    "deploy:staging": "docker compose --env-file deploy/.env.staging -f deploy/compose.staging.yml up -d --build",
+    "deploy:prod": "docker compose --env-file deploy/.env.standalone -f deploy/compose.yml up -d --build"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1127.0",
@@ -119,7 +124,9 @@
     },
     "overrides": {
       "tailwindcss>nanoid": "3.3.18",
-      "path-to-regexp@0.1.12": "0.1.13",
+      "path-to-regexp@<0.1.13": "0.1.13",
+      "qs@<6.16.0": "6.16.0",
+      "body-parser@<1.20.6": "1.20.6",
       "lodash": "4.18.0",
       "lodash-es": "4.18.0"
     }

@@ -1,0 +1,15 @@
+Vedic Karma Design
+Copyright (c) 2026 Vedic Karma Design contributors
+
+This application is distributed under AGPL-3.0-or-later. The exact source code
+corresponding to a network-deployed build must be offered to its users through
+the Source code link configured with VITE_SOURCE_CODE_URL.
+
+Astronomical calculations use Swiss Ephemeris through sweph@2.10.3-5. The free
+deployment path is AGPL-3.0-or-later. A commercial Swiss Ephemeris Professional
+License is the alternative when its licensing conditions and the application's
+own licensing have been reviewed separately.
+
+Project source: https://github.com/StarLordKarma/VedicKarmaDesign
+Swiss Ephemeris: https://www.astro.com/swisseph/
+Full dependency notes: THIRD_PARTY_LICENSES.md

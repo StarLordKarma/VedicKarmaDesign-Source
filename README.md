@@ -30,6 +30,31 @@ pnpm dev
 Заполните `.env` собственными значениями. Секреты, клиентские данные, PDF и
 database dumps нельзя добавлять в Git.
 
+## Структура проекта
+
+- `client/` — React/Vite интерфейс и четыре локали;
+- `server/` — Express/tRPC, платежи, расчёты, Report Studio и PDF;
+- `shared/` — общие schemas, currency и i18n contracts;
+- `drizzle/` — схема и миграции `0000`–`0029`;
+- `deploy/` — production и staging Docker Compose;
+- `scripts/` — smoke checks и безопасный staging seed;
+- `docs/` — эксплуатационные, privacy и release документы.
+
+## Локальный staging
+
+Локальный профиль включает MySQL 8 и приватный MinIO. Подробный порядок,
+sandbox credentials и acceptance-сценарии приведены в
+[STAGING-GUIDE.md](docs/STAGING-GUIDE.md).
+
+```bash
+cp deploy/.env.staging.example deploy/.env.staging
+docker compose --env-file deploy/.env.staging -f deploy/compose.staging.yml \
+  --profile tools run --rm migrate
+docker compose --env-file deploy/.env.staging -f deploy/compose.staging.yml \
+  --profile tools run --rm seed
+pnpm deploy:staging
+```
+
 ## Проверка и сборка
 
 ```bash
@@ -61,6 +86,17 @@ Independent production блокируется без `CALCULATION_ENGINE_LICENSE
 Ephemeris Professional License и отдельный пересмотр лицензирования проекта.
 См. [LICENSE](LICENSE) и [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
 
+### Лицензирование и AGPL
+
+Footer получает ссылку из `VITE_SOURCE_CODE_URL`. Она должна вести не просто на
+похожий проект, а на полный corresponding source точной версии, доступной
+пользователю сетевого сервиса, включая изменения и инструкции сборки. Новый код
+проекта также распространяется под AGPL-3.0-or-later. Notices находятся в
+`NOTICE` и `THIRD_PARTY_LICENSES.md`. Если оператор не может выполнять AGPL,
+альтернатива — до запуска приобрести Swiss Ephemeris Professional License и
+провести отдельный юридический review собственной лицензии приложения; покупка
+не означает автоматической смены лицензии уже опубликованного AGPL-кода.
+
 Moshier fallback используется, если `SWE_EPHE_PATH` не задан; режим записывается
 в snapshot. До релиза нужен reference benchmark на независимых эталонных картах:
 regression-тесты подтверждают стабильность кода, но не являются сертификацией.
@@ -82,6 +118,9 @@ Caddy выпускает HTTPS-сертификат и проксирует пр
 - [План deployment](docs/DEPLOYMENT-PLAN.md)
 - [Release runbook](deploy/RELEASE-RUNBOOK.md)
 - [Финальный отчёт](docs/FINAL-REPORT-2026-09-08.md)
+- [Staging guide](docs/STAGING-GUIDE.md)
+- [Pre-launch checklist](docs/PRE-LAUNCH-CHECKLIST.md)
+- [Отчёт staging/production preparation](docs/PROGRESS-REPORT-2026-09-10.md)
 - [Спецификация Report Studio](ETAP-DVA-REPORT-STUDIO-SPEC.md)
 
 ## Миграции

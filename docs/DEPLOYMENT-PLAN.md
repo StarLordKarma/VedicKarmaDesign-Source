@@ -1,6 +1,7 @@
 # План доработки и деплоя сайта
 
 **Дата составления:** 2026-09-08
+**Обновлено:** 2026-09-10
 
 ## 1. Предварительные требования
 
@@ -21,6 +22,26 @@
 - NOWPayments API/IPN secrets и отдельные staging/production callbacks;
 - уникальные JWT, scheduler и production-smoke secrets;
 - публичный URL соответствующего исходного кода для AGPL.
+
+### Варианты сервера и бюджет
+
+Цены проверены 2026-09-10 и являются ориентирами без налогов, managed DB,
+object storage, snapshots и исходящего трафика; перед покупкой проверить регион и
+итоговый счёт на официальной странице.
+
+| Вариант | Стартовый размер | Ориентир | Плюсы | Ограничения |
+|---|---|---:|---|---|
+| Hetzner Cloud CX22 | 2 vCPU, 4 ГБ, 40 ГБ | €3.79/мес по опубликованному CX22 announcement | лучший бюджет/ресурсы, EU regions | доступность аккаунта/оплаты и цена зависят от региона |
+| DigitalOcean Basic | 2 vCPU, 4 ГБ, 80 ГБ | $24/мес | простой UI, managed DB/Spaces | дороже, дополнительные сервисы оплачиваются отдельно |
+| AWS Lightsail Medium | 2 vCPU, 4 ГБ, 80 ГБ | $24/мес с IPv4 | предсказуемый bundle, путь к AWS services | IAM/стоимость экосистемы сложнее |
+
+Источники: [Hetzner](https://www.hetzner.com/pressroom/new-cx-plans/),
+[DigitalOcean](https://www.digitalocean.com/pricing/droplets),
+[AWS Lightsail](https://docs.aws.amazon.com/lightsail/latest/userguide/amazon-lightsail-bundles.html).
+Практический выбор для первого запуска — Hetzner 4 ГБ, если доступны регистрация
+и оплата; DigitalOcean — более простой запасной вариант. Базу допустимо временно
+держать на отдельном private volume того же VPS только при ежедневном off-site
+backup и успешно проведённом restore rehearsal.
 
 ### Расчётный движок
 
@@ -60,6 +81,45 @@ nakshatra/pada, Parashari full-sign aspects и Vimshottari mahadasha — лок�
     status-link download, revoke/expiry, retry и provider failures.
 12. Сохранить предыдущий image digest и snapshot. При сбое остановить заказы и
     следовать runbook, не откатывая миграции вслепую.
+
+### MySQL production
+
+```sql
+CREATE DATABASE vedic_production CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'vedic_app'@'10.%' IDENTIFIED BY '<random-password>';
+GRANT SELECT, INSERT, UPDATE, DELETE ON vedic_production.* TO 'vedic_app'@'10.%';
+```
+
+Миграции выполняет отдельная release identity с временными DDL-правами через
+`pnpm db:migrate`; приложение не должно постоянно иметь `ALTER/DROP`. До миграции
+снять consistent snapshot, сохранить checksum и проверить свободное место. Backup:
+ежедневный encrypted dump/snapshot, 7 daily + 4 weekly + 6 monthly копий, отдельный
+bucket/account, ежемесячное восстановление в изолированную БД.
+
+### S3, email, платежи и LLM
+
+- S3/совместимое хранилище: отдельные staging/prod buckets, Block Public Access,
+  encryption, versioning, lifecycle, scoped access key только на нужный prefix.
+  PDF выдаются через короткоживущий signed URL/server endpoint с `no-store`.
+- Resend: отдельный verified subdomain, SPF/DKIM/DMARC, allowlist в staging,
+  bounce/complaint alerts и запрет отправки synthetic jobs. SMTP сейчас не является
+  реализованным adapter; его нельзя указать в env без разработки и тестов.
+- NOWPayments: отдельные API/IPN secrets, HTTPS callback, подпись и idempotency.
+  Stripe/ЮKassa пока не интегрированы: перед добавлением нужны договор, KYC,
+  налоги/чеки и review доступности по юрисдикциям. Fiat rail не является анонимным;
+  обещается только минимизация данных и отсутствие хранения карточных реквизитов.
+- LLM: отдельный project/key с лимитом затрат, DPA/no-training условиями и
+  минимизированным prompt. Модель не рассчитывает положения и не утверждает PDF.
+- Maps: server-side key с API/IP restrictions, quota и billing alerts.
+
+### Monitoring и журналы
+
+Минимум: внешний uptime probe для `/health`, authenticated probe `/ready`, Sentry
+для redacted errors, JSON logs с request/correlation ID и алерты по 5xx, очереди,
+delivery failures, backup age, диску и сертификату. Метрики можно начать с
+hosted Grafana/Prometheus либо Netdata/Uptime Kuma; birth data, email, токены,
+IPN payload и signed URLs в labels/logs запрещены. Срок хранения логов должен
+соответствовать privacy policy.
 
 Поддерживаемый профиль — Docker Compose + Caddy. Node 22 + systemd/PM2 + Nginx
 возможен, но является отдельным runtime и требует отдельной приёмки.
@@ -105,3 +165,4 @@ nakshatra/pada, Parashari full-sign aspects и Vimshottari mahadasha — лок�
 - [ ] Тестовый платёж, IPN, email и PDF прошли в staging
 - [ ] Все CI checks прошли на точном release commit
 - [ ] Rollback image digest и ответственный за релиз зафиксированы
+- [ ] Полный [pre-launch checklist](PRE-LAUNCH-CHECKLIST.md) подписан владельцем

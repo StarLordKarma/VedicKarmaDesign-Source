@@ -3,7 +3,7 @@ import { invokeLLM } from "./_core/llm";
 
 export const narrativeDraftSchema = z.object({
   schemaVersion: z.literal("vedic-narrative.v1"),
-  locale: z.enum(["ru", "en", "de"]),
+  locale: z.enum(["ru", "en", "de", "es"]),
   sections: z.array(z.object({
     sectionKey: z.string().regex(/^[a-z0-9-]{3,80}$/),
     title: z.string().min(1).max(140),
@@ -44,7 +44,7 @@ const outputSchema = {
   type: "object",
   properties: {
     schemaVersion: { type: "string", enum: ["vedic-narrative.v1"] },
-    locale: { type: "string", enum: ["ru", "en", "de"] },
+    locale: { type: "string", enum: ["ru", "en", "de", "es"] },
     sections: { type: "array", minItems: 1, maxItems: 12, items: { type: "object", properties: { sectionKey: { type: "string" }, title: { type: "string" }, paragraphs: { type: "array", minItems: 1, maxItems: 4, items: { type: "string" } }, factRefs: { type: "array", maxItems: 16, items: { type: "string" } }, warnings: { type: "array", maxItems: 8, items: { type: "string" } } }, required: ["sectionKey", "title", "paragraphs", "factRefs", "warnings"], additionalProperties: false } },
     disclaimerKey: { type: "string", enum: ["interpretive-practice"] },
     modelVersion: { type: "string" },
@@ -57,7 +57,7 @@ const outputSchema = {
 export const AI_NARRATIVE_MODELS = ["gpt-5-nano", "gpt-5-mini", "gpt-5", "claude-haiku-4-5", "claude-sonnet-4-6", "gemini-3-flash-preview"] as const;
 export type NarrativeGenerationSettings = { aiModel: typeof AI_NARRATIVE_MODELS[number]; maxTokens: number; maxSections: number; maxParagraphChars: number };
 
-export async function generateNarrativeDraft(input: { facts: unknown; locale: "ru" | "en" | "de"; settings?: NarrativeGenerationSettings }) {
+export async function generateNarrativeDraft(input: { facts: unknown; locale: "ru" | "en" | "de" | "es"; settings?: NarrativeGenerationSettings }) {
   const factsJson = JSON.stringify(input.facts);
   const settings = input.settings ?? { aiModel: "gpt-5-mini", maxTokens: 5000, maxSections: 6, maxParagraphChars: 1800 };
   if (!AI_NARRATIVE_MODELS.includes(settings.aiModel)) throw new Error("Unsupported narrative model.");

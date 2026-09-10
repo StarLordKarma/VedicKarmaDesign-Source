@@ -14,7 +14,7 @@ const REPORT_TEMPLATE_VERSION = "parasara-light-9-v1";
 const EMPTY_BACKGROUND = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64");
 
 function sha256(value: string) { return createHash("sha256").update(value).digest("hex"); }
-function languageCode(language: string): "ru" | "en" | "de" { return language === "Русский" ? "ru" : language === "Deutsch" ? "de" : "en"; }
+function languageCode(language: string): "ru" | "en" | "de" | "es" { return language === "Русский" ? "ru" : language === "Deutsch" ? "de" : language === "Español" ? "es" : "en"; }
 
 export async function enqueueReportJobForBooking(bookingId: number, confirmedBy = "system") {
   const booking = await getBookingRequestById(bookingId);
@@ -63,11 +63,11 @@ export async function listReportReviewJobs() {
   return db.select({ job: reportJobs, version: reportVersions }).from(reportJobs).leftJoin(reportVersions, and(eq(reportVersions.reportJobId, reportJobs.id), sql`${reportVersions.versionNumber} = (select max(rv.versionNumber) from report_versions rv where rv.reportJobId = ${reportJobs.id})`)).orderBy(desc(reportJobs.createdAt));
 }
 
-export async function createReportStudioTestJob(input: { packageType: "basic" | "basic_plus"; language: "en" | "ru" | "de"; actorId: string }) {
+export async function createReportStudioTestJob(input: { packageType: "basic" | "basic_plus"; language: "en" | "ru" | "de" | "es"; actorId: string }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   const runId = `report-studio-test-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const booking = await createBookingRequest({ name: "Report Studio synthetic test", email: `${runId}@example.com`, birthDate: "1990-01-01", birthTime: "12:00", birthCity: "Berlin", birthCountry: "Germany", language: input.language === "ru" ? "Русский" : input.language === "de" ? "Deutsch" : "English", addon: input.packageType === "basic_plus" ? 1 : 0, packageCode: input.packageType, packageVersion: 1, priceSnapshotJson: JSON.stringify({ testJob: true, packageCode: input.packageType }), totalUsd: 0, currency: "USD", interest: "Synthetic owner-only Report Studio test. Never deliver to a client.", paymentStatus: "confirmed", status: "in_progress" });
+  const booking = await createBookingRequest({ name: "Report Studio synthetic test", email: `${runId}@example.com`, birthDate: "1990-01-01", birthTime: "12:00", birthCity: "Berlin", birthCountry: "Germany", language: input.language === "ru" ? "Русский" : input.language === "de" ? "Deutsch" : input.language === "es" ? "Español" : "English", addon: input.packageType === "basic_plus" ? 1 : 0, packageCode: input.packageType, packageVersion: 1, priceSnapshotJson: JSON.stringify({ testJob: true, packageCode: input.packageType }), totalUsd: 0, currency: "USD", interest: "Synthetic owner-only Report Studio test. Never deliver to a client.", paymentStatus: "confirmed", status: "in_progress" });
   const inputHash = sha256(JSON.stringify({ runId, bookingId: booking.id, packageType: input.packageType, language: input.language }));
   const inserted = await db.insert(reportJobs).values({ bookingId: booking.id, reportVersion: 1, packageType: input.packageType, language: input.language, status: "queued", testJob: true, idempotencyKey: `test:${runId}`, inputHash, queuedAt: new Date() });
   const jobId = Number(inserted[0].insertId);
@@ -142,10 +142,10 @@ export async function processReportJob(input: { reportJobId: number; actorId: st
     await db.insert(calculationResults).values({ reportJobId: current.id, schemaVersion: facts.contractVersion, engineName: facts.engine.adapter, engineVersion: facts.engine.engineVersion, ephemerisVersion: facts.engine.ephemerisMode, factsJson, factsHash, validationStatus: "valid" }).onDuplicateKeyUpdate({ set: { factsJson, factsHash, validationStatus: "valid", validationErrorsJson: null } });
     await db.update(reportJobs).set({ status: "narrative_draft", factsHash }).where(eq(reportJobs.id, current.id));
     const aiSettings = await getReportProcessingSettings();
-    const narrative = await generateNarrativeDraft({ facts, locale: current.language as "ru" | "en" | "de", settings: { aiModel: aiSettings.aiModel as "gpt-5-nano" | "gpt-5-mini" | "gpt-5" | "claude-haiku-4-5" | "claude-sonnet-4-6" | "gemini-3-flash-preview", maxTokens: aiSettings.maxTokens, maxSections: aiSettings.maxSections, maxParagraphChars: aiSettings.maxParagraphChars } });
+    const narrative = await generateNarrativeDraft({ facts, locale: current.language as "ru" | "en" | "de" | "es", settings: { aiModel: aiSettings.aiModel as "gpt-5-nano" | "gpt-5-mini" | "gpt-5" | "claude-haiku-4-5" | "claude-sonnet-4-6" | "gemini-3-flash-preview", maxTokens: aiSettings.maxTokens, maxSections: aiSettings.maxSections, maxParagraphChars: aiSettings.maxParagraphChars } });
     await db.insert(narrativeDrafts).values({ reportJobId: current.id, locale: current.language, modelName: aiSettings.aiModel, modelVersion: narrative.modelVersion, promptVersion: narrative.promptVersion, narrativeJson: JSON.stringify(narrative), validationStatus: "valid", createdBy: "system" });
     const narrativeSummary = narrative.sections[0]?.paragraphs[0]?.slice(0, 600);
-    const pdf = await buildFullNatalReportPdf({ background: EMPTY_BACKGROUND, locale: current.language as "ru" | "en" | "de", clientName: booking.name, packageType: current.packageType, narrative: { sections: narrative.sections.map((section) => ({ sectionKey: section.sectionKey, title: section.title, paragraphs: section.paragraphs, factRefs: section.factRefs })) }, facts });
+    const pdf = await buildFullNatalReportPdf({ background: EMPTY_BACKGROUND, locale: current.language as "ru" | "en" | "de" | "es", clientName: booking.name, packageType: current.packageType, narrative: { sections: narrative.sections.map((section) => ({ sectionKey: section.sectionKey, title: section.title, paragraphs: section.paragraphs, factRefs: section.factRefs })) }, facts });
     const stored = await storagePut(`report-studio/${current.id}/v1-preview.pdf`, pdf, "application/pdf");
     await db.insert(reportVersions).values({ reportJobId: current.id, versionNumber: 1, templateVersion: REPORT_TEMPLATE_VERSION, locale: current.language, pdfStorageKey: stored.key, pdfSha256: sha256(pdf.toString("base64")), status: "needs_review" });
     await db.update(reportJobs).set({ status: "needs_review", factsHash, finishedAt: new Date() }).where(eq(reportJobs.id, current.id));

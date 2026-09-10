@@ -4,7 +4,7 @@ import type { BookingRequest, ServicePricingHistory } from "../drizzle/schema";
 import type { AdminActivityEvents } from "./db";
 import { formatCurrency, type SupportedCurrency } from "../shared/currency";
 
-export type ReportPreviewLocale = "ru" | "en" | "de";
+export type ReportPreviewLocale = "ru" | "en" | "de" | "es";
 
 const reportPreviewCopy: Record<ReportPreviewLocale, { eyebrow: string; title: string; subtitle: string; packageLabel: string; settings: string; settingsValue: string; sampleHeading: string; sampleBody: string; disclaimer: string }> = {
   ru: {
@@ -40,12 +40,23 @@ const reportPreviewCopy: Record<ReportPreviewLocale, { eyebrow: string; title: s
     sampleBody: "Diese Demonstrationsseite zeigt die helle redaktionelle Gestaltung des Berichts. Tatsächliche Planetenpositionen und interpretative Texte werden nach der deterministischen Berechnung und der Prüfung durch die Inhaberin ergänzt.",
     disclaimer: "Demonstrationslayout. Die astrologische Interpretation dient der Information und Reflexion, ist keine medizinische, psychologische, rechtliche oder finanzielle Beratung und garantiert kein Ergebnis.",
   },
+  es: {
+    eyebrow: "ASTROLOGÍA VÉDICA · JYOTISH",
+    title: "Un mapa más claro de tu cielo interior",
+    subtitle: "Vista previa del informe detallado",
+    packageLabel: "Informe básico · D1 / Rāśi",
+    settings: "Método",
+    settingsValue: "Zodiaco sideral · Lahiri · Vimshottari dasha",
+    sampleHeading: "Temas principales de la carta",
+    sampleBody: "Esta muestra presenta el diseño editorial del informe. Las posiciones planetarias y el texto interpretativo se añadirán después del cálculo determinista y la revisión de la persona responsable.",
+    disclaimer: "Diseño de muestra. La interpretación astrológica es informativa y reflexiva; no constituye asesoramiento médico, psicológico, jurídico ni financiero, y no garantiza ningún resultado.",
+  },
 };
 
 export async function buildReportStylePreviewPdf(input: { background: Buffer; locale?: ReportPreviewLocale; clientName?: string; packageType?: "basic" | "basic_plus"; fontPath?: string; narrativeSummary?: string }) {
   const locale = input.locale ?? "ru";
   const copy = reportPreviewCopy[locale];
-  const packageLabel = input.packageType === "basic_plus" ? copy.packageLabel.replace(/Basic|Базовый|Basisbericht/gi, (match) => ({ Basic: "Basic+ report", "Базовый": "Расширенный отчёт", Basisbericht: "Plusbericht" }[match] ?? match)) : copy.packageLabel;
+  const packageLabel = input.packageType === "basic_plus" ? copy.packageLabel.replace(/Basic|Базовый|Basisbericht|básico/gi, (match) => ({ Basic: "Basic+ report", "Базовый": "Расширенный отчёт", Basisbericht: "Plusbericht", básico: "ampliado" }[match] ?? match)) : copy.packageLabel;
   const doc = new PDFDocument({ size: "A4", margin: 0, info: { Title: copy.title, Subject: "Report Studio visual prototype" } });
   const chunks: Buffer[] = [];
   const result = new Promise<Buffer>((resolve, reject) => {
@@ -64,7 +75,7 @@ export async function buildReportStylePreviewPdf(input: { background: Buffer; lo
   doc.fillColor("#73685D").font(fontName).fontSize(12).text(copy.subtitle, 72, 270, { width: 290, lineGap: 4 });
   doc.fillColor("#B47552").roundedRect(72, 336, 260, 28, 14).fill();
   doc.fillColor("#FFF9F0").font(fontName).fontSize(9).text(packageLabel, 86, 346, { width: 232, align: "center" });
-  doc.fillColor("#302A25").font(fontName).fontSize(11).text(input.clientName ?? (locale === "ru" ? "Имя клиента" : locale === "de" ? "Name der Kundin / des Kunden" : "Client name"), 72, 404);
+  doc.fillColor("#302A25").font(fontName).fontSize(11).text(input.clientName ?? (locale === "ru" ? "Имя клиента" : locale === "de" ? "Name der Kundin / des Kunden" : locale === "es" ? "Nombre del cliente" : "Client name"), 72, 404);
   doc.fillColor("#73685D").font(fontName).fontSize(10).text(`${copy.settings}: ${copy.settingsValue}`, 72, 432, { width: 300, lineGap: 3 });
   doc.moveTo(72, 490).lineTo(370, 490).lineWidth(0.7).strokeColor("#D8C8B4").stroke();
   doc.fillColor("#302A25").font(fontName).fontSize(17).text(copy.sampleHeading, 72, 525, { width: 300 });
@@ -225,7 +236,7 @@ export async function buildFullNatalReportPdf(input: { background: Buffer; local
   const fontName = fontPath ? "ReportSans" : "Helvetica";
   if (fontPath) doc.registerFont(fontName, fontPath);
   const factsText = JSON.stringify(input.facts).slice(0, 1800);
-  const sectionLabels = input.locale === "ru" ? ["Обзор карты", "Асцендент и дома", "Планетные акценты", "Накшатры", "Vimshottari dasha", "Практика рефлексии"] : input.locale === "de" ? ["Kartenübersicht", "Aszendent und Häuser", "Planetenbetonungen", "Nakshatras", "Vimshottari-Dasha", "Reflexionspraxis"] : ["Chart overview", "Ascendant and houses", "Planetary emphasis", "Nakshatras", "Vimshottari dasha", "Reflective practice"];
+  const sectionLabels = input.locale === "ru" ? ["Обзор карты", "Асцендент и дома", "Планетные акценты", "Накшатры", "Vimshottari dasha", "Практика рефлексии"] : input.locale === "de" ? ["Kartenübersicht", "Aszendent und Häuser", "Planetenbetonungen", "Nakshatras", "Vimshottari-Dasha", "Reflexionspraxis"] : input.locale === "es" ? ["Resumen de la carta", "Ascendente y casas", "Énfasis planetario", "Nakshatras", "Vimshottari dasha", "Práctica reflexiva"] : ["Chart overview", "Ascendant and houses", "Planetary emphasis", "Nakshatras", "Vimshottari dasha", "Reflective practice"];
   const disclaimer = copy.disclaimer;
   for (let page = 1; page <= pageCount; page += 1) {
     if (page > 1) doc.addPage();

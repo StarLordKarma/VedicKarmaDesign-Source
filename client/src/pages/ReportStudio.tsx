@@ -42,7 +42,7 @@ export default function ReportStudio() {
   const [testPackageType, setTestPackageType] = useState<
     "basic" | "basic_plus"
   >("basic");
-  const [testLanguage, setTestLanguage] = useState<"en" | "ru" | "de">("en");
+  const [testLanguage, setTestLanguage] = useState<"en" | "ru" | "de" | "es">("en");
   const queue = trpc.reportStudio.queue.useQuery();
   const processingSettings = trpc.reportStudio.processingSettings.useQuery();
   const detail = trpc.reportStudio.getJob.useQuery(
@@ -191,13 +191,14 @@ export default function ReportStudio() {
                     aria-label="Test language"
                     value={testLanguage}
                     onChange={event =>
-                      setTestLanguage(event.target.value as "en" | "ru" | "de")
+                      setTestLanguage(event.target.value as "en" | "ru" | "de" | "es")
                     }
                     className="ml-1 rounded border bg-white px-1 py-1"
                   >
                     <option value="en">EN</option>
                     <option value="ru">RU</option>
                     <option value="de">DE</option>
+                    <option value="es">ES</option>
                   </select>
                 </label>
                 <Button

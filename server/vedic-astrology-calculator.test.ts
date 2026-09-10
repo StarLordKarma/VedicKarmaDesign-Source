@@ -62,6 +62,14 @@ describe("VedicAstrologyCalculator", () => {
     expect(periods.slice(1).every(period => !period.isBirthBalance)).toBe(true);
   });
 
+  it("pins the Moon nakshatra, pada and birth dasha to the regression fixture", () => {
+    const snapshot = calculateVedicSnapshot(moscowBirth);
+    const moon = snapshot.planets.find(planet => planet.planet === "Moon");
+    // Zero-based nakshatra 23 is Shatabhisha; its first pada spans 306°40′–310°.
+    expect(moon).toMatchObject({ nakshatra: 23, pada: 1 });
+    expect(snapshot.vimshottari.birthLord).toBe("Rahu");
+  });
+
   it("calculates documented Parashari full-sign graha aspects", () => {
     const aspects = __calculationInternals.makeGrahaAspects([
       { planet: "Mars", longitude: 1 },
