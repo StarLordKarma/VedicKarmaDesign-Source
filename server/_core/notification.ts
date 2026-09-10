@@ -14,9 +14,7 @@ const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.trim().length > 0;
 
 const buildEndpointUrl = (baseUrl: string): string => {
-  const normalizedBase = baseUrl.endsWith("/")
-    ? baseUrl
-    : `${baseUrl}/`;
+  const normalizedBase = baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
   return new URL(
     "webdevtoken.v1.WebDevService/SendNotification",
     normalizedBase
@@ -69,16 +67,34 @@ export async function notifyOwner(
   const { title, content } = validatePayload(payload);
 
   if (process.env.NOTIFICATION_PROVIDER === "resend") {
-    if (!ENV.resendApiKey || !ENV.resendFromEmail || !process.env.OWNER_ALERT_EMAIL) return false;
+    if (
+      !ENV.resendApiKey ||
+      !ENV.resendFromEmail ||
+      !process.env.OWNER_ALERT_EMAIL
+    )
+      return false;
     try {
-      const response = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${ENV.resendApiKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ from: ENV.resendFromEmail, to: [process.env.OWNER_ALERT_EMAIL], subject: title, text: content }),
-        signal: AbortSignal.timeout(15_000),
-      });
+      const response = await fetch(
+        process.env.RESEND_BASE_URL || "https://api.resend.com/emails",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${ENV.resendApiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            from: ENV.resendFromEmail,
+            to: [process.env.OWNER_ALERT_EMAIL],
+            subject: title,
+            text: content,
+          }),
+          signal: AbortSignal.timeout(15_000),
+        }
+      );
       return response.ok;
-    } catch { return false; }
+    } catch {
+      return false;
+    }
   }
 
   if (!ENV.forgeApiUrl) {

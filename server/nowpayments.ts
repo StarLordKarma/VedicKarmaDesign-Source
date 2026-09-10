@@ -3,6 +3,13 @@ import { ENV } from "./_core/env";
 
 const NOWPAYMENTS_API = "https://api.nowpayments.io/v1";
 
+function nowPaymentsApi() {
+  return (process.env.NOWPAYMENTS_BASE_URL || NOWPAYMENTS_API).replace(
+    /\/$/,
+    ""
+  );
+}
+
 export type NowPaymentsPayment = {
   payment_id: number;
   payment_status: string;
@@ -23,8 +30,11 @@ export type NowPaymentsInvoice = {
   price_currency: string;
 };
 
-async function nowpaymentsRequest<T>(path: string, init: RequestInit): Promise<T> {
-  const response = await fetch(`${NOWPAYMENTS_API}${path}`, {
+async function nowpaymentsRequest<T>(
+  path: string,
+  init: RequestInit
+): Promise<T> {
+  const response = await fetch(`${nowPaymentsApi()}${path}`, {
     ...init,
     headers: {
       "x-api-key": ENV.nowpaymentsApiKey,
@@ -36,7 +46,9 @@ async function nowpaymentsRequest<T>(path: string, init: RequestInit): Promise<T
 
   const body = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(`NOWPayments API error ${response.status}: ${JSON.stringify(body)}`);
+    throw new Error(
+      `NOWPayments API error ${response.status}: ${JSON.stringify(body)}`
+    );
   }
   return body as T;
 }
@@ -100,18 +112,29 @@ export async function createNowPaymentsPayment(input: {
   });
 }
 
-export function verifyNowPaymentsSignature(rawBody: string, signature: string, secret = ENV.nowpaymentsIpnSecret) {
+export function verifyNowPaymentsSignature(
+  rawBody: string,
+  signature: string,
+  secret = ENV.nowpaymentsIpnSecret
+) {
   if (!secret) return false;
-  const expected = createHmac("sha512", secret)
-    .update(rawBody)
-    .digest("hex");
+  const expected = createHmac("sha512", secret).update(rawBody).digest("hex");
   const expectedBuffer = Buffer.from(expected, "utf8");
   const receivedBuffer = Buffer.from(signature, "utf8");
-  return expectedBuffer.length === receivedBuffer.length && timingSafeEqual(expectedBuffer, receivedBuffer);
+  return (
+    expectedBuffer.length === receivedBuffer.length &&
+    timingSafeEqual(expectedBuffer, receivedBuffer)
+  );
 }
 
 /** Server-only helper. It is never exposed through a public route or browser bundle. */
-export function signNowPaymentsPayloadForTest(rawBody: string, secret = ENV.nowpaymentsIpnSecret) {
-  if (!secret) throw new Error("NOWPAYMENTS_IPN_SECRET is required to sign a test payload.");
+export function signNowPaymentsPayloadForTest(
+  rawBody: string,
+  secret = ENV.nowpaymentsIpnSecret
+) {
+  if (!secret)
+    throw new Error(
+      "NOWPAYMENTS_IPN_SECRET is required to sign a test payload."
+    );
   return createHmac("sha512", secret).update(rawBody).digest("hex");
 }

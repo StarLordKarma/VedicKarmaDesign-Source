@@ -1,9 +1,9 @@
 /**
  * Google Maps API Integration for Manus WebDev Templates
- * 
+ *
  * Main function: makeRequest<T>(endpoint, params) - Makes authenticated requests to Google Maps APIs
  * All credentials are automatically injected. Array parameters use | as separator.
- * 
+ *
  * See API examples below the type definitions for usage patterns.
  */
 
@@ -19,7 +19,16 @@ type MapsConfig = {
 };
 
 function getMapsConfig(): MapsConfig {
-  if (process.env.GOOGLE_MAPS_API_KEY) return { baseUrl: "https://maps.googleapis.com", apiKey: process.env.GOOGLE_MAPS_API_KEY };
+  if (process.env.MAPS_BASE_URL)
+    return {
+      baseUrl: process.env.MAPS_BASE_URL.replace(/\/+$/, ""),
+      apiKey: process.env.GOOGLE_MAPS_API_KEY || "sandbox",
+    };
+  if (process.env.GOOGLE_MAPS_API_KEY)
+    return {
+      baseUrl: "https://maps.googleapis.com",
+      apiKey: process.env.GOOGLE_MAPS_API_KEY,
+    };
   const baseUrl = ENV.forgeApiUrl;
   const apiKey = ENV.forgeApiKey;
 
@@ -46,7 +55,7 @@ interface RequestOptions {
 
 /**
  * Make authenticated requests to Google Maps APIs
- * 
+ *
  * @param endpoint - The API endpoint (e.g., "/maps/api/geocode/json")
  * @param params - Query parameters for the request
  * @param options - Additional request options
@@ -60,8 +69,14 @@ export async function makeRequest<T = unknown>(
   const { baseUrl, apiKey } = getMapsConfig();
 
   // Construct full URL: baseUrl + /v1/maps/proxy + endpoint
-  if (!endpoint.startsWith("/maps/api/")) throw new Error("Invalid Maps endpoint");
-  const url = new URL(`${baseUrl}${process.env.GOOGLE_MAPS_API_KEY ? "" : "/v1/maps/proxy"}${endpoint}`);
+  if (!endpoint.startsWith("/maps/api/"))
+    throw new Error("Invalid Maps endpoint");
+  const directProvider = Boolean(
+    process.env.GOOGLE_MAPS_API_KEY || process.env.MAPS_BASE_URL
+  );
+  const url = new URL(
+    `${baseUrl}${directProvider ? "" : "/v1/maps/proxy"}${endpoint}`
+  );
 
   // Add API key as query parameter (standard Google Maps API authentication)
   url.searchParams.append("key", apiKey);
@@ -83,9 +98,7 @@ export async function makeRequest<T = unknown>(
   });
 
   if (!response.ok) {
-    throw new Error(
-      `Google Maps API request failed (HTTP ${response.status})`
-    );
+    throw new Error(`Google Maps API request failed (HTTP ${response.status})`);
   }
 
   return (await response.json()) as T;
@@ -315,5 +328,3 @@ export type RoadsResult = {
  * Output: Image URL (not JSON) - use directly in <img src={url} />
  * Note: Construct URL manually with getMapsConfig() for auth
  */
-
-

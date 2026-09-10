@@ -15,6 +15,7 @@ build/
 .env.production.local
 deploy/.env.staging
 deploy/.env.standalone
+.env.sandbox
 
 # IDE and editor files
 .vscode/

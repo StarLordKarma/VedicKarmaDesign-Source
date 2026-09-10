@@ -55,6 +55,25 @@ docker compose --env-file deploy/.env.staging -f deploy/compose.staging.yml \
 pnpm deploy:staging
 ```
 
+## Полный sandbox без внешних ключей
+
+Sandbox воспроизводит полный пользовательский цикл без денег и внешних аккаунтов:
+MySQL, приватный MinIO, локальные заглушки NOWPayments, Resend, Maps и LLM, а также
+одноразовый тестовый вход владельца. Все порты доступны только с localhost.
+
+```bash
+cp .env.sandbox.example .env.sandbox
+pnpm sandbox:up
+pnpm sandbox:seed
+pnpm test:e2e
+pnpm sandbox:down
+```
+
+Подробности: [SANDBOX-GUIDE.md](docs/SANDBOX-GUIDE.md),
+[E2E-сценарии](docs/E2E-TEST-SCENARIOS.md) и
+[необходимые внешние доступы](docs/SANDBOX-CREDENTIALS-NEEDED.md). Для локального
+цикла реальные credentials не нужны.
+
 ## Проверка и сборка
 
 ```bash
@@ -121,6 +140,9 @@ Caddy выпускает HTTPS-сертификат и проксирует пр
 - [Staging guide](docs/STAGING-GUIDE.md)
 - [Pre-launch checklist](docs/PRE-LAUNCH-CHECKLIST.md)
 - [Отчёт staging/production preparation](docs/PROGRESS-REPORT-2026-09-10.md)
+- [Sandbox guide](docs/SANDBOX-GUIDE.md)
+- [Минимизация расходов](docs/COST-MINIMIZATION.md)
+- [Отчёт sandbox](docs/SANDBOX-REPORT-2026-09-10.md)
 - [Спецификация Report Studio](ETAP-DVA-REPORT-STUDIO-SPEC.md)
 
 ## Миграции

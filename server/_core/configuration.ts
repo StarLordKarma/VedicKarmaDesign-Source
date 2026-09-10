@@ -55,5 +55,35 @@ export function independentConfigurationErrors(
     );
   if (!/^\d+$/.test(env.TRUST_PROXY_HOPS || "0"))
     errors.push("TRUST_PROXY_HOPS must be a nonnegative integer");
+  for (const key of [
+    "NOWPAYMENTS_BASE_URL",
+    "RESEND_BASE_URL",
+    "MAPS_BASE_URL",
+  ]) {
+    if (env[key] && !env[key]!.startsWith("https://"))
+      errors.push(`${key} requires HTTPS in independent production`);
+  }
+  return errors;
+}
+
+export function sandboxConfigurationErrors(
+  env: NodeJS.ProcessEnv = process.env
+) {
+  if (env.DEPLOYMENT_MODE !== "sandbox") return [];
+  const errors: string[] = [];
+  if (env.AUTH_PROVIDER !== "sandbox")
+    errors.push("AUTH_PROVIDER must be sandbox");
+  if ((env.SANDBOX_AUTH_TOKEN?.length ?? 0) < 32)
+    errors.push("SANDBOX_AUTH_TOKEN must contain at least 32 characters");
+  try {
+    const url = new URL(env.PUBLIC_BASE_URL || "");
+    if (
+      url.protocol !== "http:" ||
+      !["localhost", "127.0.0.1"].includes(url.hostname)
+    )
+      errors.push("Sandbox PUBLIC_BASE_URL must be local HTTP");
+  } catch {
+    errors.push("Sandbox PUBLIC_BASE_URL is not a URL");
+  }
   return errors;
 }

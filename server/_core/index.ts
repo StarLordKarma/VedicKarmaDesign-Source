@@ -19,8 +19,12 @@ import {
 import { healthHandler, readinessHandler } from "../health";
 import { scheduledTaskGuard } from "./scheduledAuth";
 import { registerOidcRoutes } from "./oidc";
-import { independentConfigurationErrors } from "./configuration";
+import {
+  independentConfigurationErrors,
+  sandboxConfigurationErrors,
+} from "./configuration";
 import { registerClientReportDownload } from "../client-report-download";
+import { registerSandboxAuthRoutes } from "./sandbox-auth";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -42,7 +46,10 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 }
 
 async function startServer() {
-  const errors = independentConfigurationErrors();
+  const errors = [
+    ...independentConfigurationErrors(),
+    ...sandboxConfigurationErrors(),
+  ];
   if (errors.length)
     throw new Error(
       `Independent deployment configuration: ${errors.join("; ")}`
@@ -62,6 +69,7 @@ async function startServer() {
   registerNowPaymentsWebhook(app);
   registerStorageProxy(app);
   registerClientReportDownload(app);
+  registerSandboxAuthRoutes(app);
   registerOAuthRoutes(app);
   registerOidcRoutes(app);
   app.post(

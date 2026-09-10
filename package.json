@@ -19,7 +19,13 @@
     "db:seed": "tsx scripts/seed-staging.ts",
     "db:seed:staging": "STAGING_SEED_CONFIRM=true tsx scripts/seed-staging.ts",
     "deploy:staging": "docker compose --env-file deploy/.env.staging -f deploy/compose.staging.yml up -d --build",
-    "deploy:prod": "docker compose --env-file deploy/.env.standalone -f deploy/compose.yml up -d --build"
+    "deploy:prod": "docker compose --env-file deploy/.env.standalone -f deploy/compose.yml up -d --build",
+    "sandbox:up": "docker compose --env-file .env.sandbox -f docker-compose.sandbox.yml up -d --build",
+    "sandbox:down": "docker compose --env-file .env.sandbox -f docker-compose.sandbox.yml down",
+    "db:migrate:sandbox": "docker compose --env-file .env.sandbox -f docker-compose.sandbox.yml --profile tools run --rm migrate",
+    "db:seed:sandbox": "SANDBOX_SEED_CONFIRM=true tsx scripts/seed-sandbox.ts",
+    "sandbox:seed": "docker compose --env-file .env.sandbox -f docker-compose.sandbox.yml --profile tools run --rm seed",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1127.0",
@@ -91,6 +97,7 @@
   },
   "devDependencies": {
     "@builder.io/vite-plugin-jsx-loc": "^0.1.1",
+    "@playwright/test": "1.55.1",
     "@tailwindcss/typography": "^0.5.15",
     "@tailwindcss/vite": "^4.1.3",
     "@testing-library/jest-dom": "^7.0.1",
