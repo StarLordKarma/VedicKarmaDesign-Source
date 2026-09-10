@@ -75,6 +75,8 @@ nakshatra/pada, Parashari full-sign aspects и Vimshottari mahadasha — лок�
 4. Скопировать `deploy/.env.standalone.example` в `deploy/.env.standalone`, заполнить
    через secret manager/защищённый файл mode 600. Установить `SITE_DOMAIN`,
    `PUBLIC_BASE_URL`, `VITE_SOURCE_CODE_URL` и все credentials.
+   Предпочтительный новый путь: `.env.production.example` → `.env.production` и
+   корневой `docker-compose.prod.yml`.
 5. Выполнить `pnpm deploy:check` в CI, собрать image по commit SHA и сохранить digest.
 6. Сделать snapshot и применить миграции командой из release runbook.
 7. Запустить Compose. Caddy выполняет reverse proxy и Let's Encrypt. Проверить
@@ -102,6 +104,12 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON vedic_production.* TO 'vedic_app'@'10.%'
 снять consistent snapshot, сохранить checksum и проверить свободное место. Backup:
 ежедневный encrypted dump/snapshot, 7 daily + 4 weekly + 6 monthly копий, отдельный
 bucket/account, ежемесячное восстановление в изолированную БД.
+
+Начальная инициализация reference pricing/packages выполняется один раз командой
+`PRODUCTION_SEED_CONFIRM=INITIALIZE-REFERENCE-DATA pnpm db:seed:prod`. Seed не
+создаёт клиентов/заказы и не перезаписывает существующие цены. Ежедневный dump:
+`pnpm backup:prod` с параметрами из `.env.production.example`; off-site копия
+обязательна. Restore сначала проверяется в новой базе, а не поверх production.
 
 ### S3, email, платежи и LLM
 

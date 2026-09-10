@@ -25,6 +25,7 @@ import {
 } from "./configuration";
 import { registerClientReportDownload } from "../client-report-download";
 import { registerSandboxAuthRoutes } from "./sandbox-auth";
+import { applicationSecurityHeaders, crossSiteWriteGuard } from "./security";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -60,6 +61,8 @@ async function startServer() {
     process.env.TRUST_PROXY_HOPS ? Number(process.env.TRUST_PROXY_HOPS) : false
   );
   app.use(requestObservabilityMiddleware);
+  app.use(applicationSecurityHeaders);
+  app.use(crossSiteWriteGuard);
   const server = createServer(app);
   // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: "50mb" }));

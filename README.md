@@ -131,6 +131,23 @@ docker compose --env-file deploy/.env.standalone -f deploy/compose.yml \
 docker compose --env-file deploy/.env.standalone -f deploy/compose.yml up -d --build
 ```
 
+Актуальный корневой production-профиль и полный шаблон переменных:
+
+```bash
+cp .env.production.example .env.production
+docker compose --env-file .env.production -f docker-compose.prod.yml \
+  --profile tools run --rm migrate
+# Только при первом запуске, после установки PRODUCTION_SEED_CONFIRM:
+docker compose --env-file .env.production -f docker-compose.prod.yml \
+  --profile tools run --rm seed
+pnpm deploy:prod
+```
+
+Реальные adapters переключаются переменными окружения: OIDC, NOWPayments,
+Resend, S3, Google Maps и OpenAI-compatible LLM. Mock endpoints разрешены только
+в локальном sandbox; independent production принимает только HTTPS endpoints.
+Перед запуском заполните [список production-доступов](docs/PRODUCTION-CREDENTIALS-NEEDED.md).
+
 Caddy выпускает HTTPS-сертификат и проксирует приложение. База и S3 должны быть
 внешними; backup/restore репетируются в staging до первого заказа.
 
@@ -143,6 +160,9 @@ Caddy выпускает HTTPS-сертификат и проксирует пр
 - [Sandbox guide](docs/SANDBOX-GUIDE.md)
 - [Минимизация расходов](docs/COST-MINIMIZATION.md)
 - [Отчёт sandbox](docs/SANDBOX-REPORT-2026-09-10.md)
+- [Production credentials](docs/PRODUCTION-CREDENTIALS-NEEDED.md)
+- [Публикация AGPL source](docs/AGPL-PUBLIC-SOURCE.md)
+- [Release report](docs/RELEASE-REPORT-2026-09-10.md)
 - [Спецификация Report Studio](ETAP-DVA-REPORT-STUDIO-SPEC.md)
 
 ## Миграции
@@ -156,3 +176,10 @@ Caddy выпускает HTTPS-сертификат и проксирует пр
 Нужны сервер и домен, OIDC с MFA, MySQL, приватный S3, Maps, LLM, Resend,
 NOWPayments, backup/monitoring и юридическая проверка платежей/персональных данных.
 Browser fixtures не подтверждают настоящие внешние интеграции.
+
+## Резервное копирование
+
+`pnpm backup:prod` создаёт сжатый consistent MySQL dump, SHA-256 checksum,
+удаляет только просроченные файлы своего шаблона в заданном `BACKUP_DIR` и может
+отправить копию в `BACKUP_S3_URI`. Требуются `mysqldump`, gzip и, для off-site,
+AWS CLI. Восстановление обязательно репетируется в отдельной базе.

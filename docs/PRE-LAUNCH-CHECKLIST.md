@@ -9,6 +9,8 @@
 - [ ] Firewall оставляет публичными только 80/443; SSH ограничен ключами/IP
 - [ ] `/health` и `/ready`, uptime alert, error monitoring и disk alerts работают
 - [ ] Rollback image и ответственный за остановку заказов зафиксированы
+- [ ] `.env.production` имеет mode 600, отсутствует в Git и прошёл validation
+- [ ] `docker-compose.prod.yml` собран и `/ready` отвечает на точном release SHA
 
 ## Данные и безопасность
 
@@ -19,10 +21,12 @@
 - [ ] Все secrets уникальны, находятся вне Git и имеют план ротации
 - [ ] Логи не содержат токены, birth data, email и storage keys
 - [ ] Retention, export и deletion процедуры проверены
+- [ ] `backup:prod` создал checksum/off-site copy и restore выполнен в новой БД
 
 ## Функциональная приёмка
 
 - [ ] Sandbox payment + подписанный повторный IPN прошли идемпотентно
+- [ ] Настоящие OIDC/NOWPayments/Resend/S3/Maps/LLM прошли staging acceptance
 - [ ] RU/EN/DE/ES заказ, narrative и PDF проверены человеком
 - [ ] D1, D9, аспекты, накшатра/pada и Vimshottari сверены с эталонным ПО
 - [ ] Owner review обязателен до отправки; synthetic report нельзя доставить
@@ -36,6 +40,7 @@
 - [ ] AGPL-3.0-or-later и Swiss Ephemeris notices доступны пользователям
 - [ ] Выбран бесплатный AGPL-режим; коммерческая лицензия не используется
 - [ ] Репозиторий/зеркало по `VITE_SOURCE_CODE_URL` доступно каждому пользователю
+- [ ] Source tag/commit совпадает с digest запущенного image
 - [ ] Privacy notice содержит имя/адрес/контакты реального контролёра данных
 - [ ] Terms, refund/cancellation и consumer disclosures проверены по рынкам
 - [ ] Зафиксированы основания обработки, processors, transfers и сроки хранения
