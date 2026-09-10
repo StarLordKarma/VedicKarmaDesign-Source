@@ -31,7 +31,9 @@ test("public order, signed mock payment, report rendering and email delivery", a
   ).toBeVisible();
   await page.getByRole("button", { name: "Confirm and continue" }).click();
   await expect(page.getByText(/Your request is saved/)).toBeVisible();
-  await page.getByRole("link", { name: /Continue to crypto payment/ }).click();
+  await page
+    .getByRole("link", { name: /Continue to (?:secure )?crypto checkout/ })
+    .click();
   await expect(
     page.getByRole("heading", { name: /Sandbox payment/ })
   ).toBeVisible();
