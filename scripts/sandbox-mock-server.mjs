@@ -63,7 +63,7 @@ createServer(async (req, res) => {
       "cache-control": "no-store",
     });
     return res.end(
-      `<!doctype html><meta name="robots" content="noindex"><title>Sandbox checkout</title><main><h1>Sandbox payment — no funds move</h1><p>Order <strong>${invoice.order_id}</strong></p><button id="confirm">Confirm test payment</button><pre id="result"></pre></main><script>confirm.onclick=async()=>{const r=await fetch('/confirm?id=${encodeURIComponent(id)}',{method:'POST'});result.textContent=await r.text();if(r.ok)setTimeout(()=>location.href=${JSON.stringify(invoice.success_url)},400)}</script>`
+      `<!doctype html><meta name="robots" content="noindex"><title>Sandbox checkout</title><main><h1>Sandbox payment — no funds move</h1><p>Order <strong>${invoice.order_id}</strong></p><button id="confirm-payment">Confirm test payment</button><pre id="result"></pre></main><script>document.getElementById('confirm-payment').onclick=async()=>{const r=await fetch('/confirm?id=${encodeURIComponent(id)}',{method:'POST'});document.getElementById('result').textContent=await r.text();if(r.ok)setTimeout(()=>location.href=${JSON.stringify(invoice.success_url)},400)}</script>`
     );
   }
   if (req.method === "POST" && url.pathname === "/confirm") {
