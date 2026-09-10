@@ -78,7 +78,12 @@ jobs:
       - run: docker compose --env-file .env.sandbox -f docker-compose.sandbox.yml up -d mysql minio minio-init mock-services
       - run: pnpm db:migrate:sandbox
       - run: pnpm sandbox:seed
-      - run: docker compose --env-file .env.sandbox -f docker-compose.sandbox.yml up -d --build --wait --wait-timeout 120 app
+      - name: Start sandbox application and wait for health
+        run: |
+          if ! docker compose --env-file .env.sandbox -f docker-compose.sandbox.yml up -d --build --wait --wait-timeout 120 app; then
+            docker compose --env-file .env.sandbox -f docker-compose.sandbox.yml logs --no-color app
+            exit 1
+          fi
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:e2e
       - if: always()
