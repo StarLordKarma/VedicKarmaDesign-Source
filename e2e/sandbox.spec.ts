@@ -26,6 +26,10 @@ test("public order, signed mock payment, report rendering and email delivery", a
   await page.locator('input[name="birthCountry"]').fill("Germany");
   await page.getByLabel("privacy consent").check();
   await page.getByRole("button", { name: "Request my reading" }).click();
+  await expect(
+    page.getByRole("button", { name: "Confirm and continue" })
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Confirm and continue" }).click();
   await expect(page.getByText(/Your request is saved/)).toBeVisible();
   await page.getByRole("link", { name: /Continue to crypto payment/ }).click();
   await expect(
