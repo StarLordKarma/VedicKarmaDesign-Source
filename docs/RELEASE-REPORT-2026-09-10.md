@@ -17,6 +17,11 @@
   записей; подписанный NOWPayments webhook явно исключён из CSRF-фильтра.
 - Исправлена причина прежних падений CI: удалено двойное указание версии pnpm.
 - CI теперь валидирует sandbox, staging и production Compose и собирает image.
+- Production server больше не загружает Vite как runtime dependency; клиентская
+  сборка избавлена от нестабильного ручного разбиения React 19 на chunks.
+- E2E приведён в соответствие с обязательным экраном проверки заказа и актуальным
+  текстом checkout; исправлен обработчик подтверждения mock-платежа.
+- GitHub Actions переведены на Node 24-compatible releases без устаревших runtimes.
 - Подготовлены точный перечень production credentials и процедура публичного
   AGPL-зеркала без раскрытия secrets/клиентских данных.
 
@@ -28,11 +33,14 @@
 - Аудит production-зависимостей: известных уязвимостей нет.
 - Целевые security/payment/PDF/calculation тесты: 22 passed.
 - Production Compose/YAML и backup shell syntax: успешно.
-- E2E/Docker локально: не запускались, потому что Docker CLI отсутствует.
-- GitHub Actions для `c206e8b` останавливался из-за конфликтующего объявления pnpm.
-  На первом исправленном запуске verify/container прошли, а CI обнаружил зависимый
-  от наполненности БД pagination assertion и отсутствие ожидания health приложения
-  перед Playwright. Оба дефекта исправлены в следующем commit.
+- E2E/Docker локально не запускались, потому что Docker CLI отсутствует; вместо
+  этого полный контейнерный прогон выполнен на GitHub-hosted runner.
+- GitHub Actions run
+  [#14](https://github.com/StarLordKarma/VedicKarmaDesign/actions/runs/34475628335):
+  **Success**, 4/4 jobs — verify, container, database-integration и sandbox-e2e.
+- Playwright E2E: **3 passed** — публичный интерфейс/AGPL, защищённый API и полный
+  цикл заказа → mock-оплаты → PDF → утверждения → письма.
+- Реальная MySQL migration/integration проверка: успешна.
 - Сборка содержит неблокирующее предупреждение Vite о крупных vendor chunks.
 
 ## 3. Новые и изменённые файлы
@@ -43,6 +51,11 @@
 - `scripts/seed-production.ts` — безопасная reference initialization.
 - `scripts/backup-production.sh` — dump, checksum, retention, off-site copy.
 - `.github/workflows/ci.yml` — исправление pnpm и Compose validation.
+- `server/_core/static.ts`, `server/_core/index.ts`, `server/_core/vite.ts` —
+  отделение production static serving от development-only Vite.
+- `vite.config.ts` — надёжная инициализация production React bundle.
+- `e2e/sandbox.spec.ts`, `scripts/sandbox-mock-server.mjs` — актуальный полный
+  checkout flow и рабочее подтверждение тестовой оплаты.
 - `docs/PRODUCTION-CREDENTIALS-NEEDED.md` — точный перечень доступов.
 - `docs/AGPL-PUBLIC-SOURCE.md` — инструкция публичного source/mirror.
 - `README.md`, `docs/DEPLOYMENT-PLAN.md`, `docs/PRE-LAUNCH-CHECKLIST.md` — runbook.
