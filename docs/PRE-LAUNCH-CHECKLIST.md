@@ -2,6 +2,10 @@
 
 ## Инфраструктура и релиз
 
+- [ ] Выбран Oracle Always Free A1 либо задокументирован fallback Hetzner/Timeweb
+- [ ] MySQL не публикует 3306, данные находятся на persistent volume
+- [ ] R2 PDF bucket private; B2 backup находится в отдельном account/failure domain
+- [ ] Выполнены `SETUP-SERVER.md`, `SETUP-DNS.md` и `SETUP-SECRETS.md`
 - [ ] Полный локальный sandbox и CI job `sandbox-e2e` зелёные
 - [ ] Release commit/tag зафиксирован; все обязательные CI jobs зелёные
 - [ ] Docker image собран по SHA, просканирован и сохранён его digest
@@ -33,6 +37,8 @@
 - [ ] Email, защищённая status-ссылка, download, revoke и expiry проверены
 - [ ] Отказы Maps/LLM/S3/email/payment дают безопасную ошибку и audit event
 - [ ] Scheduler, retry/dead-letter процедуры и оповещения проверены
+- [ ] Resend free limits/alerts и Maps SKU quotas проверены в кабинетах
+- [ ] LLM template fallback проверен: превышение quota не ломает расчёт/PDF
 
 ## Лицензирование и право
 
@@ -46,6 +52,8 @@
 - [ ] Зафиксированы основания обработки, processors, transfers и сроки хранения
 - [ ] Согласие на обработку и отдельное optional analytics consent журналируются
 - [ ] Формулировки не обещают абсолютную анонимность fiat-платежей
+- [ ] Реквизиты из `LEGAL-DATA-TEMPLATE.md` внесены и прошли юридический review
+- [ ] Все 10 строк `CHART-VERIFICATION.md` заполнены и подписаны специалистом
 - [ ] Описана минимизация данных: сайт не хранит карточные реквизиты и удаляет
       платёжные/клиентские данные по утверждённому retention schedule
 - [ ] Схема самозанятого, налоговые чеки и приём средств на зарубежный счёт

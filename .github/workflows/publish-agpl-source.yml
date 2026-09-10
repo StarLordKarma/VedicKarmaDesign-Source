@@ -1,0 +1,58 @@
+name: Publish AGPL source mirror
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: Type PUBLISH-AGPL-SOURCE
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  mirror:
+    if: inputs.confirm == 'PUBLISH-AGPL-SOURCE'
+    runs-on: ubuntu-latest
+    environment: agpl-publish
+    steps:
+      - name: Check out deployed source
+        uses: actions/checkout@v5
+        with:
+          path: source
+          persist-credentials: false
+      - name: Check mirror configuration
+        env:
+          MIRROR_REPOSITORY: ${{ vars.AGPL_MIRROR_REPOSITORY }}
+          MIRROR_TOKEN: ${{ secrets.AGPL_MIRROR_TOKEN }}
+        run: |
+          test -n "$MIRROR_REPOSITORY"
+          test -n "$MIRROR_TOKEN"
+      - name: Check out public mirror
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ vars.AGPL_MIRROR_REPOSITORY }}
+          token: ${{ secrets.AGPL_MIRROR_TOKEN }}
+          path: mirror
+      - name: Synchronize corresponding source
+        run: |
+          rsync -a --delete \
+            --exclude .git/ \
+            --exclude node_modules/ \
+            --exclude dist/ \
+            --exclude '.env*' \
+            source/ mirror/
+          cp source/.env.example mirror/.env.example
+          cp source/.env.production.example mirror/.env.production.example
+          cp source/.env.sandbox.example mirror/.env.sandbox.example
+      - name: Commit mirror snapshot
+        working-directory: mirror
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          git config user.name "Vedic Karma AGPL Mirror"
+          git config user.email "agpl-mirror@users.noreply.github.com"
+          git add --all
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "Publish corresponding source $SOURCE_SHA"
+          git push origin HEAD:main

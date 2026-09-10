@@ -101,8 +101,8 @@ special drishti намеренно не заявлены: правила отл�
 Выбран бесплатный режим **AGPL-3.0-or-later**. Перед публичным запуском оператор
 обязан предоставить соответствующий исходный код точной запущенной версии.
 Independent production блокируется без `CALCULATION_ENGINE_LICENSE` и
-`VITE_SOURCE_CODE_URL`. Если исходный код нельзя открыть, требуется Swiss
-Ephemeris Professional License и отдельный пересмотр лицензирования проекта.
+`VITE_SOURCE_CODE_URL`. В выбранной модели коммерческая лицензия не покупается:
+если corresponding source нельзя открыть, публичный запуск блокируется.
 См. [LICENSE](LICENSE) и [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
 
 ### Лицензирование и AGPL
@@ -111,10 +111,8 @@ Footer получает ссылку из `VITE_SOURCE_CODE_URL`. Она дол�
 похожий проект, а на полный corresponding source точной версии, доступной
 пользователю сетевого сервиса, включая изменения и инструкции сборки. Новый код
 проекта также распространяется под AGPL-3.0-or-later. Notices находятся в
-`NOTICE` и `THIRD_PARTY_LICENSES.md`. Если оператор не может выполнять AGPL,
-альтернатива — до запуска приобрести Swiss Ephemeris Professional License и
-провести отдельный юридический review собственной лицензии приложения; покупка
-не означает автоматической смены лицензии уже опубликованного AGPL-кода.
+`NOTICE` и `THIRD_PARTY_LICENSES.md`. Оператор обязан выполнять AGPL для каждой
+развёрнутой версии; приватный URL origin не является публичным source offer.
 
 Moshier fallback используется, если `SWE_EPHE_PATH` не задан; режим записывается
 в snapshot. До релиза нужен reference benchmark на независимых эталонных картах:
@@ -148,8 +146,9 @@ Resend, S3, Google Maps и OpenAI-compatible LLM. Mock endpoints разреше�
 в локальном sandbox; independent production принимает только HTTPS endpoints.
 Перед запуском заполните [список production-доступов](docs/PRODUCTION-CREDENTIALS-NEEDED.md).
 
-Caddy выпускает HTTPS-сертификат и проксирует приложение. База и S3 должны быть
-внешними; backup/restore репетируются в staging до первого заказа.
+Caddy выпускает HTTPS-сертификат и проксирует приложение. Бюджетный production
+держит MySQL в private Docker network/persistent volume, а PDF — во внешнем R2;
+off-site DB/PDF backup и restore репетируются до первого заказа.
 
 - [План deployment](docs/DEPLOYMENT-PLAN.md)
 - [Release runbook](deploy/RELEASE-RUNBOOK.md)
@@ -163,6 +162,11 @@ Caddy выпускает HTTPS-сертификат и проксирует пр
 - [Production credentials](docs/PRODUCTION-CREDENTIALS-NEEDED.md)
 - [Публикация AGPL source](docs/AGPL-PUBLIC-SOURCE.md)
 - [Release report](docs/RELEASE-REPORT-2026-09-10.md)
+- [Cost analysis and selected stack](docs/COST-ANALYSIS-2026-09-10.md)
+- [Server setup](docs/SETUP-SERVER.md)
+- [DNS and TLS setup](docs/SETUP-DNS.md)
+- [Secrets setup](docs/SETUP-SECRETS.md)
+- [Independent chart verification](docs/CHART-VERIFICATION.md)
 - [Спецификация Report Studio](ETAP-DVA-REPORT-STUDIO-SPEC.md)
 
 ## Миграции

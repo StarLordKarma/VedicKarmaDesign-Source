@@ -5,10 +5,11 @@
 
 ## 1. Предварительные требования
 
-Рекомендуемый минимальный вариант — отдельный VPS с Ubuntu 24.04 LTS, 2 vCPU,
-4 ГБ RAM и 40+ ГБ SSD. Приложение запускается контейнерами, но MySQL и S3 лучше
-использовать как отдельные managed/private services: это снижает риск потери данных
-при замене VPS.
+Рекомендуемый нулевой старт — Oracle Always Free A1 с Ubuntu 24.04, MySQL на
+отдельном Docker volume той же VM, Cloudflare R2 для PDF и Backblaze B2 для
+off-site backup. Если ARM capacity недоступна, выбрать Hetzner CAX11/CX23; для
+оплаты из РФ — Timeweb 4 ГБ. Полное сравнение и точки начала расходов приведены в
+[COST-ANALYSIS-2026-09-10.md](COST-ANALYSIS-2026-09-10.md).
 
 До запуска необходимо получить:
 
@@ -29,19 +30,19 @@
 object storage, snapshots и исходящего трафика; перед покупкой проверить регион и
 итоговый счёт на официальной странице.
 
-| Вариант              | Стартовый размер    |                                       Ориентир | Плюсы                                     | Ограничения                                           |
-| -------------------- | ------------------- | ---------------------------------------------: | ----------------------------------------- | ----------------------------------------------------- |
-| Hetzner Cloud CX22   | 2 vCPU, 4 ГБ, 40 ГБ | €3.79/мес по опубликованному CX22 announcement | лучший бюджет/ресурсы, EU regions         | доступность аккаунта/оплаты и цена зависят от региона |
-| DigitalOcean Basic   | 2 vCPU, 4 ГБ, 80 ГБ |                                        $24/мес | простой UI, managed DB/Spaces             | дороже, дополнительные сервисы оплачиваются отдельно  |
-| AWS Lightsail Medium | 2 vCPU, 4 ГБ, 80 ГБ |                                 $24/мес с IPv4 | предсказуемый bundle, путь к AWS services | IAM/стоимость экосистемы сложнее                      |
+| Вариант              | Стартовый размер    |                                Ориентир | Плюсы                                     | Ограничения                                           |
+| -------------------- | ------------------- | --------------------------------------: | ----------------------------------------- | ----------------------------------------------------- |
+| Hetzner Cloud CX23   | 2 vCPU, 4 ГБ, 40 ГБ | €5.49/мес без VAT/IPv4 после 15.06.2026 | лучший бюджет/ресурсы, EU regions         | доступность аккаунта/оплаты и цена зависят от региона |
+| DigitalOcean Basic   | 2 vCPU, 4 ГБ, 80 ГБ |                                 $24/мес | простой UI, managed DB/Spaces             | дороже, дополнительные сервисы оплачиваются отдельно  |
+| AWS Lightsail Medium | 2 vCPU, 4 ГБ, 80 ГБ |                          $24/мес с IPv4 | предсказуемый bundle, путь к AWS services | IAM/стоимость экосистемы сложнее                      |
 
-Источники: [Hetzner](https://www.hetzner.com/pressroom/new-cx-plans/),
+Источники: [Hetzner](https://docs.hetzner.com/general/infrastructure-and-availability/price-adjustment/),
 [DigitalOcean](https://www.digitalocean.com/pricing/droplets),
 [AWS Lightsail](https://docs.aws.amazon.com/lightsail/latest/userguide/amazon-lightsail-bundles.html).
-Практический выбор для первого запуска — Hetzner 4 ГБ, если доступны регистрация
-и оплата; DigitalOcean — более простой запасной вариант. Базу допустимо временно
-держать на отдельном private volume того же VPS только при ежедневном off-site
-backup и успешно проведённом restore rehearsal.
+Практический выбор — сначала попытаться получить Oracle Always Free A1; при
+отсутствии capacity использовать Hetzner 4 ГБ, а при недоступной оплате — Timeweb.
+База на private volume той же VM допустима только при ежедневном off-site backup и
+успешном ежемесячном restore rehearsal.
 
 Вариант с минимальной ценой — Oracle Cloud Always Free, если аккаунту реально
 выделяются ARM-ресурсы в выбранном регионе; доступность capacity не гарантируется.
@@ -60,26 +61,27 @@ nakshatra/pada, Parashari full-sign aspects и Vimshottari mahadasha — лок�
 для расчётов нет.
 
 Перед production нужны юридическое принятие AGPL с доступом пользователей к
-исходникам и reference benchmark на известных картах. Если исходники нельзя
-предоставить, запуск блокируется до покупки Professional License и пересмотра
-лицензирования.
+исходникам и reference benchmark на известных картах. Если corresponding source
+нельзя предоставить публично, запуск блокируется. Покупка коммерческой лицензии в
+выбранную модель не входит.
 
 ## 2. Пошаговая инструкция по деплою
 
+Подробные инструкции: [SETUP-SERVER.md](SETUP-SERVER.md),
+[SETUP-DNS.md](SETUP-DNS.md), [SETUP-SECRETS.md](SETUP-SECRETS.md).
+
 1. Создать VPS, непривилегированного deploy-пользователя, SSH-ключи и firewall;
    открыть только 22 (ограниченно), 80 и 443. Установить Docker Engine и Compose.
-2. Создать staging и production базы/buckets. Проверить TLS, lifecycle policy,
-   least privilege и восстановление тестовой backup-копии.
+2. Создать private R2 PDF bucket и отдельный B2 backup bucket. MySQL создаётся
+   `docker-compose.prod.yml` на непубличной сети и persistent volume.
 3. Клонировать конкретный release tag/commit. Не выполнять deployment из
    изменённой рабочей директории.
-4. Скопировать `deploy/.env.standalone.example` в `deploy/.env.standalone`, заполнить
-   через secret manager/защищённый файл mode 600. Установить `SITE_DOMAIN`,
+4. Скопировать `.env.production.example` в `.env.production`, заполнить через
+   secret manager/защищённый файл mode 600. Установить `SITE_DOMAIN`,
    `PUBLIC_BASE_URL`, `VITE_SOURCE_CODE_URL` и все credentials.
-   Предпочтительный новый путь: `.env.production.example` → `.env.production` и
-   корневой `docker-compose.prod.yml`.
 5. Выполнить `pnpm deploy:check` в CI, собрать image по commit SHA и сохранить digest.
-6. Сделать snapshot и применить миграции командой из release runbook.
-7. Запустить Compose. Caddy выполняет reverse proxy и Let's Encrypt. Проверить
+6. Сделать snapshot и применить миграции через `sh scripts/deploy.sh`.
+7. Скрипт запускает MySQL/app/Caddy. Проверить
    `/health` и `/ready`.
 8. Настроить DNS, проверить HSTS, secure cookies, OIDC/MFA и запрет доступа
    не-owner пользователю к `/admin`.
@@ -116,16 +118,17 @@ bucket/account, ежемесячное восстановление в изол�
 - S3/совместимое хранилище: отдельные staging/prod buckets, Block Public Access,
   encryption, versioning, lifecycle, scoped access key только на нужный prefix.
   PDF выдаются через короткоживущий signed URL/server endpoint с `no-store`.
-- Resend: отдельный verified subdomain, SPF/DKIM/DMARC, allowlist в staging,
+- Resend Free: до 3 000 писем/месяц и 100/день на дату проверки; отдельный verified subdomain, SPF/DKIM/DMARC, allowlist в staging,
   bounce/complaint alerts и запрет отправки synthetic jobs. SMTP сейчас не является
   реализованным adapter; его нельзя указать в env без разработки и тестов.
 - NOWPayments: отдельные API/IPN secrets, HTTPS callback, подпись и idempotency.
   Stripe/ЮKassa пока не интегрированы: перед добавлением нужны договор, KYC,
   налоги/чеки и review доступности по юрисдикциям. Fiat rail не является анонимным;
   обещается только минимизация данных и отсутствие хранения карточных реквизитов.
-- LLM: отдельный project/key с лимитом затрат, DPA/no-training условиями и
+- LLM: стартовый OpenAI-compatible endpoint — Groq free tier; отдельный project/key, template fallback, DPA/no-training условия и
   минимизированным prompt. Модель не рассчитывает положения и не утверждает PDF.
-- Maps: server-side key с API/IP restrictions, quota и billing alerts.
+- Maps: прежний общий кредит $200 больше не действует; server-side key с API/IP
+  restrictions, низкими SKU quotas и billing alerts.
 
 ### Monitoring и журналы
 

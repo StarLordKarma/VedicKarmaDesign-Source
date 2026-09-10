@@ -25,7 +25,11 @@ MYSQL_PWD="$DB_PASSWORD" mysqldump \
   --host="$DB_HOST" --port="$DB_PORT" --user="$DB_USER" \
   --single-transaction --quick --routines --triggers --set-gtid-purged=OFF \
   "$DB_NAME" | gzip -9 > "$target"
-shasum -a 256 "$target" > "$target.sha256"
+if command -v sha256sum >/dev/null 2>&1; then
+  (cd "$BACKUP_DIR" && sha256sum "$(basename "$target")" > "$(basename "$target").sha256")
+else
+  (cd "$BACKUP_DIR" && shasum -a 256 "$(basename "$target")" > "$(basename "$target").sha256")
+fi
 
 if [ -n "${BACKUP_S3_URI:-}" ]; then
   command -v aws >/dev/null 2>&1 || { echo "aws CLI is required for BACKUP_S3_URI" >&2; exit 1; }

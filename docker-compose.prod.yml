@@ -1,4 +1,31 @@
 services:
+  database:
+    image: mysql:8.0
+    restart: unless-stopped
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:?Set MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_APP_USER:?Set MYSQL_APP_USER}
+      MYSQL_PASSWORD: ${MYSQL_APP_PASSWORD:?Set MYSQL_APP_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test:
+        [
+          CMD-SHELL,
+          "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    networks: [backend]
+    expose: ["3306"]
+    ports: ["127.0.0.1:3306:3306"]
+
   app:
     build:
       context: .
@@ -25,6 +52,9 @@ services:
       timeout: 5s
       retries: 3
       start_period: 30s
+    depends_on:
+      database: { condition: service_healthy }
+    networks: [backend, edge]
 
   proxy:
     image: caddy:2-alpine
@@ -38,6 +68,7 @@ services:
       - caddy_config:/config
     depends_on:
       app: { condition: service_healthy }
+    networks: [edge]
 
   migrate:
     profiles: [tools]
@@ -47,6 +78,9 @@ services:
       target: build
     env_file: .env.production
     command: ["corepack", "pnpm", "db:migrate:prod"]
+    depends_on:
+      database: { condition: service_healthy }
+    networks: [backend]
 
   seed:
     profiles: [tools]
@@ -56,7 +90,16 @@ services:
       target: build
     env_file: .env.production
     command: ["corepack", "pnpm", "db:seed:prod"]
+    depends_on:
+      database: { condition: service_healthy }
+    networks: [backend]
 
 volumes:
+  mysql_data:
   caddy_data:
   caddy_config:
+
+networks:
+  backend:
+    internal: true
+  edge:

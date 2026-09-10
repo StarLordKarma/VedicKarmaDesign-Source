@@ -2,6 +2,9 @@
 
 **Дата:** 2026-09-10
 
+Актуальные тарифы, исправления устаревших free-tier допущений и выбранный стек
+находятся в [COST-ANALYSIS-2026-09-10.md](COST-ANALYSIS-2026-09-10.md).
+
 ## Нулевой бюджет для разработки
 
 `docker-compose.sandbox.yml` полностью локален: MySQL, MinIO, payment/email/maps/LLM
