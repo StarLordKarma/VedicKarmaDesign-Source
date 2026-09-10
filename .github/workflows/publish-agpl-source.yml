@@ -24,15 +24,15 @@ jobs:
       - name: Check mirror configuration
         env:
           MIRROR_REPOSITORY: ${{ vars.AGPL_MIRROR_REPOSITORY }}
-          MIRROR_TOKEN: ${{ secrets.AGPL_MIRROR_TOKEN }}
+          MIRROR_SSH_KEY: ${{ secrets.AGPL_MIRROR_SSH_KEY }}
         run: |
           test -n "$MIRROR_REPOSITORY"
-          test -n "$MIRROR_TOKEN"
+          test -n "$MIRROR_SSH_KEY"
       - name: Check out public mirror
         uses: actions/checkout@v5
         with:
           repository: ${{ vars.AGPL_MIRROR_REPOSITORY }}
-          token: ${{ secrets.AGPL_MIRROR_TOKEN }}
+          ssh-key: ${{ secrets.AGPL_MIRROR_SSH_KEY }}
           path: mirror
       - name: Synchronize corresponding source
         run: |

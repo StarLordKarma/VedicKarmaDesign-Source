@@ -23,6 +23,9 @@
 - Northflank Developer Sandbox: app (0.2 shared vCPU / 512 MB) + private
   MySQL 8.4.11 (0.2 shared vCPU / 512 MB / 6 GB NVMe) — $0/мес within the
   current free-project limits;
+- добавлена нативная поддержка отдельных credentials связанного Northflank
+  MySQL addon и production-команда `pnpm db:migrate:runtime`; несовместимый
+  connector string больше не используется как `DATABASE_URL`;
 - Cloudflare R2 и Backblaze B2: $0 в пределах первых 10 ГБ каждого;
 - Cloudflare DNS, Resend, OIDC, Maps SKU caps и Groq free tier: $0 в пределах лимитов;
 - домен: ориентир $8–15/год для обычного `.com`, точная цена зависит от имени;

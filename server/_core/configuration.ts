@@ -1,3 +1,5 @@
+import { hasDatabaseConfiguration } from "./database-url";
+
 export function independentConfigurationErrors(
   env: NodeJS.ProcessEnv = process.env
 ) {
@@ -5,7 +7,6 @@ export function independentConfigurationErrors(
   const errors: string[] = [];
   for (const key of [
     "PUBLIC_BASE_URL",
-    "DATABASE_URL",
     "JWT_SECRET",
     "SCHEDULED_TASK_SECRET",
     "OWNER_OPEN_ID",
@@ -27,6 +28,8 @@ export function independentConfigurationErrors(
     if (!env[key]?.trim() || /replace-with|example\.com/.test(env[key]!))
       errors.push(`${key} is missing or still a placeholder`);
   }
+  if (!hasDatabaseConfiguration(env))
+    errors.push("DATABASE_URL or Northflank MySQL add-on fields are missing");
   for (const key of ["JWT_SECRET", "SCHEDULED_TASK_SECRET"])
     if ((env[key]?.length ?? 0) < 32)
       errors.push(`${key} must contain at least 32 characters`);

@@ -24,6 +24,7 @@ COPY package.json pnpm-lock.yaml ./
 COPY patches ./patches
 RUN corepack pnpm install --prod --frozen-lockfile
 COPY --from=build /app/dist ./dist
+COPY --from=build /app/drizzle ./drizzle
 USER app
 
 EXPOSE 3000

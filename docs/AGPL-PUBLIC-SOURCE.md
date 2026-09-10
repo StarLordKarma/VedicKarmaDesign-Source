@@ -36,7 +36,9 @@ git push public release-YYYYMMDD-01
 
 Ручной workflow `.github/workflows/publish-agpl-source.yml` копирует текущий source
 tree без Git-истории, `.env`, зависимостей и build artifacts в отдельное публичное
-зеркало. В Environment `agpl-publish` нужно сохранить `AGPL_MIRROR_TOKEN`, а в
+зеркало. В Environment `agpl-publish` нужно сохранить закрытую часть отдельного
+deploy key как `AGPL_MIRROR_SSH_KEY` (публичная часть добавляется в зеркало с
+правом записи), а в
 repository variable `AGPL_MIRROR_REPOSITORY` — значение `owner/public-repository`.
 Token должен иметь Contents: Read/Write только на зеркало.
 

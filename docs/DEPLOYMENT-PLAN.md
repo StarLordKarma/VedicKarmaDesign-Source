@@ -11,6 +11,13 @@ Cloudflare R2 для PDF. Публичный preview доступен по ад�
 `https://p01--vedic-karma-app--mbb49nqg858d.code.run/`, а corresponding source —
 `https://github.com/StarLordKarma/VedicKarmaDesign-Source`.
 
+Связанный MySQL addon передаёт приложению отдельные переменные
+`NF_VEDIC_KARMA_MYSQL_HOST`, `..._USERNAME`, `..._PASSWORD` и `..._DATABASE`.
+Приложение само формирует совместимый `mysql://` URL. Поле
+`MYSQL_CONNECTOR_URI` имеет иной формат и не должно назначаться как
+`DATABASE_URL`. Одноразовые миграции запускаются в том же образе командой
+`pnpm db:migrate:runtime`; каталог `drizzle/` включён в runtime-образ.
+
 При нехватке 512 МБ или изменении free tier тот же образ переносится на Oracle
 Always Free A1. Если ARM capacity недоступна, выбрать Hetzner CAX11/CX23; для
 оплаты из РФ — Timeweb 4 ГБ. Полное сравнение и точки начала расходов приведены в

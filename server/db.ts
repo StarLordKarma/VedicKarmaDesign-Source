@@ -3,14 +3,17 @@ import { and, asc, count, desc, eq, gte, gt, like, lt, sql } from "drizzle-orm";
 import { ClientChangeHistory, InsertBookingRequest, InsertUser, bookingRequests, clientChangeHistory, paymentTestLabRuns, paymentTestLabRetentionSettings, paymentTestLabRetentionChanges, paymentTestLabCleanupHistory, servicePackages, servicePricing, servicePricingCurrencies, servicePricingHistory, smokeTestRuns, users, receiptFiles, receiptRetentionSettings, receiptEmailAttempts, receiptEmailFailureAlerts, slaEmailAllowlist } from "../drizzle/schema";
 import { READING_PRICES } from "@shared/pricing";
 import { ENV } from './_core/env';
+import { resolveDatabaseUrl } from "./_core/database-url";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
 // Lazily create the drizzle instance so local tooling can run without a DB.
 export async function getDb() {
-  if (!_db && process.env.DATABASE_URL) {
+  if (!_db) {
     try {
-      _db = drizzle(process.env.DATABASE_URL);
+      const databaseUrl = resolveDatabaseUrl();
+      if (!databaseUrl) return null;
+      _db = drizzle(databaseUrl);
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);
       _db = null;
