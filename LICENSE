@@ -1,0 +1,15 @@
+Vedic Karma Design is licensed under the GNU Affero General Public License,
+version 3 or (at your option) any later version (AGPL-3.0-or-later).
+
+The complete license text is available from the Free Software Foundation:
+https://www.gnu.org/licenses/agpl-3.0.txt
+
+SPDX-License-Identifier: AGPL-3.0-or-later
+
+This notice applies to the application source code except where a file or the
+THIRD_PARTY_LICENSES.md document states different terms. No trademark rights,
+customer data, credentials, generated reports, or third-party assets are
+licensed by this notice.
+
+For a service deployed over a network, operators must satisfy the AGPL source
+offer requirements for the exact corresponding version they run.

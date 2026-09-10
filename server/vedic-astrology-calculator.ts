@@ -56,6 +56,13 @@ export interface VimshottariPeriod {
   isBirthBalance: boolean;
 }
 
+export interface GrahaAspect {
+  source: Exclude<SupportedPlanet, "Rahu" | "Ketu">;
+  target: ChartPoint;
+  housesForward: number;
+  rule: "parashari-full-sign";
+}
+
 export interface CalculationSnapshot {
   contractVersion: "vedic-report-calculation/v1";
   engine: {
@@ -71,8 +78,22 @@ export interface CalculationSnapshot {
   planets: PlanetaryPosition[];
   d1: DivisionalPlacement[];
   d9: DivisionalPlacement[];
+  aspects: GrahaAspect[];
   vimshottari: { birthLord: SupportedPlanet; periods: VimshottariPeriod[] };
 }
+
+const FULL_ASPECT_HOUSES: Record<
+  Exclude<SupportedPlanet, "Rahu" | "Ketu">,
+  number[]
+> = {
+  Sun: [7],
+  Moon: [7],
+  Mercury: [7],
+  Venus: [7],
+  Mars: [4, 7, 8],
+  Jupiter: [5, 7, 9],
+  Saturn: [3, 7, 10],
+};
 
 const PLANETS: Array<[SupportedPlanet, number]> = [
   ["Sun", constants.SE_SUN],
@@ -132,11 +153,16 @@ function degreeInSign(longitude: number): number {
 }
 
 function toUtcDate(input: BirthInput): Date {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.localDate)) throw new Error("localDate must use YYYY-MM-DD");
-  if (!/^\d{2}:\d{2}(:\d{2})?$/.test(input.localTime)) throw new Error("localTime must use HH:mm or HH:mm:ss");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.localDate))
+    throw new Error("localDate must use YYYY-MM-DD");
+  if (!/^\d{2}:\d{2}(:\d{2})?$/.test(input.localTime))
+    throw new Error("localTime must use HH:mm or HH:mm:ss");
   const [year, month, day] = input.localDate.split("-").map(Number);
   const [hour, minute, second = 0] = input.localTime.split(":").map(Number);
-  const utc = new Date(Date.UTC(year, month - 1, day, hour, minute, second) - input.timeZoneOffsetMinutes * 60_000);
+  const utc = new Date(
+    Date.UTC(year, month - 1, day, hour, minute, second) -
+      input.timeZoneOffsetMinutes * 60_000
+  );
   if (Number.isNaN(utc.getTime())) throw new Error("Invalid birth date/time");
   return utc;
 }
@@ -145,16 +171,33 @@ function validateInput(input: BirthInput): void {
   assertFinite("timeZoneOffsetMinutes", input.timeZoneOffsetMinutes);
   assertFinite("latitude", input.latitude);
   assertFinite("longitude", input.longitude);
-  if (input.latitude < -90 || input.latitude > 90) throw new Error("latitude must be between -90 and 90");
-  if (input.longitude < -180 || input.longitude > 180) throw new Error("longitude must be between -180 and 180");
-  if (input.timeZoneOffsetMinutes < -14 * 60 || input.timeZoneOffsetMinutes > 14 * 60) {
-    throw new Error("timeZoneOffsetMinutes is outside the supported timezone range");
+  if (input.latitude < -90 || input.latitude > 90)
+    throw new Error("latitude must be between -90 and 90");
+  if (input.longitude < -180 || input.longitude > 180)
+    throw new Error("longitude must be between -180 and 180");
+  if (
+    input.timeZoneOffsetMinutes < -14 * 60 ||
+    input.timeZoneOffsetMinutes > 14 * 60
+  ) {
+    throw new Error(
+      "timeZoneOffsetMinutes is outside the supported timezone range"
+    );
   }
 }
 
-function makeDivisionalPlacement(planet: ChartPoint, longitude: number, division: 1 | 9): DivisionalPlacement {
+function makeDivisionalPlacement(
+  planet: ChartPoint,
+  longitude: number,
+  division: 1 | 9
+): DivisionalPlacement {
   const normalized = normalizeDegrees(longitude);
-  if (division === 1) return { planet, longitude: normalized, sign: signOf(normalized), degreeInSign: degreeInSign(normalized) };
+  if (division === 1)
+    return {
+      planet,
+      longitude: normalized,
+      sign: signOf(normalized),
+      degreeInSign: degreeInSign(normalized),
+    };
 
   const rasi = signOf(normalized);
   const withinRasi = degreeInSign(normalized);
@@ -171,20 +214,25 @@ function makeDivisionalPlacement(planet: ChartPoint, longitude: number, division
   };
 }
 
-function makeVimshottari(moonLongitude: number, birthUtc: Date): { birthLord: SupportedPlanet; periods: VimshottariPeriod[] } {
+function makeVimshottari(
+  moonLongitude: number,
+  birthUtc: Date
+): { birthLord: SupportedPlanet; periods: VimshottariPeriod[] } {
   const moon = normalizeDegrees(moonLongitude);
   const nakshatra = Math.floor(moon / NAKSHATRA_SPAN);
   const birthLord = VIMSHOTTARI_ORDER[nakshatra % 9];
   const withinNakshatra = moon - nakshatra * NAKSHATRA_SPAN;
   const elapsedFraction = withinNakshatra / NAKSHATRA_SPAN;
-  const balanceDays = VIMSHOTTARI_YEARS[birthLord] * (1 - elapsedFraction) * 365.2425;
+  const balanceDays =
+    VIMSHOTTARI_YEARS[birthLord] * (1 - elapsedFraction) * 365.2425;
   const periods: VimshottariPeriod[] = [];
   let cursor = birthUtc.getTime();
   const firstIndex = VIMSHOTTARI_ORDER.indexOf(birthLord);
 
   for (let i = 0; i < 9; i += 1) {
     const lord = VIMSHOTTARI_ORDER[(firstIndex + i) % 9];
-    const durationDays = i === 0 ? balanceDays : VIMSHOTTARI_YEARS[lord] * 365.2425;
+    const durationDays =
+      i === 0 ? balanceDays : VIMSHOTTARI_YEARS[lord] * 365.2425;
     const end = cursor + durationDays * DAY_MS;
     periods.push({
       lord,
@@ -198,9 +246,50 @@ function makeVimshottari(moonLongitude: number, birthUtc: Date): { birthLord: Su
   return { birthLord, periods };
 }
 
-function readCalc(planet: SupportedPlanet, id: number, jdUt: number, flags: number): PlanetaryPosition {
+function makeGrahaAspects(
+  placements: Array<{ planet: ChartPoint; longitude: number }>
+): GrahaAspect[] {
+  const targets = placements.map(item => ({
+    ...item,
+    sign: signOf(item.longitude),
+  }));
+  return targets.flatMap(source => {
+    if (
+      source.planet === "Ascendant" ||
+      source.planet === "Rahu" ||
+      source.planet === "Ketu"
+    )
+      return [];
+    const sourcePlanet: Exclude<SupportedPlanet, "Rahu" | "Ketu"> =
+      source.planet;
+    const aspectHouses = FULL_ASPECT_HOUSES[sourcePlanet];
+    return targets
+      .filter(target => target.planet !== source.planet)
+      .map(target => ({
+        target,
+        housesForward: ((target.sign - source.sign + 12) % 12) + 1,
+      }))
+      .filter(({ housesForward }) => aspectHouses.includes(housesForward))
+      .map(({ target, housesForward }) => ({
+        source: sourcePlanet,
+        target: target.planet,
+        housesForward,
+        rule: "parashari-full-sign" as const,
+      }));
+  });
+}
+
+function readCalc(
+  planet: SupportedPlanet,
+  id: number,
+  jdUt: number,
+  flags: number
+): PlanetaryPosition {
   const result = calc_ut(jdUt, id, flags);
-  if (result.flag < 0 || !result.data) throw new Error(`Swiss Ephemeris failed for ${planet}: ${result.error ?? "unknown error"}`);
+  if (result.flag < 0 || !result.data)
+    throw new Error(
+      `Swiss Ephemeris failed for ${planet}: ${result.error ?? "unknown error"}`
+    );
   const [longitude, latitude, distanceAu, speedLongitude] = result.data;
   const normalized = normalizeDegrees(longitude);
   return {
@@ -224,38 +313,94 @@ export function calculateVedicSnapshot(input: BirthInput): CalculationSnapshot {
     birthUtc.getUTCFullYear(),
     birthUtc.getUTCMonth() + 1,
     birthUtc.getUTCDate(),
-    birthUtc.getUTCHours() + birthUtc.getUTCMinutes() / 60 + birthUtc.getUTCSeconds() / 3600,
+    birthUtc.getUTCHours() +
+      birthUtc.getUTCMinutes() / 60 +
+      birthUtc.getUTCSeconds() / 3600,
     0,
     0,
-    constants.SE_GREG_CAL,
+    constants.SE_GREG_CAL
   );
-  if (utc.flag !== constants.OK) throw new Error(`Swiss Ephemeris date conversion failed: ${utc.error ?? "unknown error"}`);
+  if (utc.flag !== constants.OK)
+    throw new Error(
+      `Swiss Ephemeris date conversion failed: ${utc.error ?? "unknown error"}`
+    );
   const [, jdUt] = utc.data;
   set_sid_mode(constants.SE_SIDM_LAHIRI, 0, 0);
   if (process.env.SWE_EPHE_PATH) set_ephe_path(process.env.SWE_EPHE_PATH);
 
   const ephemerisMode = process.env.SWE_EPHE_PATH ? "sweph" : "moseph";
-  const flags = (ephemerisMode === "sweph" ? constants.SEFLG_SWIEPH : constants.SEFLG_MOSEPH) | constants.SEFLG_SIDEREAL | constants.SEFLG_SPEED;
-  const planets = PLANETS.map(([planet, id]) => readCalc(planet, id, jdUt, flags));
-  const ketuLongitude = normalizeDegrees(planets.find((p) => p.planet === "Rahu")!.longitude + 180);
-  planets.push({ ...planets.find((p) => p.planet === "Rahu")!, planet: "Ketu", longitude: ketuLongitude, sign: signOf(ketuLongitude), degreeInSign: degreeInSign(ketuLongitude), nakshatra: Math.floor(ketuLongitude / NAKSHATRA_SPAN), pada: Math.floor((ketuLongitude % NAKSHATRA_SPAN) / PADA_SPAN) + 1, retrograde: true });
+  const flags =
+    (ephemerisMode === "sweph"
+      ? constants.SEFLG_SWIEPH
+      : constants.SEFLG_MOSEPH) |
+    constants.SEFLG_SIDEREAL |
+    constants.SEFLG_SPEED;
+  const planets = PLANETS.map(([planet, id]) =>
+    readCalc(planet, id, jdUt, flags)
+  );
+  const ketuLongitude = normalizeDegrees(
+    planets.find(p => p.planet === "Rahu")!.longitude + 180
+  );
+  planets.push({
+    ...planets.find(p => p.planet === "Rahu")!,
+    planet: "Ketu",
+    longitude: ketuLongitude,
+    sign: signOf(ketuLongitude),
+    degreeInSign: degreeInSign(ketuLongitude),
+    nakshatra: Math.floor(ketuLongitude / NAKSHATRA_SPAN),
+    pada: Math.floor((ketuLongitude % NAKSHATRA_SPAN) / PADA_SPAN) + 1,
+    retrograde: true,
+  });
 
   const houses = houses_ex2(jdUt, flags, input.latitude, input.longitude, "P");
-  if (houses.flag < 0 || !houses.data) throw new Error(`Swiss Ephemeris houses failed: ${houses.error ?? "unknown error"}`);
+  if (houses.flag < 0 || !houses.data)
+    throw new Error(
+      `Swiss Ephemeris houses failed: ${houses.error ?? "unknown error"}`
+    );
   const ascLongitude = normalizeDegrees(houses.data.points[0]);
-  const ascendant = { longitude: ascLongitude, sign: signOf(ascLongitude), degreeInSign: degreeInSign(ascLongitude) };
-  const allPlacements: Array<{ planet: ChartPoint; longitude: number }> = [{ planet: "Ascendant", longitude: ascLongitude }, ...planets.map((p) => ({ planet: p.planet, longitude: p.longitude }))];
+  const ascendant = {
+    longitude: ascLongitude,
+    sign: signOf(ascLongitude),
+    degreeInSign: degreeInSign(ascLongitude),
+  };
+  const allPlacements: Array<{ planet: ChartPoint; longitude: number }> = [
+    { planet: "Ascendant", longitude: ascLongitude },
+    ...planets.map(p => ({ planet: p.planet, longitude: p.longitude })),
+  ];
 
   return {
     contractVersion: "vedic-report-calculation/v1",
-    engine: { adapter: "sweph", engineVersion: "2.10.3-5", zodiac: "sidereal", ayanamsa: "lahiri", ephemerisMode, houseMethod: "whole-sign" },
+    engine: {
+      adapter: "sweph",
+      engineVersion: "2.10.3-5",
+      zodiac: "sidereal",
+      ayanamsa: "lahiri",
+      ephemerisMode,
+      houseMethod: "whole-sign",
+    },
     input: { ...input, utcIso: birthUtc.toISOString(), julianDayUt: jdUt },
     ascendant,
     planets,
-    d1: allPlacements.map(({ planet, longitude }) => makeDivisionalPlacement(planet, longitude, 1)),
-    d9: allPlacements.map(({ planet, longitude }) => makeDivisionalPlacement(planet, longitude, 9)),
-    vimshottari: makeVimshottari(planets.find((p) => p.planet === "Moon")!.longitude, birthUtc),
+    d1: allPlacements.map(({ planet, longitude }) =>
+      makeDivisionalPlacement(planet, longitude, 1)
+    ),
+    d9: allPlacements.map(({ planet, longitude }) =>
+      makeDivisionalPlacement(planet, longitude, 9)
+    ),
+    aspects: makeGrahaAspects(allPlacements),
+    vimshottari: makeVimshottari(
+      planets.find(p => p.planet === "Moon")!.longitude,
+      birthUtc
+    ),
   };
 }
 
-export const __calculationInternals = { normalizeDegrees, makeDivisionalPlacement, makeVimshottari, toUtcDate, NAKSHATRA_SPAN, VIMSHOTTARI_TOTAL_YEARS };
+export const __calculationInternals = {
+  normalizeDegrees,
+  makeDivisionalPlacement,
+  makeVimshottari,
+  makeGrahaAspects,
+  toUtcDate,
+  NAKSHATRA_SPAN,
+  VIMSHOTTARI_TOTAL_YEARS,
+};

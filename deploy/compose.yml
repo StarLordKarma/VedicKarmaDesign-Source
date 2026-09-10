@@ -3,6 +3,8 @@ services:
     build:
       context: ..
       dockerfile: deploy/Dockerfile.independent
+      args:
+        VITE_SOURCE_CODE_URL: ${VITE_SOURCE_CODE_URL:?Set the public AGPL source URL}
     env_file: .env.standalone
     restart: unless-stopped
     init: true
@@ -12,7 +14,13 @@ services:
     security_opt: [no-new-privileges:true]
     expose: ["3000"]
     healthcheck:
-      test: [CMD, node, -e, "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      test:
+        [
+          CMD,
+          node,
+          -e,
+          "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
       interval: 30s
       timeout: 5s
       retries: 3

@@ -24,13 +24,31 @@ Permissive-license candidate review:
 
 Preliminary conclusion: there is no currently verified, mature MIT/Apache package that independently proves the complete required combination of astronomical positions + Lahiri + D1/D9 + Vimshottari with production-grade reproducibility. The safest permissive path is to evaluate XALEN as an experimental adapter and use Astronomy Engine/VedAstro only as independent comparison tools until benchmark and dependency provenance checks pass. Do not use sweph-wasm as a permissive substitute based on its conflicting README labels.
 
-
 ## Implementation checkpoint: August 2026
 
 The installed `openastrology-library@1.1.1` package contains licensing and README files but no runnable `dist` or source entrypoint in the published package, so it cannot be imported as a production calculation API in this project. The first adapter implementation therefore uses the directly installed `sweph@2.10.3-5` Node binding to Swiss Ephemeris behind the project-owned `server/vedic-astrology-calculator.ts` boundary. This preserves the approved AGPL/Swiss Ephemeris direction while avoiding a fabricated API surface.
 
 The adapter uses Lahiri sidereal mode, Moshier fallback mode when no external ephemeris path is configured, whole-sign house assignment from the calculated sidereal Ascendant, D1/D9 divisional mapping, and Vimshottari mahadasha periods derived from the sidereal Moon nakshatra. Its output is versioned as `vedic-report-calculation/v1`; it is not yet connected to client delivery or report-job execution. Production activation remains gated on reference-chart benchmark approval and a final dependency/licence review of the native binding and Swiss Ephemeris data files.
 
+## Final free-license decision: 2026-09-08
+
+The project selects `sweph@2.10.3-5` under **AGPL-3.0-or-later** for the free
+deployment path. Astrodienst requires the choice before a public service is
+activated and describes the AGPL source obligation for the whole project. The
+application metadata, `LICENSE`, public source link and independent-start gate
+now reflect that choice.
+
+`openastrology-library` was removed: it was unused, its installed package lacked
+the declared runtime entrypoint, and it depended on the same Swiss Ephemeris
+license. Astronomy Engine was not substituted: its official scope is useful for
+comparison, but it is not a complete Lahiri/D1/D9/Vimshottari engine.
+
+The owned Jyotish layer now emits documented Parashari full-sign aspects: all
+seven visible grahas aspect the seventh; Mars additionally 4/8, Jupiter 5/9 and
+Saturn 3/10. Rahu/Ketu special aspects are excluded because the rule varies by
+lineage. Current fixtures confirm deterministic rules, but do not replace a
+benchmark against independently sourced reference charts. That benchmark
+remains a production gate.
 
 ## License and runtime verification
 

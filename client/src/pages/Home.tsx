@@ -475,7 +475,10 @@ function getInitialLocale() {
   const queryLocale = new URLSearchParams(window.location.search).get("lang");
   return queryLocale
     ? resolveLocale(queryLocale)
-    : resolveLocale(window.localStorage.getItem("public-locale") || navigator.language.split("-")[0]);
+    : resolveLocale(
+        window.localStorage.getItem("public-locale") ||
+          navigator.language.split("-")[0]
+      );
 }
 function base64ToFile(
   contentBase64: string,
@@ -502,6 +505,9 @@ function downloadBase64File(
 }
 
 export default function Home() {
+  const sourceCodeUrl = import.meta.env.VITE_SOURCE_CODE_URL as
+    | string
+    | undefined;
   const [menuOpen, setMenuOpen] = useState(false);
   const [initialDraft] = useState<BookingDraft | null>(() =>
     readBookingDraft()
@@ -2179,6 +2185,16 @@ export default function Home() {
             >
               {privacyFormCopy[locale].link}
             </Link>
+            {sourceCodeUrl && (
+              <a
+                href={sourceCodeUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="ml-4 inline-block text-[#e1b046] underline underline-offset-2"
+              >
+                Source code · AGPL
+              </a>
+            )}
           </div>
         </div>
       </footer>

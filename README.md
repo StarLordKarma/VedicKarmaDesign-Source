@@ -1,49 +1,97 @@
-# Vedic Astrology Booking
+# Vedic Karma Design
 
-Переносимая резервная копия multilingual full-stack сайта для ведических натальных разборов. Проект включает public booking, цены USD/EUR/GBP, NOWPayments crypto checkout, локализованные receipts, owner-only administration, S3-compatible PDF storage, Resend delivery и Report Studio для детерминированных Lahiri/Vimshottari расчётов, AI narrative и PDF approval workflow.
+Многоязычное full-stack приложение для заказа ведических натальных разборов:
+React/Vite, Express/tRPC, Drizzle/MySQL, приватное S3-хранилище, OIDC-доступ
+владельца, криптооплата NOWPayments, Resend и управляемая генерация PDF.
 
-## Что прочитать сначала
+## Возможности
 
-| Документ | Назначение |
-|---|---|
-| `ETAP-ODIN-FULL-PROJECT-HISTORY.md` | Пошаговая история формирования проекта от начала до текущего Report Studio |
-| `ETAP-ODIN-RESTORE-INSTRUCTIONS.md` | Универсальная инструкция для разработчика или другой нейронной сети по восстановлению и продолжению |
-| `ETAP-DVA-ROADMAP.md` | Дальнейшая стратегия развития и масштабирования |
-| `ETAP-DVA-REPORT-STUDIO-SPEC.md` | Архитектурная спецификация Report Studio и state machine |
-| `ETAP-DVA-PDF-LAYOUT.md` | Структура 22/25-страничного PDF и визуальные правила |
-| `docs/calculation-engine-research-notes.md` | Исследование engines, licensing и фактический sweph adapter |
-| `todo.md` | История реализованных и оставшихся задач |
+- публичная форма заказа и согласие на обработку данных;
+- цены и пакеты услуг с owner-only аудитом;
+- подписанные платёжные callbacks и идемпотентная очередь Report Studio;
+- локальный расчёт Lahiri: планеты, Ascendant, D1, D9, nakshatra/pada,
+  Parashari full-sign graha drishti и Vimshottari mahadasha;
+- AI создаёт только текст по зафиксированным фактам; владелец проверяет,
+  редактирует, утверждает и только затем отправляет PDF;
+- отзываемые status-ссылки и защищённое скачивание отправленного отчёта;
+- интерфейсы RU/EN/DE/ES.
 
-## Стек и структура
+## Быстрый локальный запуск
 
-Проект использует React 19, Vite, Tailwind CSS, Express, tRPC, Drizzle ORM, MySQL/TiDB, S3-compatible storage, Manus OAuth, NOWPayments, Resend и server-side `sweph` Swiss Ephemeris binding. Главные директории — `client/`, `server/`, `shared/`, `drizzle/` и `scripts/`.
-
-Ключевые Report Studio modules: `server/report-studio-db.ts`, `server/report-geocoding.ts`, `server/report-narrative.ts`, `server/vedic-astrology-calculator.ts`, `server/export.ts` и `server/client-delivery.ts`. Owner UI находится в `client/src/pages/ReportStudio.tsx` и доступен по `/admin/report-studio`.
-
-## Локальная проверка
+Требуются Node.js 22, pnpm 10.4.1 и MySQL 8/TiDB.
 
 ```bash
+cp .env.example .env
 pnpm install --frozen-lockfile
-pnpm check
-pnpm test --run
-pnpm build
+pnpm exec drizzle-kit migrate
 pnpm dev
 ```
 
-Последняя проверка backup-состояния перед упаковкой: TypeScript check успешен, полный тестовый suite — 114 passed и 1 credential test skipped, production build успешен. Миграции находятся в `drizzle/`; текущие Report Studio migrations — `0015`, `0016` и `0017`.
+Заполните `.env` собственными значениями. Секреты, клиентские данные, PDF и
+database dumps нельзя добавлять в Git.
 
-## Важные ограничения backup
+## Проверка и сборка
 
-Архив намеренно не содержит `.env`, реальные secrets, cookies, production database, S3 object bytes, private keys, build artifacts, `node_modules`, `.git` и logs. Для полного восстановления отдельно потребуются `DATABASE_URL`, `JWT_SECRET`, `OWNER_OPEN_ID`, OAuth values, Manus Forge values, NOWPayments credentials, Resend credentials, storage configuration и отдельные backups данных.
+```bash
+pnpm lint
+pnpm check
+pnpm test
+pnpm build
+# весь локальный release gate:
+pnpm deploy:check
+```
 
-Admin procedures должны оставаться ограниченными `OWNER_OPEN_ID`. Не отключайте owner guard, не делайте PDF bucket публичным и не переносите Swiss Ephemeris/AI secrets в browser bundle.
+Тесты внешних credentials выключены. `RUN_EXTERNAL_CREDENTIAL_TESTS=true`
+разрешается только в изолированном staging с тестовыми ключами. Живые платёжные
+операции дополнительно требуют `RUN_LIVE_PAYMENT_TESTS=true` и не должны
+выполняться локально с production-реквизитами.
 
-## Report Studio summary
+## Расчётный движок и лицензия
 
-После verified payment создаётся idempotent `report_job`. Worker может автоматически geocode city → latitude/longitude/IANA timezone/DST offset, рассчитать validated Lahiri facts JSON, создать strict `vedic-narrative.v1`, сформировать Basic PDF на 22 страницы или Basic+ на 25 страниц, а затем ожидать owner approval. Автоматическая обработка новых jobs управляется persistent setting и по умолчанию OFF.
+`server/vedic-astrology-calculator.ts` использует локальный `sweph@2.10.3-5`.
+Swiss Ephemeris вычисляет положения и Ascendant; правила D1/D9, nakshatra/pada,
+полных знаковых аспектов Парашары и Vimshottari находятся в проекте. Rahu/Ketu
+special drishti намеренно не заявлены: правила отличаются между школами. Язык
+отчёта не влияет на числовой snapshot; RU/EN/DE/ES применяются на narrative/PDF.
 
-PDF содержит vector D1/Rāśi panel и, для Basic+, D9/Navāṁśa panel. Approval отправляет только утверждённую версию через Resend. Manual resend разрешён только для `delivery_failed`.
+Выбран бесплатный режим **AGPL-3.0-or-later**. Перед публичным запуском оператор
+обязан предоставить соответствующий исходный код точной запущенной версии.
+Independent production блокируется без `CALCULATION_ENGINE_LICENSE` и
+`VITE_SOURCE_CODE_URL`. Если исходный код нельзя открыть, требуется Swiss
+Ephemeris Professional License и отдельный пересмотр лицензирования проекта.
+См. [LICENSE](LICENSE) и [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
 
-## License and external services
+Moshier fallback используется, если `SWE_EPHE_PATH` не задан; режим записывается
+в snapshot. До релиза нужен reference benchmark на независимых эталонных картах:
+regression-тесты подтверждают стабильность кода, но не являются сертификацией.
 
-Код приложения распространяется согласно актуальным project records. `sweph` и внешние сервисы имеют собственные licensing/terms obligations; сохраняйте source and license notices при распространении. Customer data, domains, provider accounts, credentials и uploaded files не являются частью исходного архива.
+## Независимый deployment
+
+Production-профиль находится в `deploy/`:
+
+```bash
+cp deploy/.env.standalone.example deploy/.env.standalone
+docker compose --env-file deploy/.env.standalone -f deploy/compose.yml \
+  --profile tools run --rm migrate
+docker compose --env-file deploy/.env.standalone -f deploy/compose.yml up -d --build
+```
+
+Caddy выпускает HTTPS-сертификат и проксирует приложение. База и S3 должны быть
+внешними; backup/restore репетируются в staging до первого заказа.
+
+- [План deployment](docs/DEPLOYMENT-PLAN.md)
+- [Release runbook](deploy/RELEASE-RUNBOOK.md)
+- [Финальный отчёт](docs/FINAL-REPORT-2026-09-08.md)
+- [Спецификация Report Studio](ETAP-DVA-REPORT-STUDIO-SPEC.md)
+
+## Миграции
+
+Версионированные SQL-файлы находятся в `drizzle/` (`0000`–`0029`). Перед
+миграцией делайте snapshot, применяйте `pnpm exec drizzle-kit migrate`, проверяйте
+`/ready`. Не выполняйте destructive rollback автоматически.
+
+## Ограничения перед production
+
+Нужны сервер и домен, OIDC с MFA, MySQL, приватный S3, Maps, LLM, Resend,
+NOWPayments, backup/monitoring и юридическая проверка платежей/персональных данных.
+Browser fixtures не подтверждают настоящие внешние интеграции.
