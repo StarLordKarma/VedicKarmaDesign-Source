@@ -78,7 +78,7 @@ jobs:
       - run: docker compose --env-file .env.sandbox -f docker-compose.sandbox.yml up -d mysql minio minio-init mock-services
       - run: pnpm db:migrate:sandbox
       - run: pnpm sandbox:seed
-      - run: docker compose --env-file .env.sandbox -f docker-compose.sandbox.yml up -d --build app
+      - run: docker compose --env-file .env.sandbox -f docker-compose.sandbox.yml up -d --build --wait --wait-timeout 120 app
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:e2e
       - if: always()

@@ -29,9 +29,10 @@
 - Целевые security/payment/PDF/calculation тесты: 22 passed.
 - Production Compose/YAML и backup shell syntax: успешно.
 - E2E/Docker локально: не запускались, потому что Docker CLI отсутствует.
-- GitHub Actions для предыдущего `c206e8b`: container job успешен, остальные jobs
-  останавливались до тестов из-за конфликтующего объявления pnpm. Workflow исправлен;
-  результат нового release commit фиксируется после push.
+- GitHub Actions для `c206e8b` останавливался из-за конфликтующего объявления pnpm.
+  На первом исправленном запуске verify/container прошли, а CI обнаружил зависимый
+  от наполненности БД pagination assertion и отсутствие ожидания health приложения
+  перед Playwright. Оба дефекта исправлены в следующем commit.
 - Сборка содержит неблокирующее предупреждение Vite о крупных vendor chunks.
 
 ## 3. Новые и изменённые файлы
