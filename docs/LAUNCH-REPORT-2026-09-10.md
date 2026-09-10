@@ -31,9 +31,12 @@
 
 ## Результаты проверок
 
-- Предыдущий release CI №15: 4/4 jobs, Playwright 3/3, 189 tests passed и 12 skipped.
-- Новая инфраструктурная конфигурация проходит локальные static/type/unit/build
-  проверки и будет дополнительно проверена GitHub Actions после commit/push.
+- GitHub Actions CI №16 для commit `d896b2d`: успешно, 4/4 jobs за 3 мин 12 с.
+- Production-контейнер, MySQL migration/integration и sandbox E2E (Playwright 3/3)
+  успешно проверены в CI.
+- Локально: 189 tests passed, 12 external tests skipped (201 total), TypeScript,
+  lint, production build и production dependency audit прошли; известных
+  production-уязвимостей нет.
 - Реальные DNS, HTTPS, R2, email, OIDC, NOWPayments и backup restore ожидают
   аккаунтов владельца и не отмечаются как пройденные заранее.
 
