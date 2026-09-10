@@ -20,7 +20,9 @@
 
 ## Итоговый стек и стоимость
 
-- Oracle Always Free A1 + MySQL/Caddy/app: $0/мес при доступной capacity;
+- Northflank Developer Sandbox: app (0.2 shared vCPU / 512 MB) + private
+  MySQL 8.4.11 (0.2 shared vCPU / 512 MB / 6 GB NVMe) — $0/мес within the
+  current free-project limits;
 - Cloudflare R2 и Backblaze B2: $0 в пределах первых 10 ГБ каждого;
 - Cloudflare DNS, Resend, OIDC, Maps SKU caps и Groq free tier: $0 в пределах лимитов;
 - домен: ориентир $8–15/год для обычного `.com`, точная цена зависит от имени;
@@ -42,13 +44,16 @@
 
 ## Ссылки на production и AGPL
 
-- Production URL: `[PENDING_DOMAIN]`
-- Public corresponding source: `[PENDING_PUBLIC_MIRROR_URL]`
+- Technical preview URL:
+  `https://p01--vedic-karma-app--mbb49nqg858d.code.run/`
+- Public corresponding source:
+  `https://github.com/StarLordKarma/VedicKarmaDesign-Source`
 - Deployed commit/image digest: `[PENDING_RELEASE_SHA_AND_DIGEST]`
 
 ## Оставшиеся риски и рекомендации
 
-- Oracle ARM capacity и аккаунт не гарантируются: Hetzner/Timeweb — готовый fallback.
+- Northflank Free не предоставляет production SLA; Oracle ARM, Hetzner/Timeweb
+  остаются вариантами переноса при росте нагрузки или изменении free tier.
 - Single-node MySQL требует ежедневной внешней копии и ежемесячного restore.
 - Free tiers могут меняться; quotas и billing alerts проверяются ежемесячно.
 - Публичный запуск запрещён до заполнения privacy/terms, публикации AGPL source и

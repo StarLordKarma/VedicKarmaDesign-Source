@@ -5,9 +5,14 @@
 
 ## 1. Предварительные требования
 
-Рекомендуемый нулевой старт — Oracle Always Free A1 с Ubuntu 24.04, MySQL на
-отдельном Docker volume той же VM, Cloudflare R2 для PDF и Backblaze B2 для
-off-site backup. Если ARM capacity недоступна, выбрать Hetzner CAX11/CX23; для
+Фактически выбранный нулевой старт — Northflank Developer Sandbox в Europe West
+(London): combined Docker service, private MySQL addon, Northflank HTTPS и
+Cloudflare R2 для PDF. Публичный preview доступен по адресу
+`https://p01--vedic-karma-app--mbb49nqg858d.code.run/`, а corresponding source —
+`https://github.com/StarLordKarma/VedicKarmaDesign-Source`.
+
+При нехватке 512 МБ или изменении free tier тот же образ переносится на Oracle
+Always Free A1. Если ARM capacity недоступна, выбрать Hetzner CAX11/CX23; для
 оплаты из РФ — Timeweb 4 ГБ. Полное сравнение и точки начала расходов приведены в
 [COST-ANALYSIS-2026-09-10.md](COST-ANALYSIS-2026-09-10.md).
 
@@ -39,10 +44,10 @@ object storage, snapshots и исходящего трафика; перед п�
 Источники: [Hetzner](https://docs.hetzner.com/general/infrastructure-and-availability/price-adjustment/),
 [DigitalOcean](https://www.digitalocean.com/pricing/droplets),
 [AWS Lightsail](https://docs.aws.amazon.com/lightsail/latest/userguide/amazon-lightsail-bundles.html).
-Практический выбор — сначала попытаться получить Oracle Always Free A1; при
-отсутствии capacity использовать Hetzner 4 ГБ, а при недоступной оплате — Timeweb.
-База на private volume той же VM допустима только при ежедневном off-site backup и
-успешном ежемесячном restore rehearsal.
+Практический выбор — завершить малонагруженный запуск на Northflank Free. При
+нехватке ресурсов или необходимости SLA использовать Oracle; при отсутствии
+capacity — Hetzner 4 ГБ, а при недоступной оплате — Timeweb. База Northflank
+остаётся private; обязательны внешняя копия и регулярный restore rehearsal.
 
 Вариант с минимальной ценой — Oracle Cloud Always Free, если аккаунту реально
 выделяются ARM-ресурсы в выбранном регионе; доступность capacity не гарантируется.

@@ -2,7 +2,10 @@
 
 ## Инфраструктура и релиз
 
-- [ ] Выбран Oracle Always Free A1 либо задокументирован fallback Hetzner/Timeweb
+- [x] Создан Northflank Free project в Europe West (London)
+- [x] Создан сервис `vedic-karma-app` на максимальном free plan (512 MB)
+- [x] Создан private MySQL 8.4.11 addon `vedic-karma-mysql` (6 GB NVMe)
+- [ ] Проверен перенос на Oracle/Hetzner/Timeweb при исчерпании free tier
 - [ ] MySQL не публикует 3306, данные находятся на persistent volume
 - [ ] R2 PDF bucket private; B2 backup находится в отдельном account/failure domain
 - [ ] Выполнены `SETUP-SERVER.md`, `SETUP-DNS.md` и `SETUP-SECRETS.md`
@@ -42,10 +45,10 @@
 
 ## Лицензирование и право
 
-- [ ] `VITE_SOURCE_CODE_URL` ведёт к corresponding source точной deployed версии
+- [x] `VITE_SOURCE_CODE_URL` ведёт к corresponding source точной deployed версии
 - [ ] AGPL-3.0-or-later и Swiss Ephemeris notices доступны пользователям
 - [ ] Выбран бесплатный AGPL-режим; коммерческая лицензия не используется
-- [ ] Репозиторий/зеркало по `VITE_SOURCE_CODE_URL` доступно каждому пользователю
+- [x] Репозиторий/зеркало по `VITE_SOURCE_CODE_URL` доступно каждому пользователю
 - [ ] Source tag/commit совпадает с digest запущенного image
 - [ ] Privacy notice содержит имя/адрес/контакты реального контролёра данных
 - [ ] Terms, refund/cancellation и consumer disclosures проверены по рынкам
