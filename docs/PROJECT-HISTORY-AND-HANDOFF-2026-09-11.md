@@ -259,16 +259,16 @@ Northflank:
 - technical preview:
   `https://p01--vedic-karma-app--mbb49nqg858d.code.run/`.
 
-Текущая проблема: публичный адрес отвечает HTTP 503. В runtime logs выявлена
-конкретная причина:
+На момент диагностики публичный адрес отвечал HTTP 503. Сначала runtime logs
+показали:
 
 ```text
 Error: Cannot find module '/app/dist/index.js'
 ```
 
-Это не DNS-проблема. Контейнер запускается, но в экспортированном runtime image
-отсутствует production bundle. Для обхода platform image-export поведения создан
-`deploy/Dockerfile.northflank` — single-stage image, который:
+Это не DNS-проблема. Первый multi-stage image не содержал ожидаемый production
+bundle. Для диагностики создан `deploy/Dockerfile.northflank` и portable Dockerfile
+переведён в single-stage режим, который:
 
 1. устанавливает зависимости;
 2. копирует весь source;
@@ -277,13 +277,17 @@ Error: Cannot find module '/app/dist/index.js'
 5. удаляет dev dependencies;
 6. запускает `/app/dist/index.js` от непривилегированного пользователя.
 
-Последняя корректировка добавила имя stage `runtime`. Однако форма Northflank
+Корректировка добавила имя stage `runtime`. Однако форма Northflank
 дважды отклонила смену пути внутренним сообщением `Match failed` и после reload
 возвращала `/deploy/Dockerfile.independent`. Поэтому применён более надёжный обход:
 сам уже выбранный `Dockerfile.independent` переведён в эквивалентный single-stage
 режим с явной проверкой `/app/dist/index.js`. Он остаётся переносимым для обычного
 Docker Compose и не требует изменения Build options. После его публикации Northflank
-должен автоматически пересобрать service; результат нужно подтвердить по live URL.
+сборка `2f3c202` выявила окончательную причину: build создавал
+`dist/_core/index.js`, а runtime обоснованно ожидал `dist/index.js`. В `package.json`
+выходы двух server entrypoints теперь заданы явно через `--outfile=dist/index.js`
+и `--outfile=dist/migrate.js`. Результат следующей сборки нужно подтвердить по
+Northflank и live URL.
 
 ## 6. Что проверено в репозитории на предмет мусора
 
@@ -342,7 +346,7 @@ Environment Secrets согласно `docs/PRODUCTION-CREDENTIALS-NEEDED.md` и 
 
 ### P0 — восстановить работающий публичный URL
 
-1. Опубликовать single-stage изменение `deploy/Dockerfile.independent`.
+1. Опубликовать исправленный build script с явным `dist/index.js`.
 2. Дождаться автоматического Northflank build/deploy текущей ветки `main`.
 3. Убедиться, что build содержит успешную проверку `/app/dist/index.js`.
 4. Дождаться healthy state без restart loop.
