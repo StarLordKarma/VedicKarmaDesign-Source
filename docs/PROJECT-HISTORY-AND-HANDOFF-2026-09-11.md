@@ -289,6 +289,21 @@ Docker Compose и не требует изменения Build options. Посл
 и `--outfile=dist/migrate.js`. Результат следующей сборки нужно подтвердить по
 Northflank и live URL.
 
+Фактический итог после deployment commit `006cd54`:
+
+- Northflank показывает активный commit `006cd54` и состояние service `Running`;
+- `https://karmalifedesign.com/health` — HTTP 200,
+  `{"ok":true,"service":"vedic-astrology-booking"}`;
+- `https://karmalifedesign.com/ready` — HTTP 200,
+  `{"ok":true,"checks":{"database":true}}`;
+- `https://karmalifedesign.com/` — HTTP 200 и отдаёт production HTML;
+- `https://www.karmalifedesign.com/` — HTTP 200 по HTTP/2;
+- в ответах присутствуют защитные headers, включая `X-Content-Type-Options`,
+  `X-Frame-Options`, `Referrer-Policy` и ограниченный `Permissions-Policy`.
+
+Таким образом, инцидент 503 устранён. Это подтверждает доступность приложения и
+БД, но не заменяет функциональную приёмку платежей, email, PDF и owner flow.
+
 ## 6. Что проверено в репозитории на предмет мусора
 
 На 2026-09-11 выполнен аудит локального дерева и отслеживаемых Git-файлов.
@@ -344,14 +359,14 @@ Environment Secrets согласно `docs/PRODUCTION-CREDENTIALS-NEEDED.md` и 
 
 ## 8. Точный план следующих действий
 
-### P0 — восстановить работающий публичный URL
+### P0 — восстановить работающий публичный URL (выполнено 2026-09-11)
 
-1. Опубликовать исправленный build script с явным `dist/index.js`.
-2. Дождаться автоматического Northflank build/deploy текущей ветки `main`.
-3. Убедиться, что build содержит успешную проверку `/app/dist/index.js`.
-4. Дождаться healthy state без restart loop.
-5. Проверить `/health`, `/ready`, главную страницу, apex и `www` по HTTPS.
-6. Проверить runtime logs на отсутствие ошибок и утечек конфигурации.
+1. Исправленный build script с явным `dist/index.js` опубликован.
+2. Автоматический Northflank build/deploy ветки `main` завершён.
+3. Build содержит обязательную проверку `/app/dist/index.js`.
+4. Service перешёл в `Running`.
+5. `/health`, `/ready`, главная страница, apex и `www` проверены по HTTPS.
+6. При следующей приёмке дополнительно сохранить runtime-log snapshot и image digest.
 
 ### P0 — выполнить минимальную live-приёмку
 
