@@ -6,7 +6,7 @@
 - [x] Создан сервис `vedic-karma-app` на максимальном free plan (512 MB)
 - [x] Создан private MySQL 8.4.11 addon `vedic-karma-mysql` (6 GB NVMe)
 - [ ] Проверен перенос на Oracle/Hetzner/Timeweb при исчерпании free tier
-- [ ] MySQL не публикует 3306, данные находятся на persistent volume
+- [x] MySQL не публикует 3306, данные находятся на persistent volume
 - [ ] R2 PDF bucket private; B2 backup находится в отдельном account/failure domain
 - [ ] Выполнены `SETUP-SERVER.md`, `SETUP-DNS.md` и `SETUP-SECRETS.md`
 - [ ] Полный локальный sandbox и CI job `sandbox-e2e` зелёные
@@ -22,7 +22,8 @@
 ## Данные и безопасность
 
 - [ ] Production MySQL имеет отдельного least-privilege пользователя и TLS
-- [ ] Миграции применены после snapshot; restore проверен в отдельной БД
+- [x] Миграции `0000`–`0029` применены через TLS задачей `vedic-karma-migrate`
+- [ ] Restore проверен в отдельной БД после snapshot/backup
 - [ ] S3 bucket приватный, versioning/encryption/lifecycle/CORS настроены
 - [ ] OIDC owner account защищён MFA; чужой пользователь не видит `/admin`
 - [ ] Все secrets уникальны, находятся вне Git и имеют план ротации

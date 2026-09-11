@@ -32,5 +32,6 @@ export function resolveDatabaseUrl(env: NodeJS.ProcessEnv = process.env) {
   const host = env.NF_VEDIC_KARMA_MYSQL_HOST!;
   const port = env.NF_VEDIC_KARMA_MYSQL_PORT?.trim() || "3306";
   const database = encodeURIComponent(env.NF_VEDIC_KARMA_MYSQL_DATABASE!);
-  return `mysql://${user}:${password}@${host}:${port}/${database}`;
+  const ssl = encodeURIComponent(JSON.stringify({ rejectUnauthorized: true }));
+  return `mysql://${user}:${password}@${host}:${port}/${database}?ssl=${ssl}`;
 }

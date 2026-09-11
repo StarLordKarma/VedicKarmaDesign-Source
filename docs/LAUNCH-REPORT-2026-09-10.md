@@ -26,6 +26,10 @@
 - добавлена нативная поддержка отдельных credentials связанного Northflank
   MySQL addon и production-команда `pnpm db:migrate:runtime`; несовместимый
   connector string больше не используется как `DATABASE_URL`;
+- production MySQL защищён TLS; миграции `0000`–`0029` успешно применены
+  одноразовой Northflank job `vedic-karma-migrate`;
+- AGPL-зеркало автоматически обновляется при каждом push в `main` через
+  отдельный write-only deploy key.
 - Cloudflare R2 и Backblaze B2: $0 в пределах первых 10 ГБ каждого;
 - Cloudflare DNS, Resend, OIDC, Maps SKU caps и Groq free tier: $0 в пределах лимитов;
 - домен: ориентир $8–15/год для обычного `.com`, точная цена зависит от имени;

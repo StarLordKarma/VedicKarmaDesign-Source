@@ -1,6 +1,8 @@
 name: Publish AGPL source mirror
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
     inputs:
       confirm:
@@ -12,7 +14,7 @@ permissions:
 
 jobs:
   mirror:
-    if: inputs.confirm == 'PUBLISH-AGPL-SOURCE'
+    if: github.event_name == 'push' || inputs.confirm == 'PUBLISH-AGPL-SOURCE'
     runs-on: ubuntu-latest
     environment: agpl-publish
     steps:

@@ -20,7 +20,7 @@ describe("database URL resolution", () => {
     };
     expect(hasDatabaseConfiguration(env)).toBe(true);
     expect(resolveDatabaseUrl(env)).toBe(
-      "mysql://vedic%40app:p%3Aa%2Fss@mysql.internal:3306/vedic%20karma"
+      "mysql://vedic%40app:p%3Aa%2Fss@mysql.internal:3306/vedic%20karma?ssl=%7B%22rejectUnauthorized%22%3Atrue%7D"
     );
   });
 
