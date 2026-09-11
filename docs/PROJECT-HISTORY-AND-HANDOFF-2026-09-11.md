@@ -277,11 +277,13 @@ Error: Cannot find module '/app/dist/index.js'
 5. удаляет dev dependencies;
 6. запускает `/app/dist/index.js` от непривилегированного пользователя.
 
-Последняя локальная корректировка добавляет имя stage `runtime`, потому что форма
-Northflank требует существующий target build stage. После публикации этого изменения
-нужно переключить Build options с `/deploy/Dockerfile.independent` на
-`/deploy/Dockerfile.northflank`, сохранив target stage `runtime`, и пересобрать
-service.
+Последняя корректировка добавила имя stage `runtime`. Однако форма Northflank
+дважды отклонила смену пути внутренним сообщением `Match failed` и после reload
+возвращала `/deploy/Dockerfile.independent`. Поэтому применён более надёжный обход:
+сам уже выбранный `Dockerfile.independent` переведён в эквивалентный single-stage
+режим с явной проверкой `/app/dist/index.js`. Он остаётся переносимым для обычного
+Docker Compose и не требует изменения Build options. После его публикации Northflank
+должен автоматически пересобрать service; результат нужно подтвердить по live URL.
 
 ## 6. Что проверено в репозитории на предмет мусора
 
@@ -340,12 +342,12 @@ Environment Secrets согласно `docs/PRODUCTION-CREDENTIALS-NEEDED.md` и 
 
 ### P0 — восстановить работающий публичный URL
 
-1. Опубликовать изменение `FROM node:22-bookworm-slim AS runtime`.
-2. В Northflank Build options выбрать `/deploy/Dockerfile.northflank`.
-3. Оставить target build stage `runtime`.
-4. Запустить build/deploy и дождаться healthy state.
+1. Опубликовать single-stage изменение `deploy/Dockerfile.independent`.
+2. Дождаться автоматического Northflank build/deploy текущей ветки `main`.
+3. Убедиться, что build содержит успешную проверку `/app/dist/index.js`.
+4. Дождаться healthy state без restart loop.
 5. Проверить `/health`, `/ready`, главную страницу, apex и `www` по HTTPS.
-6. Проверить runtime logs на отсутствие loop/restart и утечек конфигурации.
+6. Проверить runtime logs на отсутствие ошибок и утечек конфигурации.
 
 ### P0 — выполнить минимальную live-приёмку
 
