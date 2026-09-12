@@ -48,6 +48,73 @@ const LOCALE_LABELS: Record<Locale, string> = {
   de: "DE",
   es: "ES",
 };
+export const HTML_LOCALES: Record<Locale, string> = {
+  en: "en-US",
+  ru: "ru-RU",
+  de: "de-DE",
+  es: "es-ES",
+};
+export const publicFormCopy: Record<
+  Locale,
+  {
+    required: string;
+    invalidEmail: string;
+    invalidDate: string;
+    invalidTime: string;
+    dateFormat: string;
+    timeFormat: string;
+    emailPlaceholder: string;
+    privacyLabel: string;
+  }
+> = {
+  en: {
+    required: "Please complete all required fields.",
+    invalidEmail: "Enter a valid email address, for example name@example.com.",
+    invalidDate: "Enter the date in MM/DD/YYYY format, for example 04/12/1990.",
+    invalidTime:
+      "Enter the local birth time in HH:MM format, for example 14:30.",
+    dateFormat: "Format: MM/DD/YYYY · Example: 04/12/1990",
+    timeFormat: "Format: HH:MM · Example: 14:30",
+    emailPlaceholder: "name@example.com",
+    privacyLabel: "Privacy consent",
+  },
+  ru: {
+    required: "Заполните все обязательные поля.",
+    invalidEmail: "Укажите корректный email, например имя@пример.рф.",
+    invalidDate: "Укажите дату в формате ДД.ММ.ГГГГ, например 12.04.1990.",
+    invalidTime:
+      "Укажите местное время рождения в формате ЧЧ:ММ, например 14:30.",
+    dateFormat: "Формат: ДД.ММ.ГГГГ · Пример: 12.04.1990",
+    timeFormat: "Формат: ЧЧ:ММ · Пример: 14:30",
+    emailPlaceholder: "имя@пример.рф",
+    privacyLabel: "Согласие на обработку данных",
+  },
+  de: {
+    required: "Bitte füllen Sie alle Pflichtfelder aus.",
+    invalidEmail:
+      "Geben Sie eine gültige E-Mail-Adresse ein, zum Beispiel name@beispiel.de.",
+    invalidDate:
+      "Geben Sie das Datum im Format TT.MM.JJJJ ein, zum Beispiel 12.04.1990.",
+    invalidTime:
+      "Geben Sie die örtliche Geburtszeit im Format HH:MM ein, zum Beispiel 14:30.",
+    dateFormat: "Format: TT.MM.JJJJ · Beispiel: 12.04.1990",
+    timeFormat: "Format: HH:MM · Beispiel: 14:30",
+    emailPlaceholder: "name@beispiel.de",
+    privacyLabel: "Einwilligung zum Datenschutz",
+  },
+  es: {
+    required: "Completa todos los campos obligatorios.",
+    invalidEmail: "Introduce un correo válido, por ejemplo nombre@ejemplo.es.",
+    invalidDate:
+      "Introduce la fecha en formato DD/MM/AAAA, por ejemplo 12/04/1990.",
+    invalidTime:
+      "Introduce la hora local de nacimiento en formato HH:MM, por ejemplo 14:30.",
+    dateFormat: "Formato: DD/MM/AAAA · Ejemplo: 12/04/1990",
+    timeFormat: "Formato: HH:MM · Ejemplo: 14:30",
+    emailPlaceholder: "nombre@ejemplo.es",
+    privacyLabel: "Consentimiento de privacidad",
+  },
+};
 const privacyFormCopy: Record<
   Locale,
   { label: string; link: string; required: string }
@@ -673,6 +740,7 @@ export default function Home() {
 
   useEffect(() => {
     window.localStorage.setItem("public-locale", locale);
+    document.documentElement.lang = HTML_LOCALES[locale];
   }, [locale]);
 
   useEffect(() => {
@@ -767,6 +835,35 @@ export default function Home() {
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
+    const requiredFields = [
+      "name",
+      "email",
+      "birthDate",
+      "birthTime",
+      "birthCity",
+      "birthCountry",
+    ];
+    if (requiredFields.some(field => !String(form.get(field) ?? "").trim())) {
+      setFormError(publicFormCopy[locale].required);
+      event.currentTarget
+        .querySelector<HTMLInputElement>(
+          requiredFields
+            .filter(field => !String(form.get(field) ?? "").trim())
+            .map(field => `[name="${field}"]`)
+            .join(",")
+        )
+        ?.focus();
+      return;
+    }
+    const email = String(form.get("email") ?? "");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setFormError(publicFormCopy[locale].invalidEmail);
+      event.currentTarget.elements.namedItem("email") instanceof HTMLElement &&
+        (
+          event.currentTarget.elements.namedItem("email") as HTMLElement
+        ).focus();
+      return;
+    }
     const parsed = bookingSchema.safeParse({
       name: form.get("name"),
       email: form.get("email"),
@@ -794,8 +891,7 @@ export default function Home() {
     if (!parsed.success) {
       setConsentError(false);
       setFormError(
-        parsed.error.issues[0]?.message ??
-          "Please check the form and try again."
+        parsed.error.issues[0]?.message ?? publicFormCopy[locale].required
       );
       return;
     }
@@ -850,6 +946,13 @@ export default function Home() {
   }
   function sendReceiptByEmail(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(receiptEmail.trim())) {
+      setFormError(publicFormCopy[locale].invalidEmail);
+      event.currentTarget
+        .querySelector<HTMLInputElement>('input[type="email"]')
+        ?.focus();
+      return;
+    }
     if (receiptCooldownUntil > Date.now()) {
       setFormError(copy.receiptEmailCooldown);
       return;
@@ -1340,6 +1443,8 @@ export default function Home() {
                     </div>
                   </div>
                   <form
+                    noValidate
+                    lang={HTML_LOCALES[locale]}
                     onSubmit={sendReceiptByEmail}
                     className="mt-7 w-full max-w-md rounded-2xl border border-[#fffaf4]/15 bg-[#fffaf4]/5 p-4 text-left"
                   >
@@ -1406,6 +1511,8 @@ export default function Home() {
                 </div>
               ) : (
                 <form
+                  noValidate
+                  lang={HTML_LOCALES[locale]}
                   ref={formRef}
                   onSubmit={handleSubmit}
                   onInput={event => {
@@ -1429,14 +1536,14 @@ export default function Home() {
                     );
                     saveBookingDraft(form);
                   }}
-                  className="space-y-6"
+                  className="min-w-0 space-y-6"
                 >
                   <div
                     role="status"
                     aria-label={progressCopy[locale].label}
                     className="rounded-2xl border border-[#fffaf4]/15 bg-[#fffaf4]/5 p-4"
                   >
-                    <div className="flex items-center justify-between gap-3 text-xs">
+                    <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
                       <p className="font-semibold uppercase tracking-[0.15em] text-[#e1b046]">
                         {progressCopy[locale].label}
                       </p>
@@ -1477,7 +1584,7 @@ export default function Home() {
                         );
                       })}
                     </ol>
-                    <div className="mt-3 flex items-center justify-between gap-3 text-xs text-[#cdbfae]">
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-[#cdbfae]">
                       {draftStatus ? (
                         <span data-testid="draft-status" aria-live="polite">
                           {draftStatus}
@@ -1577,8 +1684,8 @@ export default function Home() {
                       </div>
                     </div>
                   )}
-                  <div className="flex items-start justify-between gap-4 border-b border-[#fffaf4]/15 pb-6">
-                    <div>
+                  <div className="flex min-w-0 flex-col gap-4 border-b border-[#fffaf4]/15 pb-6 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
                       <p className="text-xs uppercase tracking-[0.18em] text-[#e1b046]">
                         {copy.requestReading}
                       </p>
@@ -1586,7 +1693,7 @@ export default function Home() {
                         {copy.birthDetails}
                       </h3>
                     </div>
-                    <div className="text-right">
+                    <div className="min-w-0 text-left sm:text-right">
                       <p className="font-serif text-3xl">{formattedTotal}</p>
                       <p className="text-xs text-[#cdbfae]">
                         {copy.pdfReading}
@@ -1599,7 +1706,7 @@ export default function Home() {
                     aria-live="polite"
                     className="rounded-2xl border border-[#e1b046]/45 bg-[#e1b046]/10 p-4 shadow-sm"
                   >
-                    <div className="flex items-center justify-between gap-4">
+                    <div className="flex flex-wrap items-center justify-between gap-4">
                       <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#e1b046]">
                         {copy.priceTotal}
                       </p>
@@ -1608,19 +1715,19 @@ export default function Home() {
                       </span>
                     </div>
                     <div className="mt-3 space-y-1.5 text-sm">
-                      <div className="flex items-center justify-between gap-4">
-                        <span className="text-[#e8d9c0]">
+                      <div className="flex items-start justify-between gap-4">
+                        <span className="min-w-0 break-words text-[#e8d9c0]">
                           {packageCopy[locale].basic}
                         </span>
-                        <span className="font-semibold text-[#fffaf4]">
+                        <span className="shrink-0 font-semibold text-[#fffaf4]">
                           {formattedBasicPrice}
                         </span>
                       </div>
-                      <div className="flex items-center justify-between gap-4">
-                        <span className="text-[#e8d9c0]">
+                      <div className="flex items-start justify-between gap-4">
+                        <span className="min-w-0 break-words text-[#e8d9c0]">
                           {packageCopy[locale].basicPlus}
                         </span>
-                        <span className="font-semibold text-[#fffaf4]">
+                        <span className="shrink-0 font-semibold text-[#fffaf4]">
                           {addon
                             ? `+${formattedAddonPrice}`
                             : formatCurrency(0, currency, locale)}
@@ -1812,7 +1919,7 @@ export default function Home() {
                         type="email"
                         name="email"
                         className="mt-2 w-full rounded-xl border border-[#fffaf4]/15 bg-[#fffaf4]/8 px-4 py-3 text-[#fffaf4] outline-none placeholder:text-[#b9aa97] focus:border-[#e1b046]"
-                        placeholder="you@example.com"
+                        placeholder={publicFormCopy[locale].emailPlaceholder}
                       />
                     </label>
                     <label className="text-sm text-[#e8d9c0]">
@@ -1833,10 +1940,15 @@ export default function Home() {
                         required
                         defaultValue={initialDraft?.birthDate}
                         aria-label={copy.date}
+                        lang={HTML_LOCALES[locale]}
+                        title={publicFormCopy[locale].invalidDate}
                         type="date"
                         name="birthDate"
                         className="mt-2 w-full rounded-xl border border-[#fffaf4]/15 bg-[#fffaf4]/8 px-4 py-3 text-[#fffaf4] outline-none focus:border-[#e1b046]"
                       />
+                      <span className="mt-1.5 block text-xs leading-5 text-[#b9aa97]">
+                        {publicFormCopy[locale].dateFormat}
+                      </span>
                     </label>
                     <label className="text-sm text-[#e8d9c0]">
                       <Tooltip>
@@ -1856,10 +1968,15 @@ export default function Home() {
                         required
                         defaultValue={initialDraft?.birthTime}
                         aria-label={copy.time}
+                        lang={HTML_LOCALES[locale]}
+                        title={publicFormCopy[locale].invalidTime}
                         type="time"
                         name="birthTime"
                         className="mt-2 w-full rounded-xl border border-[#fffaf4]/15 bg-[#fffaf4]/8 px-4 py-3 text-[#fffaf4] outline-none focus:border-[#e1b046]"
                       />
+                      <span className="mt-1.5 block text-xs leading-5 text-[#b9aa97]">
+                        {publicFormCopy[locale].timeFormat}
+                      </span>
                     </label>
                     <label className="text-sm text-[#e8d9c0]">
                       {copy.city}
@@ -1889,10 +2006,15 @@ export default function Home() {
                       defaultValue={initialDraft?.language ?? "English"}
                       className="mt-2 w-full rounded-xl border border-[#fffaf4]/15 bg-[#fffaf4]/8 px-4 py-3 text-[#fffaf4] outline-none focus:border-[#e1b046]"
                     >
-                      <option className="text-[#28231f]">English</option>
-                      <option className="text-[#28231f]">Русский</option>
-                      <option className="text-[#28231f]">Deutsch</option>
-                      <option className="text-[#28231f]">Español</option>
+                      {copy.languageOptions.map(option => (
+                        <option
+                          key={option.value}
+                          value={option.value}
+                          className="text-[#28231f]"
+                        >
+                          {option.label}
+                        </option>
+                      ))}
                     </select>
                   </label>
                   <label className="block text-sm text-[#e8d9c0]">
@@ -2062,7 +2184,7 @@ export default function Home() {
                   >
                     <input
                       id="privacy-consent"
-                      aria-label="privacy consent"
+                      aria-label={publicFormCopy[locale].privacyLabel}
                       type="checkbox"
                       checked={privacyAccepted}
                       onChange={event => {

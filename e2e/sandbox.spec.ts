@@ -24,7 +24,7 @@ test("public order, signed mock payment, report rendering and email delivery", a
   await page.locator('input[name="birthTime"]').fill("12:00");
   await page.locator('input[name="birthCity"]').fill("Berlin");
   await page.locator('input[name="birthCountry"]').fill("Germany");
-  await page.getByLabel("privacy consent").check();
+  await page.getByLabel("Privacy consent").check();
   await page.getByRole("button", { name: "Request my reading" }).click();
   await expect(
     page.getByRole("button", { name: "Confirm and continue" })
