@@ -33,3 +33,14 @@ CMD ["node", "/app/dist/index.js"]
 # Use host/platform scheduling for cleanup and SLA callbacks instead of in-container cron.
 # The single-stage layout is intentional: it also works around a final-stage export
 # issue observed on the current Northflank builder while retaining a portable image.
+
+# Compose migration and seed jobs need the development CLIs removed from the
+# production runtime above. Keep this compatibility stage after runtime so
+# Northflank can continue targeting `runtime` unchanged.
+FROM runtime AS build
+USER root
+RUN corepack pnpm install --frozen-lockfile
+USER app
+
+# Preserve the production runtime as the default output for ordinary builds.
+FROM runtime AS final
