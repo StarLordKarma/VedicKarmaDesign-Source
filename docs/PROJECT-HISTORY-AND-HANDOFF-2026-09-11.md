@@ -508,3 +508,73 @@ curl -fsS https://karmalifedesign.com/ready
 `e2e/mobile-localization.spec.ts`. Он должен оставаться частью sandbox/CI и
 предотвращать возврат горизонтальной прокрутки и русских подсказок в других
 локалях.
+
+## 13. Фактическая P0-проверка — 2026-09-13
+
+Проверка выполнена по источникам истины, без переноса исторических статусов из
+предыдущих разделов.
+
+### Git, deployment и live
+
+- после `git fetch origin --prune` ветка `main` и `origin/main` совпадали на
+  `8c136a10ace3b0dd2a7cc2b808110465c4db25cf`, рабочее дерево было чистым;
+- Northflank service `vedic-karma-app` имел состояние `Running`, 1/1 pod,
+  0 рестартов и активный commit
+  `8c136a10ace3b0dd2a7cc2b808110465c4db25cf`;
+- активный build: `eager-sink-360`, deployment:
+  `vedic-karma-app-785f464fcb`, время deployment: 2026-09-13 01:31 MSK;
+- image digest активного build:
+  `sha256:b4c4c2ec5bd7ed4e0bf17ecd217180d4bc7cefd7b6aed3ff258cc3a93303cb3d`;
+- `https://karmalifedesign.com/health` — HTTP/2 200,
+  `{"ok":true,"service":"vedic-astrology-booking"}`;
+- `https://karmalifedesign.com/ready` — HTTP/2 200,
+  `{"ok":true,"checks":{"database":true}}`;
+- apex и `www` — HTTP/2 200; HSTS и ранее документированные защитные headers
+  присутствуют;
+- production footer ведёт на публичное AGPL-зеркало
+  `https://github.com/StarLordKarma/VedicKarmaDesign-Source`.
+
+### Локальный release gate
+
+Проверено с закреплённым в проекте pnpm 10.4.1:
+
+- `pnpm lint` — успешно;
+- `pnpm check` — успешно;
+- `pnpm test` — 200 passed, 12 skipped, 212 total;
+- `pnpm build` — успешно; остаётся предупреждение Vite о двух chunks больше
+  500 kB;
+- `pnpm audit --prod` — известных уязвимостей нет;
+- `e2e/mobile-localization.spec.ts` против текущего production URL — 12/12
+  успешно: RU/EN/DE/ES на 320/375/430 px.
+
+### GitHub Actions и исправление sandbox CI
+
+- последний run CI на проверенном deployed commit: №30,
+  `34722952831`, статус `failure`;
+- jobs `verify`, `container` и `database-integration` успешны;
+- `sandbox-e2e` остановился до миграций и тестов: Docker Hub отклонил pull
+  закреплённого образа `minio/minio`;
+- run публикации AGPL-зеркала №11 на том же commit завершён успешно;
+- sandbox и staging переведены на официальные `quay.io/minio/minio` и
+  `quay.io/minio/mc` с сохранением закреплённых release tags;
+- исправление зафиксировано отдельным локальным commit `fa88d13`; до push и
+  нового зелёного Actions run оно не считается развёрнутым.
+
+### Что P0 ещё не принято
+
+- в текущем окружении нет Docker, поэтому полный локальный Compose E2E после
+  исправления образов не выполнен; подтверждение должно дать новый CI run;
+- Northflank migration job в dashboard отображается как `Failed` с датой
+  2026-09-11; актуальный успешный migration run для текущего release отдельно
+  не подтверждён, несмотря на зелёный `/ready`;
+- production smoke test не запускался: для него нужен уже настроенный
+  `PRODUCTION_SMOKE_SECRET`; его значение нельзя передавать в чат или командную
+  строку;
+- production NOWPayments, Resend, private S3 и OIDC/MFA не приняты end-to-end;
+  live generation → approval → storage → email → protected download также не
+  выполнен;
+- тестовый MySQL backup/restore и проверка backup PDF storage не выполнены:
+  нужны закрытое production-окружение и инструменты доступа к соответствующим
+  хранилищам;
+- image digest и deployment выше относятся к `8c136a1`, а не к локальному
+  исправлению `fa88d13`.
