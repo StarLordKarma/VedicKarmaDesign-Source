@@ -37,7 +37,7 @@ async function rpcPost(path, input) {
 const startedAt = Date.now();
 const runId = `production-smoke-${startedAt}`;
 try {
-  const currencies = ["EUR", "GBP"];
+  const currencies = ["USD", "EUR", "GBP"];
   const pricingByCurrency = {};
   for (const currency of currencies) {
     const pricing = await rpcGet("pricing.current", { currency });
@@ -56,14 +56,17 @@ try {
     language: "English",
     addon: false,
     interest: "Automated production checkout verification",
-    currency: "EUR",
+    currency: "USD",
+    privacyAcknowledged: true,
+    privacyNoticeVersion: "privacy-2026-10-21",
+    privacyLocale: "en",
     smokeTest: true,
     smokeTestRunId: runId,
   });
   if (!checkout?.invoiceUrl || !checkout?.paymentId) throw new Error("Checkout response did not contain invoiceUrl and paymentId.");
   if (checkout.smokeTestCleanup !== "completed") throw new Error("Production smoke-test booking was not cleaned up automatically.");
 
-  const result = { ok: true, pricingCurrencies: currencies, checkoutCurrency: "EUR", bookingId: checkout.id, paymentId: checkout.paymentId, invoiceUrl: checkout.invoiceUrl, pricingByCurrency };
+  const result = { ok: true, pricingCurrencies: currencies, checkoutCurrency: "USD", bookingId: checkout.id, paymentId: checkout.paymentId, invoiceUrl: checkout.invoiceUrl, pricingByCurrency };
   console.log(JSON.stringify({ ...result, runId }, null, 2));
 } catch (error) {
   const result = { ok: false, error: error instanceof Error ? error.message : String(error) };

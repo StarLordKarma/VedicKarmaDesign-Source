@@ -215,6 +215,31 @@ describe("Home booking payment UX", () => {
     }
   });
 
+  it("recovers checkout availability after a restart without losing birth details", async () => {
+    let available = false;
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => ({ direct: true, available, currencies: ["USD"] }) })));
+    try {
+      await act(async () => { renderHome(); });
+      fireEvent.change(screen.getByLabelText("Preferred name"), { target: { value: "Elena" } });
+      expect(screen.getByRole("button", { name: "Request my reading" })).toBeDisabled();
+      available = true;
+      await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Check payment availability again" })); });
+      expect(screen.getByRole("button", { name: "Request my reading" })).toBeEnabled();
+      expect(screen.getByLabelText("Preferred name")).toHaveValue("Elena");
+    } finally { vi.unstubAllGlobals(); }
+  });
+
+  it("recovers from a failed availability request when the connection returns", async () => {
+    const fetcher = vi.fn().mockRejectedValueOnce(new Error("offline")).mockResolvedValue({ ok: true, json: async () => ({ direct: true, available: true, currencies: ["USD"] }) });
+    vi.stubGlobal("fetch", fetcher);
+    try {
+      await act(async () => { renderHome(); });
+      expect(screen.getByRole("button", { name: "Request my reading" })).toBeDisabled();
+      await act(async () => { window.dispatchEvent(new Event("online")); });
+      expect(screen.getByRole("button", { name: "Request my reading" })).toBeEnabled();
+    } finally { vi.unstubAllGlobals(); }
+  });
+
   it("shows the full advanced price before selecting the package", () => {
     pricingData.basicUsd = 9.99;
     pricingData.numerologyAddonUsd = 5;

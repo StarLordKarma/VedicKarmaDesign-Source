@@ -31,3 +31,29 @@ Verification uses synthetic data and `delivered@resend.dev`, the provider's test
 recipient. Acceptance by that endpoint is not evidence of delivery to a real inbox.
 Real blockchain finality and payment matching are covered separately by the
 payment tests; synthetic report checks do not transfer funds.
+
+## Public sample
+
+`scripts/build-public-report-sample.mts` uses the production PDF renderer and
+invented identity/birth details, without credentials or network requests.
+Run it with `node --import tsx scripts/build-public-report-sample.mts`, then run
+`python3 scripts/render-public-report-sample.py` in a PDF tooling environment
+with pypdf, reportlab, Pillow and Poppler. Inspect all three rendered pages.
+Only the cover, D1 chart and final interpretation page are published under
+`client/public/samples/`; every page is visibly marked as a fictional sample.
+
+## Checkout verification (2026-10-21)
+
+Production health and database readiness returned 200. Basic and advanced USD
+orders produced signed invoices for 9.99 and 14.99 tokens. All five configured
+networks were included. Fresh, unfunded test wallets successfully signed EVM
+(Polygon) and TRON binding challenges; malformed signatures were rejected.
+Nonexistent transaction hashes remained unpaid, and no real transfer was sent.
+All four configured EVM RPCs returned finalized blocks. A full transfer with real
+funds remains a separate owner-operated test; never infer it from these checks.
+
+The public booking form refreshes payment availability every 30 seconds, on
+focus/reconnection and on explicit retry, avoiding a stale disabled checkout
+after a server restart. Network failures disable checkout until a successful
+refresh. The production smoke script includes the current privacy contract and
+tests the default USD checkout, as well as pricing in all offered currencies.

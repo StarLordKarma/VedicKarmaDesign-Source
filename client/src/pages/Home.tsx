@@ -1,5 +1,6 @@
 import React, { FormEvent, useEffect, useRef, useState } from "react";
 import CelestialIllustration from "@/components/CelestialIllustration";
+import ReportSample from "@/components/ReportSample";
 import { READING_PRICES } from "@shared/pricing";
 import { formatCurrency, type SupportedCurrency } from "@shared/currency";
 import {
@@ -594,16 +595,35 @@ export default function Home() {
     initialDraft?.currency ?? "USD"
   );
   const [walletOptions, setWalletOptions] = useState<{ direct: boolean; currencies: string[]; available?: boolean }>({ direct: false, currencies: ["USD", "EUR", "GBP"] });
+  const [paymentOptionsRefresh, setPaymentOptionsRefresh] = useState(0);
   useEffect(() => {
     let active = true;
-    fetch("/api/payment-options").then(r => r.ok ? r.json() : null).then(options => {
-      if (active && options && Array.isArray(options.currencies)) {
-        setWalletOptions(options);
-        setCurrency(current => options.currencies.includes(current) ? current : "USD");
-      }
-    }).catch(() => {});
-    return () => { active = false; };
-  }, []);
+    let pending = false;
+    const controller = new AbortController();
+    const refresh = async () => {
+      if (pending || !active) return;
+      pending = true;
+      const timeout = setTimeout(() => controller.abort(), 12000);
+      try {
+        const response = await fetch("/api/payment-options", { cache: "no-store", signal: controller.signal });
+        if (!response.ok) throw new Error("Payment options unavailable");
+        const options = await response.json();
+        if (!Array.isArray(options.currencies) || typeof options.available !== "boolean") throw new Error("Invalid payment options");
+        if (active) {
+          setWalletOptions(options);
+          setCurrency(current => options.currencies.includes(current) ? current : "USD");
+        }
+      } catch {
+        if (active) setWalletOptions(current => ({ ...current, available: false }));
+      } finally { clearTimeout(timeout); pending = false; }
+    };
+    void refresh();
+    const interval = setInterval(() => setPaymentOptionsRefresh(value => value + 1), 30000);
+    const reconnect = () => setPaymentOptionsRefresh(value => value + 1);
+    window.addEventListener("online", reconnect);
+    window.addEventListener("focus", reconnect);
+    return () => { active = false; controller.abort(); clearInterval(interval); window.removeEventListener("online", reconnect); window.removeEventListener("focus", reconnect); };
+  }, [paymentOptionsRefresh]);
   const [submitted, setSubmitted] = useState(false);
   const [paymentUrl, setPaymentUrl] = useState("");
   const [redirecting, setRedirecting] = useState(false);
@@ -1130,7 +1150,7 @@ export default function Home() {
             </span>
           </a>
           <nav
-            className={`hidden items-center gap-8 text-sm font-medium md:flex ${isDarkTheme ? "text-[#ddcabe]" : "text-[#635a52]"}`}
+            className={`hidden items-center gap-5 text-sm font-medium md:flex ${isDarkTheme ? "text-[#ddcabe]" : "text-[#635a52]"}`}
           >
             <a
               className="transition-colors hover:text-[#b55b39]"
@@ -1138,6 +1158,7 @@ export default function Home() {
             >
               {copy.navReading}
             </a>
+            <a className="transition-colors hover:text-[#b55b39]" href="#sample-report">{locale === "ru" ? "Пример PDF" : locale === "de" ? "PDF-Beispiel" : locale === "es" ? "Ejemplo PDF" : "Sample PDF"}</a>
             <a
               className="transition-colors hover:text-[#b55b39]"
               href="#process"
@@ -1191,6 +1212,7 @@ export default function Home() {
               <a href="#reading" onClick={() => setMenuOpen(false)}>
                 {copy.navReading}
               </a>
+              <a href="#sample-report" onClick={() => setMenuOpen(false)}>{locale === "ru" ? "Пример PDF" : locale === "de" ? "PDF-Beispiel" : locale === "es" ? "Ejemplo PDF" : "Sample PDF"}</a>
               <a href="#process" onClick={() => setMenuOpen(false)}>
                 {copy.navHow}
               </a>
@@ -1380,6 +1402,8 @@ export default function Home() {
             </div>
           </div>
         </section>
+
+        <ReportSample locale={locale} />
 
         <section
           id="why-vedic"
@@ -2309,6 +2333,7 @@ export default function Home() {
                     </span>
                   </label>
                   {walletOptions.available === false && <p role="status" className="text-sm text-[#e8d9c0]">{locale === "ru" ? "Онлайн-оплата временно недоступна. Пожалуйста, вернитесь позже." : locale === "de" ? "Die Online-Zahlung ist vorübergehend nicht verfügbar. Bitte versuchen Sie es später erneut." : locale === "es" ? "El pago en línea no está disponible temporalmente. Inténtalo de nuevo más tarde." : "Online checkout is temporarily unavailable. Please try again later."}</p>}
+                  {walletOptions.available === false && <button type="button" className="text-sm text-[#e1b046] underline underline-offset-4" onClick={() => setPaymentOptionsRefresh(value => value + 1)}>{locale === "ru" ? "Проверить оплату снова" : locale === "de" ? "Zahlung erneut prüfen" : locale === "es" ? "Volver a comprobar el pago" : "Check payment availability again"}</button>}
                   <button
                     type="submit"
                     disabled={submitBooking.isPending || walletOptions.available === false}
