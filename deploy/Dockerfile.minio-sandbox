@@ -1,0 +1,17 @@
+# Test/staging storage only. Build the pinned upstream sources because the
+# previously public Quay MinIO images no longer allow anonymous pulls.
+FROM golang:1-bookworm AS build
+ENV CGO_ENABLED=0 GOBIN=/out
+RUN go install github.com/minio/minio@RELEASE.2025-07-23T15-54-02Z \
+ && go install github.com/minio/mc@RELEASE.2025-07-21T05-28-08Z
+
+FROM debian:bookworm-slim AS server
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+COPY --from=build /out/minio /usr/local/bin/minio
+COPY --from=build /out/mc /usr/local/bin/mc
+ENTRYPOINT ["minio"]
+
+FROM server AS client
+ENTRYPOINT ["mc"]
