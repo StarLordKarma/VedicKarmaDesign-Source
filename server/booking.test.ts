@@ -62,7 +62,7 @@ describe("booking validation", () => {
   });
 
   it("calculates Basic and Add-on totals", () => {
-    expect(getBookingTotal(false)).toBe(25);
-    expect(getBookingTotal(true)).toBe(35);
+    expect(getBookingTotal(false)).toBe(9.99);
+    expect(getBookingTotal(true)).toBe(14.99);
   });
 });

@@ -197,6 +197,8 @@ export async function sendClientReportPdf(input: {
   pdfKey: string;
   pdfName: string;
   language: string;
+  idempotencyKey?: string;
+  statusUrl?: string;
 }) {
   if (!ENV.resendApiKey || !ENV.resendFromEmail)
     throw new TRPCError({
@@ -220,18 +222,20 @@ export async function sendClientReportPdf(input: {
     });
   const copy = getDeliveryCopy(input.language);
   const safeName = escapeHtml(input.name);
+  const safeStatusUrl = input.statusUrl && /^https:\/\//.test(input.statusUrl) ? escapeHtml(input.statusUrl) : undefined;
   const response = await fetch(resendEndpoint(), {
     method: "POST",
     headers: {
       Authorization: `Bearer ${ENV.resendApiKey}`,
       "Content-Type": "application/json",
       Accept: "application/json",
+      ...(input.idempotencyKey ? { "Idempotency-Key": input.idempotencyKey } : {}),
     },
     body: JSON.stringify({
       from: ENV.resendFromEmail,
       to: [input.email],
       subject: copy.subject,
-      html: `<p>${copy.greeting} ${safeName},</p><p>${copy.body}</p><p style="font-size:12px;color:#635a52">${copy.disclaimer}</p><p>${copy.signoff},<br />Jyotish</p>`,
+      html: `<p>${copy.greeting} ${safeName},</p><p>${copy.body}</p>${safeStatusUrl ? `<p><a href="${safeStatusUrl}">${input.language === "Русский" ? "Статус заказа и PDF" : "Order status and PDF"}</a></p>` : ""}<p style="font-size:12px;color:#635a52">${copy.disclaimer}</p><p>${copy.signoff},<br />Jyotish</p>`,
       attachments: [
         {
           filename: input.pdfName || "vedic-report.pdf",
@@ -244,7 +248,7 @@ export async function sendClientReportPdf(input: {
   if (!response.ok) {
     const detail = await response.text().catch(() => "");
     throw new TRPCError({
-      code: "BAD_GATEWAY",
+      code: response.status >= 400 && response.status < 500 && response.status !== 429 ? "BAD_REQUEST" : "BAD_GATEWAY",
       message: `Email provider rejected the report delivery${detail ? `: ${detail.slice(0, 240)}` : "."}`,
     });
   }

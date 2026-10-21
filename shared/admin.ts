@@ -25,8 +25,8 @@ export const currencySchema = z.enum(["USD", "EUR", "GBP"]);
 export const pricingCurrencySchema = z.object({ currency: currencySchema });
 export const servicePricingSchema = z.object({
   currency: currencySchema.default("USD"),
-  basicUsd: z.number().int().min(1).max(10000),
-  numerologyAddonUsd: z.number().int().min(0).max(10000),
+  basicUsd: z.number().min(1).max(10000).multipleOf(0.01),
+  numerologyAddonUsd: z.number().min(0).max(10000).multipleOf(0.01),
 });
 const pricingHistoryDateFields = {
   currency: currencySchema.optional(),

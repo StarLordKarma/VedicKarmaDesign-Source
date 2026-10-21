@@ -2,10 +2,11 @@ import { notifyOwner } from "./_core/notification";
 import { updateBookingPaymentStatus } from "./db";
 import { shouldNotifyPayment } from "./nowpayments.webhook";
 import { enqueueReportJobForBooking, isReportStudioAutoProcessingEnabled, processReportJob } from "./report-studio-db";
+import { getPaymentProvider } from "./payments";
 
 export async function processPaymentNotification(input: {
   bookingId: number;
-  paymentId?: number;
+  paymentId?: string | number;
   paymentStatus: string;
   updateStatus?: typeof updateBookingPaymentStatus;
   sendNotification?: typeof notifyOwner;
@@ -33,7 +34,7 @@ export async function processPaymentNotification(input: {
     if (!shouldNotifyPayment(result.previousStatus, input.paymentStatus)) return { notified: false, reportJob, ...result };
     await sendNotification({
       title: "Crypto payment confirmed",
-      content: `NOWPayments confirmed payment ${input.paymentId ?? ""} for booking #${input.bookingId}. Status: ${input.paymentStatus}.`,
+      content: `${getPaymentProvider().displayName} confirmed payment ${input.paymentId ?? ""} for booking #${input.bookingId}. Status: ${input.paymentStatus}.`,
     });
     return { notified: true, reportJob, ...result };
   }

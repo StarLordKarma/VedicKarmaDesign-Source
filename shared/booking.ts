@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { READING_PRICES } from "./pricing";
 
-export const PRIVACY_NOTICE_VERSION = "privacy-2026-08";
+export const PRIVACY_NOTICE_VERSION = "privacy-2026-10-21";
 
 export const bookingSchema = z.object({
   name: z.string().trim().min(2, "Please enter your name.").max(160),

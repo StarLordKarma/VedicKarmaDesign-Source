@@ -16,11 +16,14 @@ const AdminStatusLinks = lazy(() => import("@/pages/AdminStatusLinks"));
 const ServicePackages = lazy(() => import("@/pages/ServicePackages"));
 const PaymentTestLab = lazy(() => import("@/pages/PaymentTestLab"));
 
+const WalletPayment = lazy(() => import("@/pages/WalletPayment"));
+
 function Router() {
   // make sure to consider if you need authentication for certain routes
   return (
     <Switch>
       <Route path={"/"} component={Home} />
+      <Route path={"/pay/:token"} component={WalletPayment} />
       <Route path={"/privacy"} component={Privacy} />
       <Route path={"/admin"} component={Admin} />
       <Route path={"/admin/report-studio"} component={ReportStudio} />

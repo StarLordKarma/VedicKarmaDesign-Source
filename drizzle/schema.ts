@@ -1,4 +1,4 @@
-import { boolean, index, int, mysqlEnum, mysqlTable, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
+import { boolean, decimal, index, int, mysqlEnum, mysqlTable, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -38,7 +38,7 @@ export const bookingRequests = mysqlTable("booking_requests", {
   packageCode: varchar("packageCode", { length: 64 }).default("basic").notNull(),
   packageVersion: int("packageVersion").default(1).notNull(),
   priceSnapshotJson: text("priceSnapshotJson"),
-  totalUsd: int("totalUsd").notNull(),
+  totalUsd: decimal("totalUsd", { precision: 12, scale: 2, mode: "number" }).notNull(),
   currency: varchar("currency", { length: 3 }).default("USD").notNull(),
   interest: text("interest"),
   privacyConsentVersion: varchar("privacyConsentVersion", { length: 64 }),
@@ -78,8 +78,8 @@ export type ClientChangeHistory = typeof clientChangeHistory.$inferSelect;
 
 export const servicePricing = mysqlTable("service_pricing", {
   id: int("id").primaryKey(),
-  basicUsd: int("basicUsd").notNull(),
-  numerologyAddonUsd: int("numerologyAddonUsd").notNull(),
+  basicUsd: decimal("basicUsd", { precision: 12, scale: 2, mode: "number" }).notNull(),
+  numerologyAddonUsd: decimal("numerologyAddonUsd", { precision: 12, scale: 2, mode: "number" }).notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   updatedBy: varchar("updatedBy", { length: 64 }).notNull(),
 });
@@ -89,8 +89,8 @@ export type InsertServicePricing = typeof servicePricing.$inferInsert;
 
 export const servicePricingCurrencies = mysqlTable("service_pricing_currencies", {
   currency: varchar("currency", { length: 3 }).primaryKey(),
-  basicAmount: int("basicAmount").notNull(),
-  numerologyAddonAmount: int("numerologyAddonAmount").notNull(),
+  basicAmount: decimal("basicAmount", { precision: 12, scale: 2, mode: "number" }).notNull(),
+  numerologyAddonAmount: decimal("numerologyAddonAmount", { precision: 12, scale: 2, mode: "number" }).notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   updatedBy: varchar("updatedBy", { length: 64 }).notNull(),
 });
@@ -101,10 +101,10 @@ export type InsertServicePricingCurrency = typeof servicePricingCurrencies.$infe
 export const servicePricingHistory = mysqlTable("service_pricing_history", {
   id: int("id").autoincrement().primaryKey(),
   currency: varchar("currency", { length: 3 }).notNull(),
-  oldBasicAmount: int("oldBasicAmount").notNull(),
-  oldNumerologyAddonAmount: int("oldNumerologyAddonAmount").notNull(),
-  newBasicAmount: int("newBasicAmount").notNull(),
-  newNumerologyAddonAmount: int("newNumerologyAddonAmount").notNull(),
+  oldBasicAmount: decimal("oldBasicAmount", { precision: 12, scale: 2, mode: "number" }).notNull(),
+  oldNumerologyAddonAmount: decimal("oldNumerologyAddonAmount", { precision: 12, scale: 2, mode: "number" }).notNull(),
+  newBasicAmount: decimal("newBasicAmount", { precision: 12, scale: 2, mode: "number" }).notNull(),
+  newNumerologyAddonAmount: decimal("newNumerologyAddonAmount", { precision: 12, scale: 2, mode: "number" }).notNull(),
   changedAt: timestamp("changedAt").defaultNow().notNull(),
   changedBy: varchar("changedBy", { length: 64 }).notNull(),
 });
@@ -392,6 +392,7 @@ export const reportDeliveryAttempts = mysqlTable("report_delivery_attempts", {
   errorMessage: varchar("errorMessage", { length: 1000 }),
   requestedBy: varchar("requestedBy", { length: 64 }).notNull(),
   requestedAt: timestamp("requestedAt").defaultNow().notNull(),
+  startedAt: timestamp("startedAt"),
   completedAt: timestamp("completedAt"),
 }, (table) => ({
   idempotencyKeyUnique: uniqueIndex("report_delivery_attempts_idempotency_key_unique").on(table.idempotencyKey),
@@ -505,3 +506,14 @@ export type InsertSlaEmailAllowlistEntry = typeof slaEmailAllowlist.$inferInsert
 
 export type SlaEvaluationRun = typeof slaEvaluationRuns.$inferSelect;
 export type InsertSlaEvaluationRun = typeof slaEvaluationRuns.$inferInsert;
+
+// One verified payer/network selection for each direct checkout. No private keys.
+export const directPaymentBindings = mysqlTable("direct_payment_bindings", {
+  bookingId: int("bookingId").primaryKey(),
+  intentId: varchar("intentId", { length: 64 }).notNull(),
+  network: varchar("network", { length: 24 }).notNull(),
+  payer: varchar("payer", { length: 64 }).notNull(),
+  nonceHash: varchar("nonceHash", { length: 64 }).notNull(),
+  statusToken: varchar("statusToken", { length: 64 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, table => ({ intentUnique: uniqueIndex("direct_payment_binding_intent_unique").on(table.intentId) }));

@@ -1,3 +1,6 @@
+import { tronAddressHex } from "../payments/direct-tron";
+import { DEFAULT_TRON_WALLET } from "../../shared/direct-wallet";
+import { DEFAULT_DIRECT_WALLET } from "../../shared/direct-wallet";
 import { hasDatabaseConfiguration } from "./database-url";
 
 export function independentConfigurationErrors(
@@ -18,8 +21,6 @@ export function independentConfigurationErrors(
     "GOOGLE_MAPS_API_KEY",
     "LLM_BASE_URL",
     "LLM_API_KEY",
-    "NOWPAYMENTS_API_KEY",
-    "NOWPAYMENTS_IPN_SECRET",
     "RESEND_API_KEY",
     "RESEND_FROM_EMAIL",
     "OWNER_ALERT_EMAIL",
@@ -28,6 +29,33 @@ export function independentConfigurationErrors(
     if (!env[key]?.trim() || /replace-with|example\.com/.test(env[key]!))
       errors.push(`${key} is missing or still a placeholder`);
   }
+  const paymentProvider = env.PAYMENT_PROVIDER || "nowpayments";
+  const paymentRequirements: Record<string, string[]> = {
+    direct: [],
+    nowpayments: ["NOWPAYMENTS_API_KEY", "NOWPAYMENTS_IPN_SECRET"],
+    heleket: ["HELEKET_MERCHANT_ID", "HELEKET_PAYMENT_API_KEY"],
+    paycrypto: ["PAYCRYPTO_API_KEY", "PAYCRYPTO_WEBHOOK_TOKEN", "PAYCRYPTO_COINS_JSON"],
+  };
+  if (!paymentRequirements[paymentProvider])
+    errors.push("PAYMENT_PROVIDER must be nowpayments, heleket, paycrypto, or direct");
+  for (const key of paymentRequirements[paymentProvider] || []) {
+    if (!env[key]?.trim() || /replace-with|example\.com/.test(env[key]!))
+      errors.push(`${key} is missing or still a placeholder`);
+  }
+  if (paymentProvider === "direct") {
+    if (!/^0x[0-9a-fA-F]{40}$/.test(env.DIRECT_WALLET_ADDRESS || DEFAULT_DIRECT_WALLET) || /^0x0{40}$/i.test(env.DIRECT_WALLET_ADDRESS || DEFAULT_DIRECT_WALLET)) errors.push("DIRECT_WALLET_ADDRESS must be a nonzero EVM address");
+    if (env.DIRECT_TRON_API_URL) {
+      try { tronAddressHex(env.DIRECT_TRON_WALLET_ADDRESS || DEFAULT_TRON_WALLET); } catch { errors.push("DIRECT_TRON_WALLET_ADDRESS must be a valid TRON Mainnet address"); }
+    }
+    const rpcKeys = ["DIRECT_RPC_URL", "DIRECT_ETHEREUM_RPC_URL", "DIRECT_POLYGON_RPC_URL", "DIRECT_BNB_RPC_URL", "DIRECT_TRON_API_URL"];
+    if (!rpcKeys.some(key => env[key])) errors.push("At least one direct payment network RPC is required");
+    for (const key of rpcKeys) {
+      if (!env[key]) continue;
+      try { if (new URL(env[key]!).protocol !== "https:") errors.push(`${key} requires HTTPS`); } catch { errors.push(`${key} is not a URL`); }
+    }
+  }
+  if (paymentProvider === "paycrypto" && (env.PAYCRYPTO_WEBHOOK_TOKEN?.length ?? 0) < 32)
+    errors.push("PAYCRYPTO_WEBHOOK_TOKEN must contain at least 32 characters");
   if (!hasDatabaseConfiguration(env))
     errors.push("DATABASE_URL or Northflank MySQL add-on fields are missing");
   for (const key of ["JWT_SECRET", "SCHEDULED_TASK_SECRET"])
@@ -60,11 +88,33 @@ export function independentConfigurationErrors(
     errors.push("TRUST_PROXY_HOPS must be a nonnegative integer");
   for (const key of [
     "NOWPAYMENTS_BASE_URL",
+    "HELEKET_BASE_URL",
+    "PAYCRYPTO_BASE_URL",
     "RESEND_BASE_URL",
     "MAPS_BASE_URL",
   ]) {
     if (env[key] && !env[key]!.startsWith("https://"))
       errors.push(`${key} requires HTTPS in independent production`);
+  }
+  if (env.NOWPAYMENTS_BASE_URL) {
+    try {
+      if (new URL(env.NOWPAYMENTS_BASE_URL).hostname !== "api.nowpayments.io")
+        errors.push("NOWPAYMENTS_BASE_URL must use the official production host");
+    } catch {
+      // The generic URL validation above already reports this case.
+    }
+  }
+  for (const [key, hostname] of [
+    ["HELEKET_BASE_URL", "api.heleket.com"],
+    ["PAYCRYPTO_BASE_URL", "paycrypto.global"],
+  ] as const) {
+    if (!env[key]) continue;
+    try {
+      if (new URL(env[key]!).hostname !== hostname)
+        errors.push(`${key} must use the official production host`);
+    } catch {
+      // The generic URL validation above already reports this case.
+    }
   }
   return errors;
 }

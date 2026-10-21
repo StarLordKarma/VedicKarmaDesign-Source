@@ -593,6 +593,17 @@ export default function Home() {
   const [currency, setCurrency] = useState<SupportedCurrency>(
     initialDraft?.currency ?? "USD"
   );
+  const [walletOptions, setWalletOptions] = useState<{ direct: boolean; currencies: string[] }>({ direct: false, currencies: ["USD", "EUR", "GBP"] });
+  useEffect(() => {
+    let active = true;
+    fetch("/api/payment-options").then(r => r.ok ? r.json() : null).then(options => {
+      if (active && options && Array.isArray(options.currencies)) {
+        setWalletOptions(options);
+        setCurrency(current => options.currencies.includes(current) ? current : "USD");
+      }
+    }).catch(() => {});
+    return () => { active = false; };
+  }, []);
   const [submitted, setSubmitted] = useState(false);
   const [paymentUrl, setPaymentUrl] = useState("");
   const [redirecting, setRedirecting] = useState(false);
@@ -742,6 +753,54 @@ export default function Home() {
     window.localStorage.setItem("public-locale", locale);
     document.documentElement.lang = HTML_LOCALES[locale];
   }, [locale]);
+
+  useEffect(() => {
+    const revealItems = Array.from(
+      document.querySelectorAll<HTMLElement>("[data-vedic-reveal]")
+    );
+    if (!("IntersectionObserver" in window)) {
+      revealItems.forEach(item => item.classList.add("is-visible"));
+      return;
+    }
+    const observer = new IntersectionObserver(
+      entries => {
+        entries.forEach(entry => {
+          if (!entry.isIntersecting) return;
+          entry.target.classList.add("is-visible");
+          observer.unobserve(entry.target);
+        });
+      },
+      { rootMargin: "0px 0px -8%", threshold: 0.12 }
+    );
+    revealItems.forEach(item => observer.observe(item));
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const hero = document.querySelector<HTMLElement>(".editorial-hero");
+    if (
+      !hero ||
+      (typeof window.matchMedia === "function" &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches)
+    )
+      return;
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      hero.style.setProperty(
+        "--hero-ornament-shift",
+        `${Math.min(window.scrollY * 0.08, 38)}px`
+      );
+    };
+    const onScroll = () => {
+      if (!frame) frame = window.requestAnimationFrame(update);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (frame) window.cancelAnimationFrame(frame);
+    };
+  }, []);
 
   useEffect(() => {
     if (!draftSavedAt) return;
@@ -1063,7 +1122,7 @@ export default function Home() {
             className="flex items-center gap-3"
             aria-label="Jyotish home"
           >
-            <span className="grid h-10 w-10 place-items-center rounded-full bg-[#b55b39] text-[#fffaf4] shadow-[0_8px_24px_rgba(181,91,57,0.22)]">
+            <span className="vedic-icon-pulse grid h-10 w-10 place-items-center rounded-full bg-[#b55b39] text-[#fffaf4] shadow-[0_8px_24px_rgba(181,91,57,0.22)]">
               <Sun size={19} strokeWidth={1.6} />
             </span>
             <span className="font-serif text-lg font-semibold tracking-tight">
@@ -1178,6 +1237,7 @@ export default function Home() {
 
       <main id="top">
         <section className="editorial-hero relative isolate overflow-hidden border-b border-[#28231f]/10">
+          <div className="hero-cosmos-layer" aria-hidden="true" />
           <div className="absolute -right-40 -top-32 -z-10 h-[35rem] w-[35rem] rounded-full bg-[#d9a441]/20 blur-3xl" />
           <div className="absolute -left-48 bottom-0 -z-10 h-[28rem] w-[28rem] rounded-full bg-[#b55b39]/10 blur-3xl" />
           <div className="mx-auto grid max-w-7xl gap-14 px-5 pb-20 pt-16 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:px-8 lg:pb-28 lg:pt-24">
@@ -1257,7 +1317,8 @@ export default function Home() {
 
         <section
           id="reading"
-          className="mx-auto max-w-7xl px-5 py-20 lg:px-8 lg:py-28"
+          data-vedic-reveal
+          className="vedic-reveal mx-auto max-w-7xl px-5 py-20 lg:px-8 lg:py-28"
         >
           <div className="grid gap-12 lg:grid-cols-[0.7fr_1.3fr] lg:items-start">
             <div>
@@ -1321,8 +1382,32 @@ export default function Home() {
         </section>
 
         <section
+          id="why-vedic"
+          data-vedic-reveal
+          className="vedic-difference vedic-reveal relative isolate overflow-hidden border-y border-[#28231f]/10"
+        >
+          <div className="vedic-difference-wheel" aria-hidden="true" />
+          <div className="relative mx-auto grid max-w-7xl gap-10 px-5 py-20 lg:grid-cols-[0.8fr_1.2fr] lg:gap-20 lg:px-8 lg:py-24">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#b55b39]">
+                {copy.vedicDifferenceEyebrow}
+              </p>
+              <h2 className="mt-4 max-w-lg font-serif text-4xl leading-tight tracking-[-0.03em] sm:text-5xl">
+                {copy.vedicDifferenceTitle}
+              </h2>
+            </div>
+            <div className="space-y-5 text-base leading-7 text-[#514a43]">
+              {copy.vedicDifferenceBody.map(paragraph => (
+                <p key={paragraph}>{paragraph}</p>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section
           id="process"
-          className="border-y border-[#28231f]/10 bg-[#efe9df]"
+          data-vedic-reveal
+          className="vedic-section-stars vedic-reveal border-y border-[#28231f]/10 bg-[#efe9df]"
         >
           <div className="mx-auto max-w-7xl px-5 py-20 lg:px-8 lg:py-24">
             <div className="max-w-2xl">
@@ -1359,7 +1444,8 @@ export default function Home() {
 
         <section
           id="book"
-          className="mx-auto max-w-7xl px-5 py-20 lg:px-8 lg:py-28"
+          data-vedic-reveal
+          className="vedic-reveal mx-auto max-w-7xl px-5 py-20 lg:px-8 lg:py-28"
         >
           <div className="grid gap-12 lg:grid-cols-[0.75fr_1.25fr]">
             <div>
@@ -2019,6 +2105,7 @@ export default function Home() {
                   </label>
                   <label className="block text-sm text-[#e8d9c0]">
                     {currencyLabel}
+                    {walletOptions.direct && <span className="block mt-2 text-xs">{locale === "ru" ? "Оплата через MetaMask: USDT, USDT0 или Binance-Peg USDT. Выберите сеть и проверьте комиссию на следующем шаге." : locale === "de" ? "Mit MetaMask bezahlen: USDT, USDT0 oder Binance-Peg USDT. Netzwerk und Gebühren im nächsten Schritt prüfen." : locale === "es" ? "Paga con MetaMask: USDT, USDT0 o Binance-Peg USDT. Elige la red y comprueba la comisión en el siguiente paso." : "Pay with MetaMask: USDT, USDT0 or Binance-Peg USDT. Choose your network and check the fee in the next step."}</span>}
                     <select
                       aria-label={currencyLabel}
                       value={currency}
@@ -2030,10 +2117,10 @@ export default function Home() {
                       <option className="text-[#28231f]" value="USD">
                         USD ($)
                       </option>
-                      <option className="text-[#28231f]" value="EUR">
+                      <option disabled={!walletOptions.currencies.includes("EUR")} className="text-[#28231f]" value="EUR">
                         EUR (€)
                       </option>
-                      <option className="text-[#28231f]" value="GBP">
+                      <option disabled={!walletOptions.currencies.includes("GBP")} className="text-[#28231f]" value="GBP">
                         GBP (£)
                       </option>
                     </select>
@@ -2256,7 +2343,11 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="faq" className="border-t border-[#28231f]/10 bg-[#fffaf4]">
+        <section
+          id="faq"
+          data-vedic-reveal
+          className="vedic-section-grid vedic-reveal border-t border-[#28231f]/10 bg-[#fffaf4]"
+        >
           <div className="mx-auto max-w-4xl px-5 py-20 lg:px-8 lg:py-24">
             <div className="text-center">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#b55b39]">

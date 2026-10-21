@@ -1,8 +1,9 @@
-import { and, asc, avg, count, desc, eq, gte, isNull, like, lt, or, sql } from "drizzle-orm";
+import { and, asc, avg, count, desc, eq, gte, inArray, isNull, like, lt, or, sql } from "drizzle-orm";
 import { notifyOwner } from "./_core/notification";
 import { logStructuredEvent } from "./observability";
 import { bookingRequests, operationalAlerts, reportJobs, slaEvaluationRuns, slaSettings } from "../drizzle/schema";
 import { getDb } from "./db";
+import { PAID_PAYMENT_STATUSES } from "@shared/payment-status";
 
 const SETTINGS_ID = 1;
 
@@ -149,7 +150,7 @@ export async function getOwnerMetrics(sinceInput?: Date, untilInput?: Date) {
   if (!db) return { since: since.toISOString(), bookings: 0, paidBookings: 0, completedBookings: 0, failedDeliveries: 0, queuedReports: 0, sentReports: 0, openAlerts: 0, averageSlaResponseMs: 0, recentAlerts: [], recentSlaRuns: [], slaViolationTrend: [], topWeeklyErrors: [] };
   const [bookings, paidBookings, completedBookings, failedDeliveries, queuedReports, sentReports, openAlerts, averageSlaResponseMs] = await Promise.all([
     scalar(db.select({ value: count() }).from(bookingRequests).where(range(bookingRequests.createdAt))),
-    scalar(db.select({ value: count() }).from(bookingRequests).where(and(range(bookingRequests.createdAt), eq(bookingRequests.paymentStatus, "finished")))),
+    scalar(db.select({ value: count() }).from(bookingRequests).where(and(range(bookingRequests.createdAt), inArray(bookingRequests.paymentStatus, [...PAID_PAYMENT_STATUSES])))),
     scalar(db.select({ value: count() }).from(bookingRequests).where(and(range(bookingRequests.createdAt), eq(bookingRequests.status, "completed")))),
     scalar(db.select({ value: count() }).from(reportJobs).where(and(range(reportJobs.createdAt), eq(reportJobs.status, "delivery_failed")))),
     scalar(db.select({ value: count() }).from(reportJobs).where(and(range(reportJobs.createdAt), eq(reportJobs.status, "queued")))),

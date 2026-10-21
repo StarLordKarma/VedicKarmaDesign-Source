@@ -1,4 +1,4 @@
-import { createNowPaymentsInvoice, NowPaymentsInvoice } from "./nowpayments";
+import { getPaymentProvider, type PaymentProvider } from "./payments";
 
 export async function createCheckoutForBooking(input: {
   bookingId: number;
@@ -6,18 +6,18 @@ export async function createCheckoutForBooking(input: {
   priceCurrency?: string;
   addon: boolean;
   origin: string;
-  createInvoice?: typeof createNowPaymentsInvoice;
+  provider?: PaymentProvider;
   savePayment: (data: { id: number; paymentId: string; paymentUrl: string; paymentStatus: string }) => Promise<void>;
   markFailed: (id: number) => Promise<void>;
 }) {
-  const createInvoice = input.createInvoice ?? createNowPaymentsInvoice;
+  const provider = input.provider ?? getPaymentProvider();
   try {
-    const invoice: NowPaymentsInvoice = await createInvoice({
+    const invoice = await provider.createPayment({
       priceAmount: input.totalUsd,
       priceCurrency: input.priceCurrency,
       orderId: `booking-${input.bookingId}`,
       orderDescription: `Vedic astrology reading${input.addon ? " + Indian numerology add-on" : ""}`,
-      callbackUrl: `${input.origin}/api/nowpayments/ipn`,
+      callbackUrl: `${input.origin}${provider.webhookPath}`,
       successUrl: `${input.origin}/?payment=success#book`,
       cancelUrl: `${input.origin}/?payment=cancelled#book`,
     });

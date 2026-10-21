@@ -1,9 +1,10 @@
 import { drizzle } from "drizzle-orm/mysql2";
 import { and, asc, count, desc, eq, gte, gt, like, lt, sql } from "drizzle-orm";
-import { ClientChangeHistory, InsertBookingRequest, InsertUser, bookingRequests, clientChangeHistory, paymentTestLabRuns, paymentTestLabRetentionSettings, paymentTestLabRetentionChanges, paymentTestLabCleanupHistory, servicePackages, servicePricing, servicePricingCurrencies, servicePricingHistory, smokeTestRuns, users, receiptFiles, receiptRetentionSettings, receiptEmailAttempts, receiptEmailFailureAlerts, slaEmailAllowlist } from "../drizzle/schema";
+import { ClientChangeHistory, InsertBookingRequest, InsertUser, bookingRequests, clientChangeHistory, paymentTestLabRuns, paymentTestLabRetentionSettings, paymentTestLabRetentionChanges, paymentTestLabCleanupHistory, servicePackages, servicePricing, servicePricingCurrencies, servicePricingHistory, smokeTestRuns, users, receiptFiles, receiptRetentionSettings, receiptEmailAttempts, receiptEmailFailureAlerts, slaEmailAllowlist, directPaymentBindings } from "../drizzle/schema";
 import { READING_PRICES } from "@shared/pricing";
 import { ENV } from './_core/env';
 import { resolveDatabaseUrl } from "./_core/database-url";
+import { isPaidPaymentStatus } from "@shared/payment-status";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -454,7 +455,10 @@ export async function createBookingRequest(input: InsertBookingRequest) {
 export async function deleteBookingRequest(id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
-  await db.delete(bookingRequests).where(eq(bookingRequests.id, id));
+  await db.transaction(async tx => {
+    await tx.delete(directPaymentBindings).where(eq(directPaymentBindings.bookingId, id));
+    await tx.delete(bookingRequests).where(eq(bookingRequests.id, id));
+  });
 }
 
 export async function updateBookingPayment(input: {
@@ -491,15 +495,19 @@ export async function updateBookingPaymentStatus(input: {
     .limit(1);
   if (!current[0]) return { previousStatus: null, isConfirmed: false, missing: true };
   const previousStatus = current[0].paymentStatus;
-  // A fixed-price order must never be fulfilled from an underpayment. NOWPayments
-  // reports those separately so the owner can reconcile or request the remainder.
-  const isConfirmed = ["finished", "confirmed"].includes(input.paymentStatus);
+  // A fixed-price order must never be fulfilled from an underpayment. Providers
+  // report those separately so the owner can reconcile or request the remainder.
+  const isConfirmed = isPaidPaymentStatus(input.paymentStatus);
+  const wasConfirmed = isPaidPaymentStatus(previousStatus);
+  const nextPaymentStatus = wasConfirmed && !isConfirmed
+    ? previousStatus
+    : input.paymentStatus;
   await db.update(bookingRequests).set({
     ...(input.paymentId ? { paymentId: input.paymentId } : {}),
-    paymentStatus: input.paymentStatus,
-    ...(isConfirmed ? { status: "in_progress" as const } : {}),
+    paymentStatus: nextPaymentStatus,
+    ...(isConfirmed || wasConfirmed ? { status: "in_progress" as const } : {}),
   }).where(eq(bookingRequests.id, input.id));
-  return { previousStatus, isConfirmed };
+  return { previousStatus, isConfirmed: isConfirmed || wasConfirmed };
 }
 
 export async function getBookingRequestById(id: number) {

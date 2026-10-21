@@ -13,6 +13,7 @@ const copy: Record<Locale, { title: string; body: string; essential: string; acc
 
 function resolveLocale(value: string | null): Locale { return LOCALES.includes(value as Locale) ? value as Locale : "en"; }
 function loadAnalytics() {
+  if (/^\/(pay|status)\//.test(window.location.pathname)) return;
   if (document.querySelector('script[data-consent-analytics="true"]')) return;
   const endpoint = import.meta.env.VITE_ANALYTICS_ENDPOINT as string | undefined;
   const websiteId = import.meta.env.VITE_ANALYTICS_WEBSITE_ID as string | undefined;

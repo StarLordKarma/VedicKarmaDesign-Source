@@ -186,17 +186,17 @@ describe("Home booking payment UX", () => {
     pricingData.basicUsd = 40;
     pricingData.numerologyAddonUsd = 15;
     renderHome();
-    expect(screen.getAllByText("$40").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("$40.00").length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("radio", { name: "Basic + numerology" }));
-    expect(screen.getAllByText("$55").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("$55.00").length).toBeGreaterThan(0);
     fireEvent.change(screen.getAllByRole("combobox", { name: "Currency" })[0], {
       target: { value: "EUR" },
     });
-    expect(screen.getAllByText("€40").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("€40.00").length).toBeGreaterThan(0);
     fireEvent.change(screen.getAllByRole("combobox", { name: "Currency" })[0], {
       target: { value: "GBP" },
     });
-    expect(screen.getAllByText("£40").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("£40.00").length).toBeGreaterThan(0);
     pricingData.basicUsd = 25;
     pricingData.numerologyAddonUsd = 10;
   });
@@ -224,7 +224,7 @@ describe("Home booking payment UX", () => {
         totalAmount: 31.5,
       })
     );
-    expect(screen.getByTestId("live-total-breakdown")).toHaveTextContent("$32");
+    expect(screen.getByTestId("live-total-breakdown")).toHaveTextContent("$31.50");
     expect(screen.getByTestId("applied-promo-status")).toHaveTextContent(
       "Promo code applied"
     );

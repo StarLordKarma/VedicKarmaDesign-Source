@@ -24,6 +24,7 @@ function resolveFactPath(facts: unknown, reference: string) {
   let value: unknown = facts;
   for (const part of parts) {
     if (value === null || value === undefined || (typeof value !== "object" && !Array.isArray(value))) return undefined;
+    if (!Object.prototype.hasOwnProperty.call(value, part)) return undefined;
     value = (value as Record<string, unknown>)[part];
   }
   return value;

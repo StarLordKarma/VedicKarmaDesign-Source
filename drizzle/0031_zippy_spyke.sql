@@ -1,0 +1,1 @@
+ALTER TABLE `report_delivery_attempts` ADD `startedAt` timestamp;

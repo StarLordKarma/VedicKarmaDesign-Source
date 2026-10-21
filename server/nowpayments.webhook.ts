@@ -2,8 +2,9 @@ import type { Express } from "express";
 
 type CorrelatedRequest = { requestId?: string };
 import { processPaymentNotification } from "./payment-notification";
-import { verifyNowPaymentsSignature } from "./nowpayments";
 import { createRateLimit, logStructuredEvent } from "./observability";
+import { nowPaymentsProvider } from "./payments/nowpayments-provider";
+import { isPaidPaymentStatus } from "@shared/payment-status";
 
 export function stableStringify(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
@@ -15,11 +16,11 @@ export function stableStringify(value: unknown): string {
 }
 
 export function mapPaymentStatusToBookingStatus(paymentStatus: string) {
-  return ["finished", "confirmed"].includes(paymentStatus) ? "in_progress" : "new";
+  return nowPaymentsProvider.isPaid(paymentStatus) ? "in_progress" : "new";
 }
 
 export function shouldNotifyPayment(previousStatus: string | null, nextStatus: string) {
-  return ["finished", "confirmed"].includes(nextStatus) && previousStatus !== nextStatus;
+  return isPaidPaymentStatus(nextStatus) && !isPaidPaymentStatus(previousStatus);
 }
 
 export async function processSignedNowPaymentsIpn(input: {
@@ -28,7 +29,7 @@ export async function processSignedNowPaymentsIpn(input: {
   processNotification?: typeof processPaymentNotification;
 }) {
   const rawBody = stableStringify(input.body);
-  if (!input.signature || !verifyNowPaymentsSignature(rawBody, input.signature)) return { accepted: false as const, status: 401 as const, error: "Invalid payment signature" };
+  if (!input.signature || !nowPaymentsProvider.verifyWebhook(rawBody, input.signature)) return { accepted: false as const, status: 401 as const, error: "Invalid payment signature" };
   const orderId = input.body.order_id ?? "";
   const bookingId = Number(orderId.replace(/^booking-/, ""));
   if (!Number.isInteger(bookingId) || bookingId <= 0) return { accepted: false as const, status: 400 as const, error: "Invalid order id" };

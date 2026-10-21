@@ -20,8 +20,9 @@ describe("client natal PDF delivery", () => {
   it("sends an approved Report Studio PDF with the report-specific filename", async () => {
     signedUrl.mockResolvedValue("https://storage.example/approved-report.pdf");
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("%PDF-1.7", { status: 200 })).mockResolvedValueOnce(new Response(JSON.stringify({ id: "report_email_1" }), { status: 200, headers: { "Content-Type": "application/json" } }));
-    const result = await sendClientReportPdf({ email: "client@example.com", name: "Maya", pdfKey: "report-studio/1/v1.pdf", pdfName: "vedic-report-1.pdf", language: "English" });
+    const result = await sendClientReportPdf({ email: "client@example.com", name: "Maya", pdfKey: "report-studio/1/v1.pdf", pdfName: "vedic-report-1.pdf", language: "English", idempotencyKey: "report:1:v1" });
     expect(result.id).toBe("report_email_1");
+    expect(fetchMock.mock.calls[1]?.[1]?.headers).toEqual(expect.objectContaining({ "Idempotency-Key": "report:1:v1" }));
     const body = JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body));
     expect(body.to).toEqual(["client@example.com"]);
     expect(body.attachments[0].filename).toBe("vedic-report-1.pdf");

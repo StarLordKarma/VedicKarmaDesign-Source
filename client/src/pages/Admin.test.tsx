@@ -367,10 +367,10 @@ describe("Admin interactions", () => {
   });
 
   it("formats supported currencies with locale-aware symbols and rounding", () => {
-    expect(formatCurrency(25.4, "USD", "en-US")).toBe("$25");
-    expect(formatCurrency(23.6, "EUR", "de-DE")).toBe("24 €");
-    expect(formatCurrency(20.4, "GBP", "en-GB")).toBe("£20");
-    expect(roundCurrencyAmount(23.6, "EUR")).toBe(24);
+    expect(formatCurrency(25.4, "USD", "en-US")).toBe("$25.40");
+    expect(formatCurrency(23.6, "EUR", "de-DE")).toBe("23,60 €");
+    expect(formatCurrency(20.4, "GBP", "en-GB")).toBe("£20.40");
+    expect(roundCurrencyAmount(23.6, "EUR")).toBe(23.6);
   });
 
   it("formats admin dates in UTC ISO format", () => {

@@ -2,7 +2,7 @@
 
 Многоязычное full-stack приложение для заказа ведических натальных разборов:
 React/Vite, Express/tRPC, Drizzle/MySQL, приватное S3-хранилище, OIDC-доступ
-владельца, криптооплата NOWPayments, Resend и управляемая генерация PDF.
+владельца, прямая USDT-оплата через MetaMask в пяти сетях, Resend и управляемая генерация PDF.
 
 ## Возможности
 
@@ -12,9 +12,15 @@ React/Vite, Express/tRPC, Drizzle/MySQL, приватное S3-хранилищ�
 - локальный расчёт Lahiri: планеты, Ascendant, D1, D9, nakshatra/pada,
   Parashari full-sign graha drishti и Vimshottari mahadasha;
 - AI создаёт только текст по зафиксированным фактам; владелец проверяет,
-  редактирует, утверждает и только затем отправляет PDF;
+  редактирует и утверждает PDF; для прямой USDT-оплаты доступна отдельная автоотправка после проверки качества;
 - отзываемые status-ссылки и защищённое скачивание отправленного отчёта;
 - интерфейсы RU/EN/DE/ES.
+
+## Прямая оплата USDT
+
+Новый режим `PAYMENT_PROVIDER=direct` переводит нативный USDT прямо на публичный адрес владельца. Доступны Avalanche, Polygon (USDT0), BNB Chain (Binance-Peg USDT), Ethereum и TRON (TRC-20). Сайт сравнивает комиссии и балансы; одноразовая подпись закрепляет сеть и плательщика. Сервер проверяет подтверждённый перевод и обрабатывает отчёт в фоне. В шаблоне включены DIRECT_AUTO_PROCESS и REPORT_AUTO_DELIVERY; сомнительные отчёты остаются на проверку. Seed-фраза и приватный ключ серверу не нужны.
+
+Настройка, ограничения и проверки: [DIRECT-USDT-CHECKOUT.md](docs/DIRECT-USDT-CHECKOUT.md).
 
 ## Быстрый локальный запуск
 
@@ -35,7 +41,7 @@ database dumps нельзя добавлять в Git.
 - `client/` — React/Vite интерфейс и четыре локали;
 - `server/` — Express/tRPC, платежи, расчёты, Report Studio и PDF;
 - `shared/` — общие schemas, currency и i18n contracts;
-- `drizzle/` — схема и миграции `0000`–`0029`;
+- `drizzle/` — схема и миграции `0000`–`0033`;
 - `deploy/` — production и staging Docker Compose;
 - `scripts/` — smoke checks и безопасный staging seed;
 - `docs/` — эксплуатационные, privacy и release документы.
@@ -171,7 +177,7 @@ off-site DB/PDF backup и restore репетируются до первого �
 
 ## Миграции
 
-Версионированные SQL-файлы находятся в `drizzle/` (`0000`–`0029`). Перед
+Версионированные SQL-файлы находятся в `drizzle/` (`0000`–`0033`). Перед
 миграцией делайте snapshot, применяйте `pnpm exec drizzle-kit migrate`, проверяйте
 `/ready`. Не выполняйте destructive rollback автоматически.
 

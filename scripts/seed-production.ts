@@ -13,7 +13,7 @@ try {
   await db.beginTransaction();
   await db.execute(
     `INSERT INTO service_pricing (id,basicUsd,numerologyAddonUsd,updatedBy)
-     VALUES (1,25,10,'production-initialization')
+     VALUES (1,9.99,5,'production-initialization')
      ON DUPLICATE KEY UPDATE id=id`
   );
   await db.execute(

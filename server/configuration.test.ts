@@ -20,6 +20,23 @@ describe("independent launch safety", () => {
   it("preserves the existing managed deployment configuration", () => {
     expect(independentConfigurationErrors({})).toEqual([]);
   });
+  it("rejects invalid direct wallet settings without requiring a gateway key", () => {
+    const errors = independentConfigurationErrors({ DEPLOYMENT_MODE: "independent", PAYMENT_PROVIDER: "direct", DIRECT_WALLET_ADDRESS: "0x" + "0".repeat(40), DIRECT_RPC_URL: "http://localhost" });
+    expect(errors.join(" ")).toContain("nonzero EVM address");
+    expect(errors.join(" ")).toContain("DIRECT_RPC_URL requires HTTPS");
+    expect(errors.join(" ")).not.toContain("NOWPAYMENTS_API_KEY");
+  });
+  it("requires provider-specific credentials and rejects mock payment hosts", () => {
+    const base = {
+      DEPLOYMENT_MODE: "independent",
+      PAYMENT_PROVIDER: "paycrypto",
+      PAYCRYPTO_BASE_URL: "https://mock-payments.example.test/v1",
+    };
+    const errors = independentConfigurationErrors(base);
+    expect(errors.join(" ")).toContain("PAYCRYPTO_API_KEY");
+    expect(errors.join(" ")).toContain("PAYCRYPTO_WEBHOOK_TOKEN");
+    expect(errors.join(" ")).toContain("official production host");
+  });
 });
 
 describe("sandbox configuration", () => {

@@ -42,6 +42,7 @@ describe("NOWPayments integration helpers", () => {
     expect(mapPaymentStatusToBookingStatus("failed")).toBe("new");
     expect(shouldNotifyPayment("waiting", "finished")).toBe(true);
     expect(shouldNotifyPayment("finished", "finished")).toBe(false);
+    expect(shouldNotifyPayment("confirmed", "finished")).toBe(false);
     expect(shouldNotifyPayment("waiting", "partially_paid")).toBe(false);
   });
 

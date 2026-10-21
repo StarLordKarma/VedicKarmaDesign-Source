@@ -516,15 +516,17 @@ curl -fsS https://karmalifedesign.com/ready
 
 ### Git, deployment и live
 
-- после `git fetch origin --prune` ветка `main` и `origin/main` совпадали на
-  `8c136a10ace3b0dd2a7cc2b808110465c4db25cf`, рабочее дерево было чистым;
+- после `git fetch origin --prune` и двух исправляющих commits ветка `main` и
+  `origin/main` совпали на
+  `0f22dd1840af3c0a430902104721201ed5242b4f`, рабочее дерево было чистым до
+  этого документального обновления;
 - Northflank service `vedic-karma-app` имел состояние `Running`, 1/1 pod,
   0 рестартов и активный commit
-  `8c136a10ace3b0dd2a7cc2b808110465c4db25cf`;
-- активный build: `eager-sink-360`, deployment:
-  `vedic-karma-app-785f464fcb`, время deployment: 2026-09-13 01:31 MSK;
+  `0f22dd1840af3c0a430902104721201ed5242b4f`;
+- активный build: `real-branch-7873`, deployment:
+  `vedic-karma-app-59667bc775`, время deployment: 2026-09-13 08:14:27 MSK;
 - image digest активного build:
-  `sha256:b4c4c2ec5bd7ed4e0bf17ecd217180d4bc7cefd7b6aed3ff258cc3a93303cb3d`;
+  `sha256:9a92ec12ff96f6002c3dbf0398b3870179e662bc01608e655c13c8a8345b6c5f`;
 - `https://karmalifedesign.com/health` — HTTP/2 200,
   `{"ok":true,"service":"vedic-astrology-booking"}`;
 - `https://karmalifedesign.com/ready` — HTTP/2 200,
@@ -549,21 +551,28 @@ curl -fsS https://karmalifedesign.com/ready
 
 ### GitHub Actions и исправление sandbox CI
 
-- последний run CI на проверенном deployed commit: №30,
-  `34722952831`, статус `failure`;
-- jobs `verify`, `container` и `database-integration` успешны;
-- `sandbox-e2e` остановился до миграций и тестов: Docker Hub отклонил pull
-  закреплённого образа `minio/minio`;
-- run публикации AGPL-зеркала №11 на том же commit завершён успешно;
+- run CI №30 (`34722952831`) выявил недоступный Docker Hub image MinIO;
 - sandbox и staging переведены на официальные `quay.io/minio/minio` и
-  `quay.io/minio/mc` с сохранением закреплённых release tags;
-- исправление зафиксировано отдельным локальным commit `fa88d13`; до push и
-  нового зелёного Actions run оно не считается развёрнутым.
+  `quay.io/minio/mc` с сохранением закреплённых release tags; исправление
+  зафиксировано отдельным commit `fa88d13`;
+- следующий run CI №31 (`34739324833`) подтвердил загрузку MinIO и выявил
+  вторую независимую проблему: Compose migration job ссылался на отсутствующий
+  Docker stage `build`;
+- в `deploy/Dockerfile.independent` восстановлен совместимый `build` stage с
+  development CLI для migration/seed jobs; production `runtime` Northflank и
+  default `final` остаются минимальными; исправление зафиксировано отдельным
+  commit `0f22dd1`;
+- итоговый run CI №32 (`34739781734`) на commit
+  `0f22dd1840af3c0a430902104721201ed5242b4f` завершён успешно за 3m 26s:
+  `verify`, `container`, `database-integration`, `sandbox-e2e` — зелёные;
+- sandbox Playwright в CI: 15 passed, включая 12 мобильных проверок локалей;
+- публикация публичного AGPL-зеркала №13 (`34739781736`) на том же commit
+  завершена успешно.
 
 ### Что P0 ещё не принято
 
-- в текущем окружении нет Docker, поэтому полный локальный Compose E2E после
-  исправления образов не выполнен; подтверждение должно дать новый CI run;
+- в текущем окружении нет Docker, поэтому полный Compose E2E выполнен не
+  локально, а в итоговом зелёном CI №32;
 - Northflank migration job в dashboard отображается как `Failed` с датой
   2026-09-11; актуальный успешный migration run для текущего release отдельно
   не подтверждён, несмотря на зелёный `/ready`;
@@ -576,5 +585,216 @@ curl -fsS https://karmalifedesign.com/ready
 - тестовый MySQL backup/restore и проверка backup PDF storage не выполнены:
   нужны закрытое production-окружение и инструменты доступа к соответствующим
   хранилищам;
-- image digest и deployment выше относятся к `8c136a1`, а не к локальному
-  исправлению `fa88d13`.
+- Google Maps и LLM production keys с лимитами не принимались; они должны
+  оставаться выключенными, пока соответствующие функции не включены и
+  credentials не проверены закрытыми production guards.
+
+## 14. Повторная P0-проверка и миграции — 2026-09-13
+
+### Подтверждённое состояние перед изменениями
+
+- локальный `main` находился на документальном commit `c55f6e9` и опережал
+  `origin/main` ровно на один commit; рабочее дерево было чистым;
+- `origin/main`, активный service deployment и последний зелёный CI совпадали
+  на `0f22dd1840af3c0a430902104721201ed5242b4f`;
+- GitHub Actions CI №32 (`34739781734`) и публикация AGPL source №13
+  (`34739781736`) имели статус success;
+- Northflank service оставался `Running`, 1/1, на deployment
+  `vedic-karma-app-59667bc775`, build `real-branch-7873`, image digest
+  `sha256:9a92ec12ff96f6002c3dbf0398b3870179e662bc01608e655c13c8a8345b6c5f`;
+- 2026-09-13 09:05 UTC `/health`, `/ready`, apex и `www` повторно вернули
+  HTTP/2 200; readiness подтвердил доступность базы данных.
+
+### Migration job текущего release
+
+- старый deployment migration job на `ce1961d` заменён build
+  `excellent-bubble-480` commit
+  `0f22dd1840af3c0a430902104721201ed5242b4f`;
+- job запущен вручную без override переменных и с командой
+  `node dist/migrate.js`, соответствующей `pnpm db:migrate:runtime`;
+- Northflank run ID: `91f65bf6-f8fd-4b26-9e28-e05677a87971`;
+- pod: `vedic-karma-migrate-6aa66808f84b7f0027e78436-4654m`;
+- результат: `Success`, duration 25s, failed instances 0/0;
+- журнал в 2026-09-13 09:08:46 UTC: `Database migrations completed
+  successfully`; процесс завершился с exit code 0;
+- после job `/ready` повторно проверен в 2026-09-13 09:09:44 UTC:
+  `{"ok":true,"checks":{"database":true}}`.
+
+P0 migration blocker для release `0f22dd1` закрыт. Production smoke,
+NOWPayments, Resend, private S3, OIDC/MFA, полный delivery flow и фактические
+backup/restore tests остаются непринятыми до настройки соответствующих
+переменных только в закрытом окружении и выполнения реальных проверок.
+
+## 15. Анализ приватности платёжных шлюзов — 2026-09-13
+
+- актуальное состояние Git, GitHub Actions, Northflank и live endpoints повторно
+  проверено; production по-прежнему работает на `0f22dd1`, CI №32 и AGPL №13
+  остаются последними успешными runs;
+- подготовлен отдельный сравнительный документ
+  `docs/PAYMENT-GATEWAY-PRIVACY-REVIEW-2026-09-13.md`;
+- рекомендуемая последовательность: завершить NOWPayments как быстрый MVP path
+  без custody/fiat, параллельно пилотировать self-hosted BTCPay Server для
+  BTC/Lightning, отдельно оценить Monero plugin или собственный XMR checkout;
+- универсальный лимит NOWPayments «€700 без полного KYC» не подтверждён
+  актуальными официальными материалами и не должен становиться обещанием;
+- локально повторно выполнены 13 сфокусированных тестов NOWPayments webhook,
+  payment notification и production configuration guards: 13/13 успешно;
+- эти тесты подтверждают реализацию подписи, отклонение подменённого payload и
+  программную идемпотентность, но не заменяют staging/production E2E с реальными
+  ограниченными credentials.
+
+## 16. Визуальная система сайта и PDF — 2026-09-14
+
+По прямому указанию владельца работа над P1 выполнена до закрытия оставшихся
+production P0-блокеров. Это не меняет их статус: production smoke,
+NOWPayments E2E, Resend, private S3, OIDC/MFA, полный delivery flow и
+backup/restore по-прежнему не приняты.
+
+В commit `72441bd` (`Add Vedic cosmology visual system`) выполнено:
+
+- добавлены четыре оригинальных прозрачных SVG-ассета в
+  `client/public/backgrounds/`: мандала, круг 27 накшатр, сакральная сетка и
+  звёздное поле; изображения-референсы использованы только как визуальное
+  направление, без копирования;
+- ассеты подключены поверх существующих цветов через CSS background layers и
+  `background-blend-mode`; brand-палитра не менялась;
+- добавлены плавное появление секций, лёгкая пульсация знака и ограниченный
+  параллакс hero-фона; `prefers-reduced-motion` отключает движение;
+- добавлен уважительный блок о различиях ведической и западной традиций во всех
+  четырёх словарях RU/EN/DE/ES одним commit;
+- в PDFKit-генератор добавлены векторные орнаменты для обложки, внутренних
+  страниц и финальной страницы; основной текст и контрастные панели сохранены;
+- добавлены E2E-проверки фоновых слоёв и переполнения для 768/1280 px во всех
+  четырёх локалях; существующий mobile/localization suite не изменён.
+
+Фактическая проверка commit `72441bd`:
+
+- `pnpm lint` и `pnpm check` — успешно;
+- `pnpm test` — **200 passed, 12 skipped**;
+- `pnpm build` — успешно; сохраняется прежнее предупреждение о крупных chunks;
+- `pnpm audit --prod` — известных уязвимостей нет;
+- Playwright — **20/20 passed**: обязательные mobile/localization 12/12 на
+  320/375/430 px и новые visual tests 8/8 на 768/1280 px, RU/EN/DE/ES;
+- Lighthouse mobile для локальной production-сборки — **93**, FCP 1.8 s,
+  LCP 2.7 s, TBT 170 ms, CLS 0;
+- тестовый A4 PDF отрисован и визуально проверен при 300 DPI.
+
+Commit локальный и не отправлен в `origin/main`. Активный production release,
+image digest и GitHub Actions run не менялись: SHA `0f22dd1`, digest
+`sha256:9a92ec12ff96f6002c3dbf0398b3870179e662bc01608e655c13c8a8345b6c5f`,
+CI №32. Для этого P1 commit ещё нет нового Northflank deployment или CI run.
+
+## 17. Полноценные иллюстрированные фоны — 2026-09-14
+
+После обратной связи владельца линейная версия визуальной системы расширена
+полноценными растровыми иллюстрациями. Commit `78e2199` (`Add illustrated Vedic
+backgrounds`) содержит:
+
+- оригинальную широкую акварельную сцену с небесным храмом, планетарной
+  мандалой и лотосами для hero; подготовлены отдельные desktop и mobile версии;
+- отдельную широкую лотосно-космологическую сцену для смысловых секций сайта;
+- две оригинальные A4-иллюстрации для PDF: Меру/планетарная система для
+  обложки и космическое дерево/накшатра-мандала для разделителей и финала;
+- обе PDF-иллюстрации имеют 2480 × 3508 px и метаданные 300 DPI;
+- PDFKit повторно использует встроенные изображения, поэтому полный
+  22-страничный демонстрационный PDF занимает 4.69 MB, а не дублирует
+  многомегабайтный JPEG на каждой иллюстрированной странице;
+- текст в PDF размещён на светлой полупрозрачной панели, а изображение остаётся
+  полноформатным и хорошо заметным справа и по краям;
+- hero-картинка оптимизирована до 220 KB для desktop и 77 KB для mobile;
+  добавлен responsive preload.
+
+Фактическая проверка:
+
+- `pnpm lint`, `pnpm check`, `pnpm build` — успешно;
+- `pnpm test` — **200 passed, 12 skipped**;
+- `pnpm audit --prod` — известных уязвимостей нет;
+- адаптивный Playwright — **20/20 passed**, включая обязательные mobile 12/12;
+- Lighthouse mobile после оптимизации изображений — **88**, FCP 1.9 s,
+  LCP 3.5 s, TBT 160 ms, CLS 0;
+- полный 22-страничный PDF отрисован; визуально проверены страницы 1, 4, 8 и
+  22: обложка, разделители и финальная страница читаемы, без наложений и
+  обрезанного текста.
+
+Commit локальный и не отправлен. Production по-прежнему работает на
+`0f22dd1`; digest и CI №32 не изменились. Открытые P0-блокеры остаются без
+изменений.
+
+## 18. Независимый платёжный слой и оценка PayCrypto — 2026-09-17
+
+По предложению владельца проработана provider-neutral архитектура оплаты:
+
+- добавлен серверный контракт `PaymentProvider` для создания hosted checkout,
+  проверки webhook, нормализации статусов и определения окончательной оплаты;
+- действующая интеграция NOWPayments оформлена как первый адаптер и остаётся
+  единственным разрешённым production-провайдером;
+- активный адаптер выбирается через `PAYMENT_PROVIDER`; неизвестное или ещё не
+  прошедшее аудит значение останавливает production-конфигурацию;
+- production guard дополнительно запрещает подмену `NOWPAYMENTS_BASE_URL`
+  неофициальным или mock-хостом;
+- статусы нормализованы в `created`, `pending`, `paid`, `underpaid`, `overpaid`,
+  `expired`, `failed`, `refunded`; underpayment не запускает генерацию;
+- подтверждённую оплату нельзя откатить поздним неплатёжным callback, а переход
+  `confirmed` → `finished` не создаёт повторного owner notification;
+- публичный privacy-текст сделан независимым от бренда оператора одновременно
+  в RU/EN/DE/ES; неработающая кнопка оплаты картой не добавлялась.
+
+PayCrypto.Global учтён как возможный non-custodial резерв. Его опубликованная
+документация описывает прямое зачисление, `getpaylink` и webhook по IP allowlist,
+но не криптографическую подпись payload. Поэтому адаптер намеренно не включён:
+до production нужны подтверждение точного поставщика, signed callback либо
+независимая on-chain проверка суммы/адреса/сети/confirmations, тест повторной
+доставки и юридическая проверка. Детали записаны в
+`docs/PAYMENT-PROVIDER-ARCHITECTURE-2026-09-17.md`.
+
+Фактическая локальная проверка 2026-09-17:
+
+- `lint`/`check` (TypeScript) — успешно;
+- `test` — **203 passed, 12 skipped**;
+- `build` — успешно; прежнее предупреждение Vite о крупных chunks сохраняется;
+- `audit --prod` — известных уязвимостей нет;
+- обязательный `e2e/mobile-localization.spec.ts` — **12/12 passed**,
+  RU/EN/DE/ES × 320/375/430 px.
+
+Изменения локальные и на момент записи не отправлены. Production revision,
+image digest и GitHub Actions run не менялись: deployed SHA `0f22dd1`, digest
+`sha256:9a92ec12ff96f6002c3dbf0398b3870179e662bc01608e655c13c8a8345b6c5f`,
+CI №32. Открытые production P0-пункты (smoke secret, реальные connector E2E,
+полный delivery flow и backup/restore) этим изменением не закрыты.
+
+## 19. Адаптеры Heleket и PayCrypto.Global — 2026-09-17
+
+По прямому указанию владельца добавлены два полноценных альтернативных адаптера:
+
+- `PAYMENT_PROVIDER=heleket`: создание invoice через официальный
+  `api.heleket.com/v1/payment`, подпись запроса MD5(base64(JSON) + API key),
+  проверка подписи webhook, hosted checkout и полная карта официальных статусов;
+- `PAYMENT_PROVIDER=paycrypto`: создание `getpaylink`, прямые receiving addresses
+  из `PAYCRYPTO_COINS_JSON`, обязательный 32+ character callback token,
+  constant-time проверка token и сверка order ID, суммы и валюты перед оплатой;
+- зарегистрированы отдельные webhook endpoints и их исключения из browser CSRF
+  guard; каждый endpoint имеет rate limiting;
+- общая цепочка распознаёт успешные статусы всех трёх провайдеров в Report
+  Studio, client status, SLA и owner dashboard; underpayment не считается
+  подтверждённой оплатой;
+- independent production требует credentials только выбранного адаптера и
+  блокирует неофициальные Heleket/PayCrypto/NOWPayments API hosts;
+- новые имена переменных документированы в `.env.example`; значений в Git и
+  handoff нет.
+
+Локальная проверка реализации:
+
+- TypeScript lint/check — успешно;
+- unit/integration — **207 passed, 12 skipped**;
+- production build — успешно;
+- production dependency audit — известных уязвимостей нет;
+- mobile/localization — **12/12 passed**, RU/EN/DE/ES × 320/375/430 px;
+- отдельные тесты подтверждают request signing Heleket, отклонение неверной
+  подписи, создание PayCrypto checkout, отклонение неверного token и mismatch
+  суммы заказа.
+
+Адаптеры реализованы, но не считаются production E2E принятыми: реальные
+merchant credentials ещё не добавлялись, callback от кабинетов операторов не
+получен и деньги не переводились. Для PayCrypto bearer callback-token является
+компенсирующей мерой, поскольку опубликованный API не описывает signed payload;
+для максимальной гарантии остаётся желательной независимая on-chain проверка.

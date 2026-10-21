@@ -1,6 +1,8 @@
+import { assertDeliveryRetryWindow } from "./report-delivery-policy";
+import { TRPCError } from "@trpc/server";
 import { createHash } from "node:crypto";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
-import { calculationResults, calculationSnapshots, narrativeDrafts, reportAuditEvents, reportDeliveryAttempts, reportJobs, reportSections, reportStudioProcessingSettings, reportVersions } from "../drizzle/schema";
+import { calculationResults, calculationSnapshots, narrativeDrafts, reportAuditEvents, reportDeliveryAttempts, reportJobs, reportSections, reportStudioProcessingSettings, reportVersions, directPaymentBindings } from "../drizzle/schema";
 import { createBookingRequest, deleteBookingRequest, getBookingRequestById, getDb } from "./db";
 import { calculateVedicSnapshot } from "./vedic-astrology-calculator";
 import { buildFullNatalReportPdf } from "./export";
@@ -8,8 +10,8 @@ import { resolveBirthLocation } from "./report-geocoding";
 import { generateNarrativeDraft, validateNarrativeDraft } from "./report-narrative";
 import { storagePut } from "./storage";
 import { sendClientReportPdf } from "./client-delivery";
+import { isPaidPaymentStatus } from "@shared/payment-status";
 
-const CONFIRMED_PAYMENT_STATUSES = new Set(["finished", "confirmed"]);
 const REPORT_TEMPLATE_VERSION = "parasara-light-9-v1";
 const EMPTY_BACKGROUND = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64");
 
@@ -18,7 +20,7 @@ function languageCode(language: string): "ru" | "en" | "de" | "es" { return lang
 
 export async function enqueueReportJobForBooking(bookingId: number, confirmedBy = "system") {
   const booking = await getBookingRequestById(bookingId);
-  if (!booking || !CONFIRMED_PAYMENT_STATUSES.has(booking.paymentStatus ?? "")) return { created: false, reason: "payment-not-confirmed" as const };
+  if (!booking || !isPaidPaymentStatus(booking.paymentStatus)) return { created: false, reason: "payment-not-confirmed" as const };
   const input = { bookingId, birthDate: booking.birthDate, birthTime: booking.birthTime, birthCity: booking.birthCity, birthCountry: booking.birthCountry, language: languageCode(booking.language), addon: Boolean(booking.addon) };
   const inputHash = sha256(JSON.stringify(input));
   const idempotencyKey = `${bookingId}:1:${inputHash}:${REPORT_TEMPLATE_VERSION}`;
@@ -178,7 +180,12 @@ export async function deliverApprovedReport(input: { reportJobId: number; versio
   if (!bookingRequest) throw new Error("Booking request not found");
   const idempotencyKey = `report:${current.id}:approved:${current.pdfSha256 ?? current.versionNumber}`;
   let existing = (await db.select().from(reportDeliveryAttempts).where(eq(reportDeliveryAttempts.idempotencyKey, idempotencyKey)).limit(1))[0];
-  if (existing?.status === "sent") return { status: "sent" as const, providerMessageId: existing.providerMessageId };
+  if (existing?.status === "sent") {
+    // Recover a crash after provider acceptance but before the report state update.
+    await db.update(reportVersions).set({ status: "sent" }).where(eq(reportVersions.id, current.id));
+    await db.update(reportJobs).set({ status: "sent", finishedAt: existing.completedAt ?? new Date() }).where(eq(reportJobs.id, input.reportJobId));
+    return { status: "sent" as const, providerMessageId: existing.providerMessageId };
+  }
   if (!existing) {
     await db.insert(reportDeliveryAttempts)
       .values({ reportVersionId: current.id, recipientEmail: bookingRequest.email.toLowerCase(), status: "queued", idempotencyKey, requestedBy: input.actorId })
@@ -186,15 +193,24 @@ export async function deliverApprovedReport(input: { reportJobId: number; versio
     existing = (await db.select().from(reportDeliveryAttempts).where(eq(reportDeliveryAttempts.idempotencyKey, idempotencyKey)).limit(1))[0];
   }
   if (!existing) throw new Error("Could not create report delivery attempt.");
+  // Keep all retries inside the provider's 24-hour deduplication window,
+  // including manual retries after an ambiguous delivery outcome.
+  try {
+    assertDeliveryRetryWindow(existing.requestedAt);
+  } catch (error) {
+    throw new TRPCError({ code: "PRECONDITION_FAILED", message: (error as Error).message });
+  }
   const claim = await db.update(reportDeliveryAttempts)
-    .set({ status: "sending", errorCode: null, errorMessage: null, completedAt: null })
+    .set({ status: "sending", startedAt: new Date(), errorCode: null, errorMessage: null, completedAt: null })
     .where(and(eq(reportDeliveryAttempts.id, existing.id), inArray(reportDeliveryAttempts.status, ["queued", "failed"])));
   if (Number(claim[0].affectedRows ?? 0) !== 1) {
     return { status: existing.status === "sent" ? "sent" as const : "sending" as const, providerMessageId: existing.providerMessageId };
   }
   const attemptId = existing.id;
   try {
-    const result = await sendClientReportPdf({ email: bookingRequest.email, name: bookingRequest.name, pdfKey: current.pdfStorageKey, pdfName: `vedic-report-${bookingRequest.id}.pdf`, language: bookingRequest.language });
+    const binding = (await db.select().from(directPaymentBindings).where(eq(directPaymentBindings.bookingId, bookingRequest.id)).limit(1))[0];
+    const statusUrl = binding?.statusToken && process.env.PUBLIC_BASE_URL ? `${process.env.PUBLIC_BASE_URL.replace(/\/$/, "")}/status/${binding.statusToken}` : undefined;
+    const result = await sendClientReportPdf({ email: bookingRequest.email, name: bookingRequest.name, pdfKey: current.pdfStorageKey, pdfName: `vedic-report-${bookingRequest.id}.pdf`, language: bookingRequest.language, idempotencyKey, statusUrl });
     await db.update(reportDeliveryAttempts).set({ status: "sent", providerMessageId: result.id ?? null, completedAt: new Date() }).where(eq(reportDeliveryAttempts.id, attemptId));
     await db.update(reportVersions).set({ status: "sent" }).where(eq(reportVersions.id, current.id));
     await db.update(reportJobs).set({ status: "sent", finishedAt: new Date() }).where(eq(reportJobs.id, input.reportJobId));
@@ -202,7 +218,7 @@ export async function deliverApprovedReport(input: { reportJobId: number; versio
     return { status: "sent" as const, providerMessageId: result.id ?? null };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Report delivery failed.";
-    await db.update(reportDeliveryAttempts).set({ status: "failed", errorMessage: message.slice(0, 1000), completedAt: new Date() }).where(eq(reportDeliveryAttempts.id, attemptId));
+    await db.update(reportDeliveryAttempts).set({ status: "failed", errorCode: error instanceof TRPCError && ["BAD_REQUEST", "PRECONDITION_FAILED", "PAYLOAD_TOO_LARGE"].includes(error.code) ? "PERMANENT_DELIVERY_ERROR" : "TRANSIENT_DELIVERY_ERROR", errorMessage: message.slice(0, 1000), completedAt: new Date() }).where(eq(reportDeliveryAttempts.id, attemptId));
     await db.update(reportJobs).set({ status: "delivery_failed", lastErrorCode: "DELIVERY_FAILED", lastErrorMessage: message.slice(0, 1000) }).where(eq(reportJobs.id, input.reportJobId));
     await db.insert(reportAuditEvents).values({ reportJobId: input.reportJobId, eventType: "approved_pdf_delivery_failed", actorType: "system", actorId: input.actorId, fromStatus: "approved", toStatus: "delivery_failed", metadataJson: JSON.stringify({ versionId: current.id }) });
     throw error;
@@ -225,7 +241,7 @@ export async function approveReportVersion(input: { reportJobId: number; version
     if (Number(claim[0].affectedRows ?? 0) !== 1) throw new Error("The report is being changed. Refresh the job.");
     const approval = await tx.update(reportVersions).set({ status: "approved", approvedAt: new Date(), approvedBy: input.actorId, editorSummary: input.summary?.slice(0, 1000) ?? null }).where(and(eq(reportVersions.id, version.id), eq(reportVersions.status, "needs_review")));
     if (Number(approval[0].affectedRows ?? 0) !== 1) throw new Error("This version has already been reviewed. Refresh the job.");
-    await tx.insert(reportAuditEvents).values({ reportJobId: input.reportJobId, eventType: "pdf_approved", actorType: "owner", actorId: input.actorId, fromStatus: "needs_review", toStatus: "approved", metadataJson: JSON.stringify({ versionId: input.versionId }) });
+    await tx.insert(reportAuditEvents).values({ reportJobId: input.reportJobId, eventType: "pdf_approved", actorType: input.actorId === "system:auto-delivery" ? "system" : "owner", actorId: input.actorId, fromStatus: "needs_review", toStatus: "approved", metadataJson: JSON.stringify({ versionId: input.versionId }) });
   });
   const delivery = await deliverApprovedReport({ reportJobId: input.reportJobId, versionId: version.id, actorId: input.actorId });
   return { approved: true, versionId: version.id, delivery };

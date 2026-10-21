@@ -6,16 +6,22 @@ describe("payment checkout failure handling", () => {
   it("marks the booking as failed when invoice creation fails", async () => {
     const markFailed = vi.fn(async () => undefined);
     const savePayment = vi.fn(async () => undefined);
-    const createInvoice = vi.fn(async () => {
-      throw new Error("provider unavailable");
-    });
+    const provider = {
+      id: "nowpayments" as const,
+      displayName: "NOWPayments",
+      webhookPath: "/api/nowpayments/ipn",
+      createPayment: vi.fn(async () => { throw new Error("provider unavailable"); }),
+      verifyWebhook: vi.fn(() => false),
+      normalizeStatus: vi.fn(() => "failed" as const),
+      isPaid: vi.fn(() => false),
+    };
 
     await expect(createCheckoutForBooking({
       bookingId: 42,
       totalUsd: 25,
       addon: false,
       origin: "https://example.com",
-      createInvoice,
+      provider,
       savePayment,
       markFailed,
     })).rejects.toThrow("provider unavailable");

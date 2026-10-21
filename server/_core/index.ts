@@ -1,3 +1,4 @@
+import { registerDirectPaymentRoutes, startDirectPaymentWorker } from "../direct-payment-routes";
 import "dotenv/config";
 import express from "express";
 import { createServer } from "http";
@@ -9,6 +10,8 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic } from "./static";
 import { registerNowPaymentsWebhook } from "../nowpayments.webhook";
+import { registerHeleketWebhook } from "../payments/heleket-webhook";
+import { registerPayCryptoWebhook } from "../payments/paycrypto-webhook";
 import { cleanupReceiptFilesHandler } from "../receipt-retention";
 import { evaluateSlaHandler } from "../sla-retention";
 import { cleanupPaymentTestLabRunsHandler } from "../payment-test-retention";
@@ -69,7 +72,11 @@ async function startServer() {
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
   app.get("/health", healthHandler);
   app.get("/ready", readinessHandler);
+  registerDirectPaymentRoutes(app);
+  startDirectPaymentWorker();
   registerNowPaymentsWebhook(app);
+  registerHeleketWebhook(app);
+  registerPayCryptoWebhook(app);
   registerStorageProxy(app);
   registerClientReportDownload(app);
   registerSandboxAuthRoutes(app);

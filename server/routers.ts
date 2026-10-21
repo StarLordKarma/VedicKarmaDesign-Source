@@ -251,7 +251,7 @@ export const appRouter = router({
         if (isSmokeRun) await finishSmokeTestRun({ runId: input.smokeTestRunId!, status: "succeeded", result: JSON.stringify({ ok: true, checkoutCurrency: input.currency, bookingId: result.id, paymentId: invoice.id, invoiceUrl: invoice.invoice_url }), durationMs: Date.now() - smokeRunStartedAt });
         return response;
       } catch (error) {
-        console.error("[Payments] Failed to create NOWPayments invoice", error);
+        console.error("[Payments] Failed to create crypto checkout", error);
         if (isSmokeRun) await finishSmokeTestRun({ runId: input.smokeTestRunId!, status: "failed", result: JSON.stringify({ ok: false, error: error instanceof Error ? error.message : String(error) }), durationMs: Date.now() - smokeRunStartedAt });
         await cleanupSmokeTestBooking(input, result.id, "failure");
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "We could not create the crypto checkout. Please try again." });

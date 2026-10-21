@@ -30,6 +30,8 @@ describe("browser request security", () => {
   it("allows signed provider webhooks and same-site writes", () => {
     for (const [path, site] of [
       ["/api/nowpayments/ipn", "cross-site"],
+      ["/api/heleket/webhook", "cross-site"],
+      ["/api/paycrypto/webhook", "cross-site"],
       ["/api/trpc/booking.submit", "same-origin"],
     ]) {
       const next = vi.fn();

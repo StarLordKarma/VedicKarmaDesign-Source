@@ -211,6 +211,34 @@
       "when": 1787739976820,
       "tag": "0029_fresh_doctor_octopus",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "5",
+      "when": 1792536431127,
+      "tag": "0030_dark_morbius",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "5",
+      "when": 1792554434190,
+      "tag": "0031_zippy_spyke",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "5",
+      "when": 1792555130349,
+      "tag": "0032_decimal_prices",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "5",
+      "when": 1792555146369,
+      "tag": "0033_usd_package_prices",
+      "breakpoints": true
     }
   ]
 }

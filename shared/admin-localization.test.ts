@@ -5,13 +5,22 @@ import { ADMIN_COPY, validatePdfSelection } from "@/pages/Admin";
 
 describe("admin updates and localization", () => {
   it("accepts a status and private note update", () => {
-    const parsed = updateBookingAdminSchema.safeParse({ id: 12, status: "completed", adminNote: "PDF sent" });
+    const parsed = updateBookingAdminSchema.safeParse({
+      id: 12,
+      status: "completed",
+      adminNote: "PDF sent",
+    });
     expect(parsed.success).toBe(true);
   });
 
   it("rejects an empty admin update and oversized notes", () => {
     expect(updateBookingAdminSchema.safeParse({ id: 12 }).success).toBe(false);
-    expect(updateBookingAdminSchema.safeParse({ id: 12, adminNote: "x".repeat(5001) }).success).toBe(false);
+    expect(
+      updateBookingAdminSchema.safeParse({
+        id: 12,
+        adminNote: "x".repeat(5001),
+      }).success
+    ).toBe(false);
   });
 
   it("contains selectable English and Russian admin copy", () => {
@@ -23,9 +32,21 @@ describe("admin updates and localization", () => {
   });
 
   it("validates PDF upload selections before mutation", () => {
-    expect(validatePdfSelection({ type: "application/pdf", name: "chart.pdf", size: 100 })).toBeNull();
+    expect(
+      validatePdfSelection({
+        type: "application/pdf",
+        name: "chart.pdf",
+        size: 100,
+      })
+    ).toBeNull();
     expect(validatePdfSelection({ type: "text/plain", name: "chart.txt", size: 100 })).toBe("invalidType");
-    expect(validatePdfSelection({ type: "application/pdf", name: "chart.pdf", size: 12 * 1024 * 1024 + 1 })).toBe("tooLarge");
+    expect(
+      validatePdfSelection({
+        type: "application/pdf",
+        name: "chart.pdf",
+        size: 12 * 1024 * 1024 + 1,
+      })
+    ).toBe("tooLarge");
   });
 
   it("contains complete English, Russian, German, and Spanish public copy", () => {
@@ -39,6 +60,9 @@ describe("admin updates and localization", () => {
       expect(COPY[locale].timeHint.length).toBeGreaterThan(12);
       expect(COPY[locale].downloadBreakdown.length).toBeGreaterThan(12);
       expect(COPY[locale].generatedAt.length).toBeGreaterThan(3);
+      expect(COPY[locale].vedicDifferenceTitle.length).toBeGreaterThan(20);
+      expect(COPY[locale].vedicDifferenceBody).toHaveLength(3);
+      expect(COPY[locale].vedicDifferenceBody.join(" ").length).toBeGreaterThan(700);
     }
     expect(COPY.de.heroTitle).toContain("klarere");
     expect(COPY.es.heroTitle).toContain("claro");
@@ -50,6 +74,6 @@ describe("admin updates and localization", () => {
     expect(COPY.ru.heroBody).toContain("ведической");
     expect(COPY.ru.features).toEqual(["4 языка", "Многостраничный PDF", "Лично и структурированно"]);
     expect(COPY.ru.patternTitle).toBe("Читайте закономерности.");
-    expect(COPY.ru.faqs.every((item) => !/[A-Za-z]{4,}/.test(item.question))).toBe(true);
+    expect(COPY.ru.faqs.every(item => !/[A-Za-z]{4,}/.test(item.question))).toBe(true);
   });
 });

@@ -28,7 +28,7 @@ const copy = {
     paidValue: "Paid",
     pending: "Pending",
     preparing: "In preparation",
-    ready: "Ready for review",
+    ready: "Report ready",
     sent: "Sent",
     failed: "Needs attention",
     waiting_payment: "Waiting for payment",
@@ -53,7 +53,7 @@ const copy = {
     paidValue: "Оплачено",
     pending: "Ожидает",
     preparing: "В подготовке",
-    ready: "Готово к проверке",
+    ready: "Отчёт готов",
     sent: "Отправлено",
     failed: "Требует внимания",
     waiting_payment: "Ожидает оплаты",
@@ -78,7 +78,7 @@ const copy = {
     paidValue: "Bezahlt",
     pending: "Ausstehend",
     preparing: "In Vorbereitung",
-    ready: "Zur Prüfung bereit",
+    ready: "Bericht fertig",
     sent: "Gesendet",
     failed: "Aufmerksamkeit erforderlich",
     waiting_payment: "Zahlung ausstehend",
@@ -103,7 +103,7 @@ const copy = {
     paidValue: "Pagado",
     pending: "Pendiente",
     preparing: "En preparación",
-    ready: "Listo para revisar",
+    ready: "Informe listo",
     sent: "Enviado",
     failed: "Requiere atención",
     waiting_payment: "Esperando pago",
@@ -118,7 +118,7 @@ const copy = {
 
 type Copy = { [K in keyof typeof copy.en]: string };
 function language() {
-  const saved = localStorage.getItem("site-language")?.toLowerCase();
+  const saved = (localStorage.getItem("public-locale") || localStorage.getItem("site-language"))?.toLowerCase();
   return saved === "ru" || saved === "de" || saved === "es" ? saved : "en";
 }
 function statusText(value: string, t: Copy) {
@@ -131,7 +131,7 @@ export default function ClientStatus() {
   const t = copy[language()];
   const query = trpc.status.get.useQuery(
     { token },
-    { enabled: token.length >= 32, retry: false, staleTime: 30_000 }
+    { enabled: token.length >= 32, retry: false, staleTime: 10_000, refetchInterval: 15_000 }
   );
   if (query.isLoading)
     return (

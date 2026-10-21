@@ -1,3 +1,4 @@
+import { PRIVACY_NOTICE_VERSION } from "../shared/booking";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -48,7 +49,7 @@ describe("booking pricing integration", () => {
       addon: true,
       interest: "Career themes",
       privacyAcknowledged: true,
-      privacyNoticeVersion: "privacy-2026-08",
+      privacyNoticeVersion: PRIVACY_NOTICE_VERSION,
       privacyLocale: "en",
     });
 
@@ -61,7 +62,7 @@ describe("booking pricing integration", () => {
 
   it("cleans up a marked smoke-test booking after successful checkout creation", async () => {
     const caller = appRouter.createCaller({ req: smokeRequest(), res: {} as never, user: null });
-    const result = await caller.booking.submit({ name: "Smoke Test", email: "production-smoke-1724320000100@example.com", birthDate: "1990-04-12", birthTime: "08:30", birthCity: "Berlin", birthCountry: "Germany", language: "English", addon: false, interest: "Automated production checkout verification", privacyAcknowledged: true, privacyNoticeVersion: "privacy-2026-08", privacyLocale: "en", smokeTest: true, smokeTestRunId: "production-smoke-1724320000100" });
+    const result = await caller.booking.submit({ name: "Smoke Test", email: "production-smoke-1724320000100@example.com", birthDate: "1990-04-12", birthTime: "08:30", birthCity: "Berlin", birthCountry: "Germany", language: "English", addon: false, interest: "Automated production checkout verification", privacyAcknowledged: true, privacyNoticeVersion: PRIVACY_NOTICE_VERSION, privacyLocale: "en", smokeTest: true, smokeTestRunId: "production-smoke-1724320000100" });
     expect(result.smokeTestCleanup).toBe("completed");
     expect(mocks.deleteBookingRequest).toHaveBeenCalledWith(77);
   });
@@ -69,13 +70,13 @@ describe("booking pricing integration", () => {
   it("cleans up a marked smoke-test booking when checkout creation fails", async () => {
     mocks.createCheckoutForBooking.mockRejectedValueOnce(new Error("provider unavailable"));
     const caller = appRouter.createCaller({ req: smokeRequest(), res: {} as never, user: null });
-    await expect(caller.booking.submit({ name: "Smoke Test", email: "production-smoke-1724320000101@example.com", birthDate: "1990-04-12", birthTime: "08:30", birthCity: "Berlin", birthCountry: "Germany", language: "English", addon: false, interest: "Automated production checkout verification", privacyAcknowledged: true, privacyNoticeVersion: "privacy-2026-08", privacyLocale: "en", smokeTest: true, smokeTestRunId: "production-smoke-1724320000101" })).rejects.toMatchObject({ code: "INTERNAL_SERVER_ERROR" });
+    await expect(caller.booking.submit({ name: "Smoke Test", email: "production-smoke-1724320000101@example.com", birthDate: "1990-04-12", birthTime: "08:30", birthCity: "Berlin", birthCountry: "Germany", language: "English", addon: false, interest: "Automated production checkout verification", privacyAcknowledged: true, privacyNoticeVersion: PRIVACY_NOTICE_VERSION, privacyLocale: "en", smokeTest: true, smokeTestRunId: "production-smoke-1724320000101" })).rejects.toMatchObject({ code: "INTERNAL_SERVER_ERROR" });
     expect(mocks.deleteBookingRequest).toHaveBeenCalledWith(77);
   });
 
   it("rejects unsupported booking currency before creating an invoice", async () => {
     const caller = appRouter.createCaller({ req: { protocol: "https", get: () => "example.test" } as never, res: {} as never, user: null });
-    await expect(caller.booking.submit({ name: "Maya", email: "maya@example.com", birthDate: "1990-04-12", birthTime: "08:30", birthCity: "Berlin", birthCountry: "Germany", language: "English", addon: false, interest: "", privacyAcknowledged: true, privacyNoticeVersion: "privacy-2026-08", privacyLocale: "en", currency: "JPY" as never })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    await expect(caller.booking.submit({ name: "Maya", email: "maya@example.com", birthDate: "1990-04-12", birthTime: "08:30", birthCity: "Berlin", birthCountry: "Germany", language: "English", addon: false, interest: "", privacyAcknowledged: true, privacyNoticeVersion: PRIVACY_NOTICE_VERSION, privacyLocale: "en", currency: "JPY" as never })).rejects.toMatchObject({ code: "BAD_REQUEST" });
     expect(mocks.createBookingRequest).not.toHaveBeenCalled();
     expect(mocks.createCheckoutForBooking).not.toHaveBeenCalled();
   });
@@ -83,7 +84,7 @@ describe("booking pricing integration", () => {
   it("rejects checkout before invoice creation when the requested package is inactive", async () => {
     mocks.getActiveServicePackage.mockResolvedValueOnce(null);
     const caller = appRouter.createCaller({ req: { protocol: "https", get: () => "example.test" } as never, res: {} as never, user: null });
-    await expect(caller.booking.submit({ name: "Maya", email: "maya@example.com", birthDate: "1990-04-12", birthTime: "08:30", birthCity: "Berlin", birthCountry: "Germany", language: "English", addon: true, interest: "", privacyAcknowledged: true, privacyNoticeVersion: "privacy-2026-08", privacyLocale: "en" })).rejects.toMatchObject({ code: "PRECONDITION_FAILED" });
+    await expect(caller.booking.submit({ name: "Maya", email: "maya@example.com", birthDate: "1990-04-12", birthTime: "08:30", birthCity: "Berlin", birthCountry: "Germany", language: "English", addon: true, interest: "", privacyAcknowledged: true, privacyNoticeVersion: PRIVACY_NOTICE_VERSION, privacyLocale: "en" })).rejects.toMatchObject({ code: "PRECONDITION_FAILED" });
     expect(mocks.createBookingRequest).not.toHaveBeenCalled();
     expect(mocks.createCheckoutForBooking).not.toHaveBeenCalled();
   });

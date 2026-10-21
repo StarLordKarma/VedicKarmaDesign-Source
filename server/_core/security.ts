@@ -1,7 +1,11 @@
 import type { RequestHandler } from "express";
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
-const CROSS_SITE_EXCEPTIONS = new Set(["/api/nowpayments/ipn"]);
+const CROSS_SITE_EXCEPTIONS = new Set([
+  "/api/nowpayments/ipn",
+  "/api/heleket/webhook",
+  "/api/paycrypto/webhook",
+]);
 
 /**
  * Reject browser-initiated cross-site writes before they reach cookie-backed APIs.

@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull, inArray } from "drizzle-orm";
 import {
   bookingRequests,
   clientAccessTokens,
@@ -9,6 +9,7 @@ import {
 } from "../drizzle/schema";
 import { getDb } from "./db";
 import { storageGetSignedUrl } from "./storage";
+import { isPaidPaymentStatus } from "@shared/payment-status";
 
 const TOKEN_BYTES = 32;
 const MIN_EXPIRY_HOURS = 1;
@@ -187,8 +188,7 @@ export async function getPublicClientStatus(rawToken: string) {
   )[0];
   const jobStatus =
     job?.status ??
-    (booking.paymentStatus === "finished" ||
-    booking.paymentStatus === "confirmed"
+    (isPaidPaymentStatus(booking.paymentStatus)
       ? "queued"
       : "waiting_payment");
   return {
@@ -196,8 +196,7 @@ export async function getPublicClientStatus(rawToken: string) {
     reference: publicReference(tokenHash),
     expiresAt: access.expiresAt.toISOString(),
     paymentState:
-      booking.paymentStatus === "finished" ||
-      booking.paymentStatus === "confirmed"
+      isPaidPaymentStatus(booking.paymentStatus)
         ? "paid"
         : booking.paymentStatus === "failed"
           ? "failed"
@@ -216,7 +215,7 @@ export async function getPublicClientStatus(rawToken: string) {
       booking.createdAt
     ).toISOString(),
     reportDownloadUrl:
-      jobStatus === "sent"
+      ["sent", "approved", "delivery_failed"].includes(jobStatus)
         ? `/api/client/report/${encodeURIComponent(normalized)}`
         : null,
   };
@@ -228,12 +227,12 @@ export async function getClientReportDownload(rawToken: string) {
   const { db, access, tokenHash } = resolved;
   const job = (
     await db
-      .select({ id: reportJobs.id })
+      .select({ id: reportJobs.id, status: reportJobs.status })
       .from(reportJobs)
       .where(
         and(
           eq(reportJobs.bookingId, access.bookingId),
-          eq(reportJobs.status, "sent")
+          inArray(reportJobs.status, ["sent", "approved", "delivery_failed"])
         )
       )
       .orderBy(desc(reportJobs.updatedAt))
@@ -250,7 +249,7 @@ export async function getClientReportDownload(rawToken: string) {
       .where(
         and(
           eq(reportVersions.reportJobId, job.id),
-          eq(reportVersions.status, "sent")
+          inArray(reportVersions.status, ["sent", "approved"])
         )
       )
       .orderBy(desc(reportVersions.versionNumber))
@@ -272,8 +271,8 @@ export async function getClientReportDownload(rawToken: string) {
       eventType: "client_pdf_downloaded",
       actorType: "client",
       actorId: publicReference(tokenHash),
-      fromStatus: "sent",
-      toStatus: "sent",
+      fromStatus: job.status,
+      toStatus: job.status,
       metadataJson: JSON.stringify({ versionId: version.id }),
     });
   return { kind: "ready" as const, url };

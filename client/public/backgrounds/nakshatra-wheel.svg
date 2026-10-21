@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 900" fill="none">
+  <defs>
+    <path id="ray" d="M450 92v42M450 766v42" stroke="#A96346" stroke-width="1.4"/>
+    <circle id="star" cx="450" cy="114" r="3" fill="#D9A441"/>
+  </defs>
+  <g opacity=".34">
+    <circle cx="450" cy="450" r="358" stroke="#A96346" stroke-width="1.4"/>
+    <circle cx="450" cy="450" r="316" stroke="#D9A441" stroke-width="1" stroke-dasharray="2 14"/>
+    <circle cx="450" cy="450" r="224" stroke="#A96346" stroke-width="1"/>
+    <circle cx="450" cy="450" r="82" stroke="#D9A441" stroke-width="1"/>
+    <g>
+      <use href="#ray"/><use href="#star"/>
+      <use href="#ray" transform="rotate(13.333 450 450)"/><use href="#star" transform="rotate(13.333 450 450)"/>
+      <use href="#ray" transform="rotate(26.666 450 450)"/><use href="#star" transform="rotate(26.666 450 450)"/>
+      <use href="#ray" transform="rotate(40 450 450)"/><use href="#star" transform="rotate(40 450 450)"/>
+      <use href="#ray" transform="rotate(53.333 450 450)"/><use href="#star" transform="rotate(53.333 450 450)"/>
+      <use href="#ray" transform="rotate(66.666 450 450)"/><use href="#star" transform="rotate(66.666 450 450)"/>
+      <use href="#ray" transform="rotate(80 450 450)"/><use href="#star" transform="rotate(80 450 450)"/>
+      <use href="#ray" transform="rotate(93.333 450 450)"/><use href="#star" transform="rotate(93.333 450 450)"/>
+      <use href="#ray" transform="rotate(106.666 450 450)"/><use href="#star" transform="rotate(106.666 450 450)"/>
+      <use href="#ray" transform="rotate(120 450 450)"/><use href="#star" transform="rotate(120 450 450)"/>
+      <use href="#ray" transform="rotate(133.333 450 450)"/><use href="#star" transform="rotate(133.333 450 450)"/>
+      <use href="#ray" transform="rotate(146.666 450 450)"/><use href="#star" transform="rotate(146.666 450 450)"/>
+      <use href="#ray" transform="rotate(160 450 450)"/><use href="#star" transform="rotate(160 450 450)"/>
+      <use href="#ray" transform="rotate(173.333 450 450)"/><use href="#star" transform="rotate(173.333 450 450)"/>
+      <use href="#ray" transform="rotate(186.666 450 450)"/><use href="#star" transform="rotate(186.666 450 450)"/>
+      <use href="#ray" transform="rotate(200 450 450)"/><use href="#star" transform="rotate(200 450 450)"/>
+      <use href="#ray" transform="rotate(213.333 450 450)"/><use href="#star" transform="rotate(213.333 450 450)"/>
+      <use href="#ray" transform="rotate(226.666 450 450)"/><use href="#star" transform="rotate(226.666 450 450)"/>
+      <use href="#ray" transform="rotate(240 450 450)"/><use href="#star" transform="rotate(240 450 450)"/>
+      <use href="#ray" transform="rotate(253.333 450 450)"/><use href="#star" transform="rotate(253.333 450 450)"/>
+      <use href="#ray" transform="rotate(266.666 450 450)"/><use href="#star" transform="rotate(266.666 450 450)"/>
+      <use href="#ray" transform="rotate(280 450 450)"/><use href="#star" transform="rotate(280 450 450)"/>
+      <use href="#ray" transform="rotate(293.333 450 450)"/><use href="#star" transform="rotate(293.333 450 450)"/>
+      <use href="#ray" transform="rotate(306.666 450 450)"/><use href="#star" transform="rotate(306.666 450 450)"/>
+      <use href="#ray" transform="rotate(320 450 450)"/><use href="#star" transform="rotate(320 450 450)"/>
+      <use href="#ray" transform="rotate(333.333 450 450)"/><use href="#star" transform="rotate(333.333 450 450)"/>
+      <use href="#ray" transform="rotate(346.666 450 450)"/><use href="#star" transform="rotate(346.666 450 450)"/>
+    </g>
+    <path d="m450 226 194 336H256l194-336Zm0 448L256 338h388L450 674Z" stroke="#A96346"/>
+  </g>
+</svg>
