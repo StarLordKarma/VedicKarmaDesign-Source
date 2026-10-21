@@ -1,3 +1,4 @@
+import { calculateVedicSnapshot } from "./vedic-astrology-calculator";
 import { describe, expect, it } from "vitest";
 import { existsSync } from "node:fs";
 import { buildActivityCsv, buildBookingsCsv, buildCheckoutBreakdownPdf, buildFullNatalReportPdf, buildReportStylePreviewPdf, buildPricingHistoryCsv, buildSlaEvaluationRunsCsv, buildSmokeTestRunsCsv, decodePdfBase64, sanitizePdfName, type ReportPreviewLocale } from "./export";
@@ -227,20 +228,8 @@ describe("admin exports and PDF validation", () => {
 
 describe("full natal report PDF", () => {
   const background = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64");
-  const facts = {
-    d1: [{ planet: "Ascendant", sign: 0, degreeInSign: 12.3 }],
-    d9: [{ planet: "Ascendant", sign: 5, degreeInSign: 3.2 }],
-  };
-  const narrative = {
-    sections: [
-      {
-        sectionKey: "core-themes",
-        title: "Core themes",
-        paragraphs: ["A cautious reflective summary."],
-        factRefs: ["d1[0].sign"],
-      },
-    ],
-  };
+  const facts = calculateVedicSnapshot({ localDate: "2000-01-01", localTime: "12:00", timeZoneOffsetMinutes: 60, latitude: 52.52, longitude: 13.405 });
+  const narrative = { sections: Array.from({ length: 6 }, (_, index) => ({ sectionKey: `theme-${index}`, title: `Theme ${index + 1}`, paragraphs: [`A cautious reflective summary for theme ${index + 1}.`], factRefs: ["d1[0].sign"] })) };
   it("renders the requested Basic and Basic+ page counts with chart panels", async () => {
     const basic = await buildFullNatalReportPdf({
       background,
@@ -277,7 +266,7 @@ describe("full natal report PDF", () => {
       clientName: "Locale Test",
       packageType: "basic",
       narrative: {
-        sections: [{ ...narrative.sections[0], paragraphs: [localized] }],
+        sections: narrative.sections.map(section => ({ ...section, paragraphs: [localized] })),
       },
       facts,
       fontPath,

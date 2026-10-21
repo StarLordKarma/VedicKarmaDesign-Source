@@ -27,6 +27,7 @@ describe("Report Studio automation contracts", () => {
 
   it("accepts only narrative fact references that exist in the validated facts JSON", () => {
     expect(validateNarrativeDraft(validDraft, facts).schemaVersion).toBe("vedic-narrative.v1");
+    expect(validateNarrativeDraft({ ...validDraft, sections: [{ ...validDraft.sections[0], factRefs: ["$.chart.ascendant.sign"] }] }, facts).sections[0].factRefs).toEqual(["$.chart.ascendant.sign"]);
     expect(() => validateNarrativeDraft({ ...validDraft, sections: [{ ...validDraft.sections[0], factRefs: ["chart.missing"] }] }, facts)).toThrow(/missing fact/i);
     expect(() => validateNarrativeDraft({ ...validDraft, sections: [{ ...validDraft.sections[0], paragraphs: ["This will cure a medical condition."] }] }, facts)).toThrow(/prohibited/i);
   });

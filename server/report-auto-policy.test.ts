@@ -3,7 +3,7 @@ import { assertAutomaticReportQuality } from "./report-auto-policy";
 const section = {
   sectionKey: "core-themes",
   title: "Themes",
-  paragraphs: ["A reflective theme."],
+  paragraphs: ["A reflective theme invites careful consideration of patterns in daily experience. Explore a concrete example from a recent conversation, consider how your own choices influenced it, and choose one small action to try. This is an invitation to reflection rather than a statement about inevitable events."],
   factRefs: ["ascendant"],
   warnings: [] as string[],
 };
@@ -32,6 +32,11 @@ describe("automatic report quality gate", () => {
     expect(() =>
       assertAutomaticReportQuality(input({ ...narrative, sections: [section] }))
     ).toThrow("review");
+  });
+  it("holds one-line narratives and technical metadata for owner review", () => {
+    for (const paragraphs of [["A single factual sentence."], [section.paragraphs[0] + " (factRefs: [ascendant])"]]) {
+      expect(() => assertAutomaticReportQuality(input({ ...narrative, sections: narrative.sections.map(s => ({ ...s, paragraphs })) }))).toThrow("review");
+    }
   });
   it("keeps reports with warnings for owner review", () => {
     expect(() =>

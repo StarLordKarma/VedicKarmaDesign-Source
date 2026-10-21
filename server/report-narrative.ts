@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { invokeLLM } from "./_core/llm";
+import { invokeLLM, type Message } from "./_core/llm";
 
 export const narrativeDraftSchema = z.object({
   schemaVersion: z.literal("vedic-narrative.v1"),
@@ -20,7 +20,7 @@ export type NarrativeDraft = z.infer<typeof narrativeDraftSchema>;
 const prohibitedClaims = /\b(cure|diagnos|лечит|диагноз|гарантиру|guarantee|garantier|legal advice|юридическ(ая|ое)|финансов(ая|ое) консультац|financial advice|medizinische Beratung|medizinisch|insurance|страхов)/i;
 
 function resolveFactPath(facts: unknown, reference: string) {
-  const parts = reference.replace(/\[(\d+)\]/g, ".$1").split(".").filter(Boolean);
+  const parts = reference.replace(/^\$\.?/, "").replace(/\[(\d+)\]/g, ".$1").split(".").filter(Boolean);
   let value: unknown = facts;
   for (const part of parts) {
     if (value === null || value === undefined || (typeof value !== "object" && !Array.isArray(value))) return undefined;
@@ -62,7 +62,7 @@ export async function generateNarrativeDraft(input: { facts: unknown; locale: "r
   const sourceFacts = input.facts as Record<string, unknown>;
   // Never send the raw birth date, time, location, or contact details to the text model.
   const narrativeFacts = Object.fromEntries(["contractVersion", "engine", "ascendant", "planets", "d1", "d9", "aspects", "vimshottari"].filter(key => Object.prototype.hasOwnProperty.call(sourceFacts, key)).map(key => [key, sourceFacts[key]]));
-  const factsJson = JSON.stringify(narrativeFacts);
+  const factsJson = JSON.stringify(narrativeFacts, (key, value) => ["longitude", "degreeInSign"].includes(key) && typeof value === "number" ? Number(value.toFixed(2)) : value);
   const settings = input.settings ?? { aiModel: "gpt-5-mini", maxTokens: 5000, maxSections: 6, maxParagraphChars: 1800 };
   const configuredModel = process.env.REPORT_AI_MODEL || settings.aiModel;
   if (!AI_NARRATIVE_MODELS.includes(configuredModel as typeof AI_NARRATIVE_MODELS[number])) throw new Error("Unsupported narrative model.");
@@ -70,17 +70,28 @@ export async function generateNarrativeDraft(input: { facts: unknown; locale: "r
   const request = {
     model: configuredModel,
     messages: [
-      { role: "system", content: "You write cautious, reflective Vedic astrology narrative. Output JSON only. Use only facts present in the supplied facts JSON. Do not invent dates, placements, events, diagnoses, legal/financial/medical advice, or guaranteed outcomes. Keep the tone clear and non-deterministic. Zodiac sign indices are zero-based: 0 Aries, 1 Taurus, 2 Gemini, 3 Cancer, 4 Leo, 5 Virgo, 6 Libra, 7 Scorpio, 8 Sagittarius, 9 Capricorn, 10 Aquarius, 11 Pisces. Use degreeInSign for within-sign degrees, never longitude. Keep factRefs in the separate metadata field only; never print code paths, JSON, or factRefs in paragraph text." },
-      { role: "user", content: `Return a validated vedic-narrative.v1 draft in locale ${input.locale}. Include no more than ${settings.maxSections} concise sections for ascendant/core themes, planetary emphasis, nakshatra/dasha context, and practical reflection. Keep every paragraph at or below ${settings.maxParagraphChars} characters. Use lowercase ASCII hyphenated sectionKey values, such as core-themes, planetary-emphasis, and practical-reflection. Include all fields in the required JSON schema. Every section must contain at least one exact factRefs path. Facts JSON:\n${factsJson}` },
+      { role: "system", content: "You write cautious, reflective Vedic astrology narrative. Output JSON only. Use only facts present in the supplied facts JSON. Do not invent dates, placements, events, diagnoses, legal/financial/medical advice, or guaranteed outcomes. Keep the tone clear and non-deterministic. Zodiac sign indices are zero-based: 0 Aries, 1 Taurus, 2 Gemini, 3 Cancer, 4 Leo, 5 Virgo, 6 Libra, 7 Scorpio, 8 Sagittarius, 9 Capricorn, 10 Aquarius, 11 Pisces. Use degreeInSign for within-sign degrees, never longitude. Do not describe a dasha period as current or upcoming; present the supplied timeline as symbolic historical context. Keep factRefs in the separate metadata field only; never print code paths, JSON, or factRefs in paragraph text." },
+      { role: "user", content: `Return a validated vedic-narrative.v1 draft in locale ${input.locale}. Include exactly ${settings.maxSections} substantive, distinct sections. Cover core themes, learning and communication, relationships and values, nakshatra context, the historical dasha timeline, and practical reflection; avoid repeating the same interpretation across sections. Write two thoughtful paragraphs per section, about 60-90 words each. Explain the symbolic context and offer a concrete reflective question; do not merely list placements. Display degrees to at most two decimal places. Keep every paragraph at or below ${settings.maxParagraphChars} characters. Use lowercase ASCII hyphenated sectionKey values, such as core-themes, planetary-emphasis, and practical-reflection. Include all fields in the required JSON schema. Every section must contain at least one exact factRefs path. Facts JSON:\n${factsJson}` },
     ],
     response_format: { type: "json_schema", json_schema: { name: "vedic_narrative_v1", strict: true, schema: outputSchema } },
     maxTokens: settings.maxTokens,
   } satisfies Parameters<typeof invokeLLM>[0];
-  const response = await invokeLLM(request);
-  const content = response.choices[0]?.message?.content;
-  if (typeof content !== "string") throw new Error("Narrative model returned no JSON content.");
-  const validated = validateNarrativeDraft(JSON.parse(content), narrativeFacts);
-  if (validated.locale !== input.locale) throw new Error("Narrative output used a different language.");
-  if (validated.sections.length > settings.maxSections || validated.sections.some((section) => section.paragraphs.some((paragraph) => paragraph.length > settings.maxParagraphChars))) throw new Error("Narrative output exceeded the configured limits.");
-  return { ...validated, modelVersion: configuredModel, promptVersion: "report-narrative-v1" as const };
+  const messages: Message[] = [...request.messages];
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const response = await invokeLLM({ ...request, messages });
+    const content = response.choices[0]?.message?.content;
+    if (typeof content !== "string") throw new Error("Narrative model returned no JSON content.");
+    try {
+      const validated = validateNarrativeDraft(JSON.parse(content), narrativeFacts);
+      if (validated.locale !== input.locale) throw new Error("Use the requested language.");
+      if (validated.sections.length !== settings.maxSections || validated.sections.some(section => section.paragraphs.some(paragraph => paragraph.length > settings.maxParagraphChars))) throw new Error("Use the configured section count and paragraph limits.");
+      if (validated.sections.some(section => section.paragraphs.join(" ").length < 250 || section.paragraphs.some(paragraph => /factRefs?\s*(?:path)?\s*:|\$\.[a-z]/i.test(paragraph)))) throw new Error("Write substantive prose, at least 250 characters per section. No factRefs, code paths or inline citations in paragraphs; keep references only in the factRefs array.");
+      if (validated.sections.some(section => section.paragraphs.some(paragraph => /\bcurrent dasha|\bcurrent period|текущ.{0,15}(?:даш|период)|aktuell.{0,15}(?:dasha|periode)|periodo actual/i.test(paragraph)))) throw new Error("Do not call any period current. Describe the provided period dates as historical symbolic context.");
+      return { ...validated, modelVersion: configuredModel, promptVersion: "report-narrative-v1" as const };
+    } catch (error) {
+      if (attempt === 1) throw error;
+      messages.push({ role: "assistant", content }, { role: "user", content: `Correct the JSON draft. Validation failed: ${error instanceof Error ? error.message : "invalid draft"}. Preserve the supplied facts, language and output schema. Return corrected JSON only.` });
+    }
+  }
+  throw new Error("Narrative generation did not produce a valid draft.");
 }

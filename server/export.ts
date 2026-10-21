@@ -1,3 +1,4 @@
+import { buildReportContent, type ReportPage } from "./full-report-content";
 import PDFDocument from "pdfkit";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -389,113 +390,54 @@ export async function buildFullNatalReportPdf(input: {
   fontPath?: string;
 }) {
   const copy = reportPreviewCopy[input.locale];
-  const pageCount = input.packageType === "basic_plus" ? 25 : 22;
-  const doc = new PDFDocument({
-    size: "A4",
-    margin: 0,
-    info: { Title: copy.title, Subject: "Personal Vedic astrology report" },
-  });
+  const doc = new PDFDocument({ size: "A4", margin: 0, info: { Title: copy.title, Subject: "Personal Vedic astrology report" } });
   const chunks: Buffer[] = [];
-  const result = new Promise<Buffer>((resolve, reject) => {
-    doc.on("data", chunk => chunks.push(Buffer.from(chunk)));
-    doc.on("end", () => resolve(Buffer.concat(chunks)));
-    doc.on("error", reject);
-  });
-  const width = doc.page.width;
-  const height = doc.page.height;
+  const result = new Promise<Buffer>((resolve, reject) => { doc.on("data", chunk => chunks.push(Buffer.from(chunk))); doc.on("end", () => resolve(Buffer.concat(chunks))); doc.on("error", reject); });
+  const width = doc.page.width; const height = doc.page.height;
   const configuredFont = input.fontPath || process.env.REPORT_FONT_PATH || "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf";
-  const fontPath = existsSync(configuredFont) ? configuredFont : undefined;
+  const fontPath = [configuredFont, "/System/Library/Fonts/Supplemental/Arial.ttf"].find(candidate => existsSync(candidate));
   if (input.locale === "ru" && !fontPath) throw new Error("A Unicode REPORT_FONT_PATH is required for Russian PDF reports.");
   const fontName = fontPath ? "ReportSans" : "Helvetica";
   if (fontPath) doc.registerFont(fontName, fontPath);
-
-  const sectionLabels = input.locale === "ru" ? ["Обзор карты", "Асцендент и дома", "Планетные акценты", "Накшатры", "Vimshottari dasha", "Практика рефлексии"] : input.locale === "de" ? ["Kartenübersicht", "Aszendent und Häuser", "Planetenbetonungen", "Nakshatras", "Vimshottari-Dasha", "Reflexionspraxis"] : input.locale === "es" ? ["Resumen de la carta", "Ascendente y casas", "Énfasis planetario", "Nakshatras", "Vimshottari dasha", "Práctica reflexiva"] : ["Chart overview", "Ascendant and houses", "Planetary emphasis", "Nakshatras", "Vimshottari dasha", "Reflective practice"];
-  const closingLabel = input.locale === "ru" ? "Завершающее размышление" : input.locale === "de" ? "Abschließende Reflexion" : input.locale === "es" ? "Reflexión final" : "Closing reflection";
-  const coverArtwork = loadReportArtwork("pdf-meru-cover-300dpi.jpg");
-  const chapterArtwork = loadReportArtwork("pdf-cosmic-tree-300dpi.jpg");
-  const coverImage = coverArtwork ? (doc as any).openImage(coverArtwork) : undefined;
-  const chapterImage = chapterArtwork ? (doc as any).openImage(chapterArtwork) : undefined;
-  const disclaimer = copy.disclaimer.replace(/^Demonstration layout\.\s*/, "").replace(/^Демонстрационный макет\.\s*/, "").replace(/^Demonstrationslayout\.\s*/, "").replace(/^Diseño de muestra\.\s*/, "");
-  for (let page = 1; page <= pageCount; page += 1) {
-    if (page > 1) doc.addPage();
-    const isCover = page === 1;
-    const isFinal = page === pageCount;
-    const isChapterDivider = page > 3 && !isFinal && (page - 4) % 4 === 0;
-    const illustrated = isCover || isFinal || isChapterDivider;
-    const artwork = isCover ? coverImage : illustrated ? chapterImage : undefined;
-    doc.image(artwork ?? input.background, 0, 0, { width, height });
-    doc
-      .fillOpacity(illustrated ? 0.86 : 0.92)
-      .fillColor("#FBF6EC")
-      .roundedRect(42, 42, illustrated ? 360 : width - 84, height - 84, 18)
-      .fill();
-    drawPdfCosmologyOrnament(doc, isCover ? "cover" : isFinal ? "final" : "chapter", width, height);
-    const contentWidth = illustrated ? 300 : width - 144;
-    doc
-      .fillOpacity(1)
-      .fillColor("#A96346")
-      .font(fontName)
-      .fontSize(8)
-      .text(`${copy.eyebrow}  ·  ${String(page).padStart(2, "0")} / ${String(pageCount).padStart(2, "0")}`, 72, 72, { characterSpacing: 1 });
-    doc
-      .fillColor("#302A25")
-      .font(fontName)
-      .fontSize(page === 1 ? 30 : 20)
-      .text(isCover ? copy.title : isFinal ? closingLabel : sectionLabels[(page - 2) % sectionLabels.length], 72, isCover ? 130 : 128, { width: contentWidth, lineGap: 5 });
-    doc
-      .fillColor("#73685D")
-      .font(fontName)
-      .fontSize(10)
-      .text(`${input.clientName}  ·  ${copy.settingsValue}`, 72, isCover ? 260 : 186, { width: contentWidth });
-    if (isCover) {
-      doc
-        .fillColor("#514A43")
-        .font(fontName)
-        .fontSize(12)
-        .text(input.packageType === "basic_plus" ? "D1 / Rāśi · D9 / Navāṁśa · Vimshottari" : "D1 / Rāśi · Vimshottari", 72, 320, { width: contentWidth });
-      doc
-        .fillColor("#514A43")
-        .font(fontName)
-        .fontSize(11)
-        .text(input.narrative.sections[0]?.paragraphs[0] ?? copy.sampleBody, 72, 390, { width: contentWidth, lineGap: 6 });
-    } else if (page === 2 || (page === 3 && input.packageType === "basic_plus")) {
-      const placements = page === 2 ? input.facts.d1 : input.facts.d9;
-      drawVedicChartPanel(doc, placements, 72, 250, width - 144, page === 2 ? "D1 · Rāśi chart" : "D9 · Navāṁśa chart", fontName);
-      doc
-        .fillColor("#8D7868")
-        .font(fontName)
-        .fontSize(8)
-        .text("Sidereal zodiac · Lahiri · whole-sign houses · degrees rounded for display", 72, 700, { width: width - 144, align: "center" });
-    } else {
-      const section = input.narrative.sections[(page - 2) % Math.max(1, input.narrative.sections.length)];
-      doc
-        .fillColor("#514A43")
-        .font(fontName)
-        .fontSize(12)
-        .text(section?.paragraphs.join("\n\n") ?? copy.sampleBody, 72, 240, {
-          width: contentWidth,
-          lineGap: 6,
-        });
-      doc
-        .fillColor("#8D7868")
-        .font(fontName)
-        .fontSize(8)
-        .text(`Validated fact references: ${section?.factRefs.join(", ") ?? "chart contract"}`, 72, 600, { width: contentWidth });
-
+  const contentWidth = width - 144;
+  const pages: ReportPage[] = [{ title: copy.title, body: "" }];
+  // Paginate measured text before drawing, preserving every word without creating
+  // implicit blank pages or allowing content to overlap the footer.
+  for (const page of buildReportContent(input)) {
+    if (page.chart) { pages.push(page); continue; }
+    doc.font(fontName).fontSize(11);
+    let part = "";
+    for (const word of page.body.split(/(\s+)/)) {
+      const candidate = part + word;
+      if (part.trim() && doc.heightOfString(candidate, { width: contentWidth, lineGap: 5 }) > 450) { pages.push({ title: page.title, body: part.trim() }); part = word.trimStart(); }
+      else part = candidate;
     }
-    doc
-      .fillColor("#85776A")
-      .font(fontName)
-      .fontSize(7.5)
-      .text(disclaimer, 72, height - 92, { width: contentWidth, lineGap: 3 });
-    doc
-      .fillColor("#A96346")
-      .font(fontName)
-      .fontSize(8)
-      .text("VEDIC KARMA DESIGN · SWISS EPHEMERIS", 72, height - 58, {
-        characterSpacing: 0.8,
-      });
-    if (process.env.GEOCODING_PROVIDER === "geonames") doc.fontSize(6).text("Location data: GeoNames.org · CC BY 4.0", 72, height - 70, { link: "https://www.geonames.org/" });
+    pages.push({ title: page.title, body: part.trim() });
+  }
+  const artwork = loadReportArtwork("pdf-meru-cover-300dpi.jpg");
+  const coverImage = artwork ? (doc as any).openImage(artwork) : undefined;
+  const disclaimer = copy.disclaimer.replace(/^Demonstration layout\.\s*/, "").replace(/^Демонстрационный макет\.\s*/, "").replace(/^Demonstrationslayout\.\s*/, "").replace(/^Diseño de muestra\.\s*/, "");
+  for (let index = 0; index < pages.length; index++) {
+    if (index) doc.addPage();
+    const page = pages[index]; const cover = index === 0;
+    doc.fillColor("#F2E9DB").rect(0, 0, width, height).fill();
+    if (cover && coverImage) doc.image(coverImage, 0, 0, { width, height });
+    doc.fillOpacity(cover ? 0.9 : 1).fillColor("#FBF6EC").roundedRect(42, 42, width - 84, height - 84, 18).fill();
+    drawPdfCosmologyOrnament(doc, cover ? "cover" : "chapter", width, height);
+    doc.fillOpacity(1).fillColor("#A96346").font(fontName).fontSize(8).text(`${copy.eyebrow}  ·  ${String(index + 1).padStart(2, "0")} / ${String(pages.length).padStart(2, "0")}`, 72, 72, { characterSpacing: 1 });
+    doc.fillColor("#302A25").font(fontName).fontSize(cover ? 30 : 20).text(page.title, 72, 125, { width: contentWidth, height: 75, lineGap: 4 });
+    doc.fillColor("#73685D").font(fontName).fontSize(9).text(cover ? input.clientName : copy.settingsValue, 72, cover ? 260 : 205, { width: contentWidth, height: 36 });
+    if (cover) {
+      doc.fontSize(12).text(input.packageType === "basic_plus" ? "D1 · D9 · Vimshottari · Numerology" : "D1 · Vimshottari", 72, 325, { width: contentWidth });
+      doc.fontSize(10).text(input.locale === "ru" ? "Ваш персональный отчёт: расчётные положения, периоды и символические темы для самостоятельного осмысления." : input.locale === "de" ? "Ihr persönlicher Bericht: berechnete Positionen, Perioden und symbolische Themen zur Reflexion." : input.locale === "es" ? "Tu informe personal: posiciones calculadas, periodos y temas simbólicos para reflexionar." : "Your personal report: calculated placements, periods and symbolic themes for reflection.", 72, 390, { width: contentWidth, height: 220, lineGap: 5 });
+    } else if (page.chart) {
+      drawVedicChartPanel(doc, input.facts[page.chart], 72, 245, contentWidth, page.title, fontName);
+    } else {
+      doc.fillColor("#514A43").font(fontName).fontSize(11).text(page.body, 72, 240, { width: contentWidth, height: 450, lineGap: 5 });
+    }
+    doc.fillColor("#85776A").font(fontName).fontSize(7).text(disclaimer, 72, height - 110, { width: contentWidth, height: 42, lineGap: 2 });
+    if (process.env.GEOCODING_PROVIDER === "geonames") doc.fontSize(6).text("Location data: GeoNames.org · CC BY 4.0", 72, height - 67, { width: contentWidth, height: 10, link: "https://www.geonames.org/" });
+    doc.fillColor("#A96346").font(fontName).fontSize(7).text("VEDIC KARMA DESIGN · SWISS EPHEMERIS", 72, height - 52, { width: contentWidth, height: 10, characterSpacing: 0.8 });
   }
   doc.end();
   return result;
