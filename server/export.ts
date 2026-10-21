@@ -408,14 +408,14 @@ export async function buildFullNatalReportPdf(input: {
   if (input.locale === "ru" && !fontPath) throw new Error("A Unicode REPORT_FONT_PATH is required for Russian PDF reports.");
   const fontName = fontPath ? "ReportSans" : "Helvetica";
   if (fontPath) doc.registerFont(fontName, fontPath);
-  const factsText = JSON.stringify(input.facts).slice(0, 1800);
+
   const sectionLabels = input.locale === "ru" ? ["Обзор карты", "Асцендент и дома", "Планетные акценты", "Накшатры", "Vimshottari dasha", "Практика рефлексии"] : input.locale === "de" ? ["Kartenübersicht", "Aszendent und Häuser", "Planetenbetonungen", "Nakshatras", "Vimshottari-Dasha", "Reflexionspraxis"] : input.locale === "es" ? ["Resumen de la carta", "Ascendente y casas", "Énfasis planetario", "Nakshatras", "Vimshottari dasha", "Práctica reflexiva"] : ["Chart overview", "Ascendant and houses", "Planetary emphasis", "Nakshatras", "Vimshottari dasha", "Reflective practice"];
   const closingLabel = input.locale === "ru" ? "Завершающее размышление" : input.locale === "de" ? "Abschließende Reflexion" : input.locale === "es" ? "Reflexión final" : "Closing reflection";
   const coverArtwork = loadReportArtwork("pdf-meru-cover-300dpi.jpg");
   const chapterArtwork = loadReportArtwork("pdf-cosmic-tree-300dpi.jpg");
   const coverImage = coverArtwork ? (doc as any).openImage(coverArtwork) : undefined;
   const chapterImage = chapterArtwork ? (doc as any).openImage(chapterArtwork) : undefined;
-  const disclaimer = copy.disclaimer;
+  const disclaimer = copy.disclaimer.replace(/^Demonstration layout\.\s*/, "").replace(/^Демонстрационный макет\.\s*/, "").replace(/^Demonstrationslayout\.\s*/, "").replace(/^Diseño de muestra\.\s*/, "");
   for (let page = 1; page <= pageCount; page += 1) {
     if (page > 1) doc.addPage();
     const isCover = page === 1;
@@ -481,16 +481,7 @@ export async function buildFullNatalReportPdf(input: {
         .font(fontName)
         .fontSize(8)
         .text(`Validated fact references: ${section?.factRefs.join(", ") ?? "chart contract"}`, 72, 600, { width: contentWidth });
-      if (page === pageCount - 1) {
-        doc
-          .fillColor("#8D7868")
-          .font(fontName)
-          .fontSize(8)
-          .text(`Calculation facts snapshot:\n${factsText}`, 72, 640, {
-            width: width - 144,
-            lineGap: 3,
-          });
-      }
+
     }
     doc
       .fillColor("#85776A")
@@ -501,9 +492,10 @@ export async function buildFullNatalReportPdf(input: {
       .fillColor("#A96346")
       .font(fontName)
       .fontSize(8)
-      .text("REPORT STUDIO · PARASARA LIGHT 9", 72, height - 58, {
+      .text("VEDIC KARMA DESIGN · SWISS EPHEMERIS", 72, height - 58, {
         characterSpacing: 0.8,
       });
+    if (process.env.GEOCODING_PROVIDER === "geonames") doc.fontSize(6).text("Location data: GeoNames.org · CC BY 4.0", 72, height - 70, { link: "https://www.geonames.org/" });
   }
   doc.end();
   return result;

@@ -20,6 +20,7 @@ import { buildActivityCsv, buildBookingsCsv, buildBookingsPdf, buildPricingHisto
 import { ENV } from "./_core/env";
 import { approveReportVersion, createReportStudioTestJob, deleteReportStudioTestJob, enqueueReportJobForBooking, getReportProcessingSettings, getReportReviewJob, listReportReviewJobs, processReportJob, retryReportDelivery, setReportProcessingSettings } from "./report-studio-db";
 import { AI_NARRATIVE_MODELS } from "./report-narrative";
+import { resolveBirthLocation } from "./report-geocoding";
 import { createClientStatusLink, getPublicClientStatus, listClientStatusLinks, revokeClientStatusLink } from "./client-status";
 import { evaluateSla, getOwnerMetrics, getSlaEvaluationRuns, getSlaSettings, setSlaSettings } from "./sla";
 import { timingSafeEqual } from "node:crypto";
@@ -197,6 +198,10 @@ export const appRouter = router({
   booking: router({
     submit: publicProcedure.input(bookingSchema).mutation(async ({ input, ctx }) => {
       if (process.env.CHECKOUT_ENABLED === "false") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Online checkout is temporarily unavailable. Please try again later." });
+      if (process.env.GEOCODING_PROVIDER === "geonames") {
+        try { await resolveBirthLocation({ city: input.birthCity, country: input.birthCountry, birthDate: input.birthDate, birthTime: input.birthTime }); }
+        catch (error) { throw new TRPCError({ code: "BAD_REQUEST", message: error instanceof Error ? error.message : "Birth location could not be verified before payment." }); }
+      }
       const selectedPackage = await getActiveServicePackage(input.addon ? "basic_plus" : "basic");
       if (!selectedPackage) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "The selected service package is currently unavailable." });
       const pricing = await getServicePricing(input.currency);

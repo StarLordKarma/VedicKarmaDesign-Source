@@ -1,4 +1,5 @@
 import { makeRequest, type GeocodingResult, type TimeZoneResult } from "./_core/map";
+import { findOfflineBirthCity } from "./geonames-location";
 
 export type ResolvedBirthLocation = {
   latitude: number;
@@ -7,7 +8,7 @@ export type ResolvedBirthLocation = {
   timeZoneOffsetMinutes: number;
   formattedAddress: string;
   locationType: string;
-  source: "google-maps-proxy";
+  source: "google-maps-proxy" | "geonames-offline";
   qualityFlags: string[];
 };
 
@@ -41,6 +42,10 @@ export function resolveHistoricalOffset(date: string, time: string, timezone: st
 }
 
 export async function resolveBirthLocation(input: { city: string; country: string; birthDate: string; birthTime: string }): Promise<ResolvedBirthLocation> {
+  if (process.env.GEOCODING_PROVIDER === "geonames") {
+    const city = findOfflineBirthCity(input.city, input.country);
+    return { latitude: city.latitude, longitude: city.longitude, timezone: city.timezone, timeZoneOffsetMinutes: resolveHistoricalOffset(input.birthDate, input.birthTime, city.timezone), formattedAddress: `${city.name}, ${city.country} (GeoNames ${city.geonameId})`, locationType: "GEOMETRIC_CENTER", source: "geonames-offline", qualityFlags: [] };
+  }
   const address = `${input.city.trim()}, ${input.country.trim()}`;
   const geocode = await makeRequest<GeocodingResult>("/maps/api/geocode/json", { address });
   if (geocode.status !== "OK" || !geocode.results[0]) throw new Error(`City could not be resolved (${geocode.status}).`);
