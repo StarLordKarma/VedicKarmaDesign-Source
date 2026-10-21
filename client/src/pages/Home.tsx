@@ -1134,7 +1134,7 @@ export default function Home() {
       className={`public-page min-h-screen overflow-x-hidden text-[#28231f] ${isDarkTheme ? "theme-dark" : "theme-light"}`}
     >
       <header
-        className={`sticky top-0 z-50 border-b backdrop-blur-xl ${isDarkTheme ? "border-[#544238] bg-[#201a16]/90" : "border-[#28231f]/10 bg-[#f8f5f0]/90"}`}
+        className={`sticky top-0 z-50 border-b backdrop-blur-xl ${isDarkTheme ? "border-[#544238] bg-[#201a16]/90 text-[#fffaf4]" : "border-[#28231f]/10 bg-[#f8f5f0]/90 text-[#28231f]"}`}
       >
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 lg:px-8">
           <a
