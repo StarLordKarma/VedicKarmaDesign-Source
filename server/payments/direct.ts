@@ -1,3 +1,4 @@
+import { orderSigningKey } from "./order-signing";
 import { directQuoteRate } from "./direct-rates";
 import { prepareTronIntent } from "./direct-tron";
 import {
@@ -29,11 +30,6 @@ export type Intent = {
   tron?: { recipient: string; startBlock: number };
   options?: Array<{ network: PaymentNetworkId; startBlock: string }>;
 };
-function key() {
-  if ((process.env.JWT_SECRET?.length ?? 0) < 32)
-    throw new Error("Wallet payments require a strong JWT_SECRET");
-  return new TextEncoder().encode(process.env.JWT_SECRET);
-}
 export async function rpc(
   method: string,
   params: unknown[] = [],
@@ -61,7 +57,7 @@ export function transferData(intent: Intent) {
   return `0xa9059cbb${intent.recipient.slice(2).toLowerCase().padStart(64, "0")}${BigInt(intent.units).toString(16).padStart(64, "0")}${intent.id}`;
 }
 export async function readIntent(token: string): Promise<Intent> {
-  const { payload } = await jwtVerify(token, key(), {
+  const { payload } = await jwtVerify(token, orderSigningKey(), {
     algorithms: ["HS256"],
     audience: "direct-payment",
     issuer: "vedic-karma",
@@ -160,7 +156,7 @@ export const directPaymentProvider: PaymentProvider = {
       .setAudience("direct-payment")
       .setIssuedAt()
       .setExpirationTime("30d")
-      .sign(key());
+      .sign(orderSigningKey());
     return {
       id: intent.id,
       invoice_url: `${new URL(input.successUrl).origin}/pay/${token}`,

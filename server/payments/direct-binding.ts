@@ -1,3 +1,4 @@
+import { orderSigningKey } from "./order-signing";
 import { createHash, randomBytes } from "node:crypto";
 import { SignJWT, jwtVerify } from "jose";
 import { verifyMessage } from "ethers";
@@ -23,11 +24,6 @@ type Challenge = {
   nonce: string;
   message: string;
 };
-function secret() {
-  if ((process.env.JWT_SECRET?.length ?? 0) < 32)
-    throw new Error("Strong signing secret required");
-  return new TextEncoder().encode(process.env.JWT_SECRET);
-}
 export function validateNetworkChoice(
   intent: Intent,
   network: unknown
@@ -92,7 +88,7 @@ export async function createWalletChallenge(
     .setAudience("wallet-payment-binding")
     .setIssuedAt()
     .setExpirationTime("5m")
-    .sign(secret());
+    .sign(orderSigningKey());
   return { message, challengeToken: token };
 }
 export async function verifyWalletProof(
@@ -102,7 +98,7 @@ export async function verifyWalletProof(
 ): Promise<Challenge> {
   if (typeof signature !== "string" || signature.length > 1024)
     throw new Error("Invalid wallet signature");
-  const { payload } = await jwtVerify(token, secret(), {
+  const { payload } = await jwtVerify(token, orderSigningKey(), {
     issuer: "vedic-karma",
     audience: "wallet-payment-binding",
     algorithms: ["HS256"],
