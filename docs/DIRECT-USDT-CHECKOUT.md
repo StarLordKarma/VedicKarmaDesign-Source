@@ -1,6 +1,6 @@
 # Прямые платежи: итог реализации на 21 октября 2026
 
-Подготовлены локальные изменения сайта, миграции 0030–0033 и проверки. Они ещё не опубликованы и не развёрнуты. Реальных подписанных платежей и отправки писем клиентам в ходе разработки не было. Bitcoin исключён по последнему указанию владельца.
+Published to GitHub and Northflank on 2026-10-21. Migrations 0030-0033 completed after backup before-usdt-prices-2026-10-21. Live USD pricing: 9.99 + 5.00 = 14.99. Checkout is paused (CHECKOUT_ENABLED=false) until production JWT signing, geocoding, LLM, S3 and Resend are configured. Receiving addresses and five public network endpoints are saved. No real signed payments or client emails were sent. Bitcoin remains excluded.
 
 ## Пять вариантов оплаты
 
@@ -95,3 +95,5 @@ Worker каждые 30 секунд сверяет подписанные сче
 Цены USD по указанию владельца: базовый — $9.99, продвинутый (базовый + нумерология) — $14.99, то есть доплата $5. Миграция 0032 добавляет точные десятичные денежные поля, 0033 обновляет оба источника USD-прайса и фиксирует предыдущие значения в истории. Суммы ранее созданных заказов и прайсы EUR/GBP сохраняются.
 
 Для сервера без настроенных сервисов использовать CHECKOUT_ENABLED=false: API не создаёт заказы, кнопка оплаты отключена с локализованным сообщением. После настройки JWT, RPC, геокодирования, LLM, S3 и Resend включить CHECKOUT_ENABLED=true.
+
+Production migration run: 5881ce17-8764-401b-b424-0be2fb283f05; node dist/migrate.js exited 0 with Database migrations completed successfully. Application continuous deployment is enabled again. Live /health, /ready and pricing.current returned HTTP 200. CI run 34 passed all jobs after replacing unavailable Quay test-storage images with builds from pinned official sources.
