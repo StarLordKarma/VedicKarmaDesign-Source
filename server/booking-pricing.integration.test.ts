@@ -31,6 +31,23 @@ const smokeRequest = () => ({
 describe("booking pricing integration", () => {
   beforeEach(() => { mocks.getServicePricing.mockClear(); mocks.getActiveServicePackage.mockReset(); mocks.getActiveServicePackage.mockImplementation(async (code: "basic" | "basic_plus") => ({ id: code === "basic" ? 1 : 2, code, version: 1, active: true })); mocks.createBookingRequest.mockClear(); mocks.createSmokeTestRun.mockClear(); mocks.finishSmokeTestRun.mockClear(); mocks.createCheckoutForBooking.mockReset(); mocks.createCheckoutForBooking.mockImplementation(async (input: { totalUsd: number; addon: boolean; priceCurrency?: string }) => ({ id: "invoice-77", invoice_url: "https://checkout.test/invoice-77", totalUsd: input.totalUsd, addon: input.addon, priceCurrency: input.priceCurrency })); mocks.deleteBookingRequest.mockClear(); });
 
+  it("does not create an order while production checkout is disabled", async () => {
+    vi.stubEnv("CHECKOUT_ENABLED", "false");
+    try {
+      const caller = appRouter.createCaller({ req: smokeRequest(), res: {} as never, user: null });
+      await expect(caller.booking.submit({
+        name: "Maya", email: "maya@example.com", birthDate: "1990-04-12",
+        birthTime: "08:30", birthCity: "Berlin", birthCountry: "Germany",
+        language: "English", addon: false, privacyAcknowledged: true,
+        privacyNoticeVersion: PRIVACY_NOTICE_VERSION, privacyLocale: "en",
+      })).rejects.toThrow("temporarily unavailable");
+      expect(mocks.createBookingRequest).not.toHaveBeenCalled();
+      expect(mocks.createCheckoutForBooking).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("uses persisted non-default pricing for booking storage and checkout", async () => {
     const caller = appRouter.createCaller({
       req: { protocol: "https", get: (header: string) => header === "host" ? "example.test" : undefined } as never,

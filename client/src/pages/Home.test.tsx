@@ -201,6 +201,30 @@ describe("Home booking payment UX", () => {
     pricingData.numerologyAddonUsd = 10;
   });
 
+  it("disables checkout when the deployed service is not ready", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => ({
+      ok: true, json: async () => ({ direct: true, available: false, currencies: ["USD"] }),
+    })));
+    try {
+      await act(async () => { renderHome(); });
+      expect(screen.getByRole("button", { name: "Request my reading" })).toBeDisabled();
+      expect(screen.getByText("Online checkout is temporarily unavailable. Please try again later.")).toBeInTheDocument();
+      expect(mutationState.mutate).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("shows the full advanced price before selecting the package", () => {
+    pricingData.basicUsd = 9.99;
+    pricingData.numerologyAddonUsd = 5;
+    renderHome();
+    expect(screen.getByRole("radio", { name: "Basic + numerology" }).closest("label")).toHaveTextContent("$14.99");
+    expect(screen.getByTestId("live-total-breakdown")).toHaveTextContent("$9.99");
+    pricingData.basicUsd = 25;
+    pricingData.numerologyAddonUsd = 10;
+  });
+
   it("validates a promo code and updates the live total and included services", () => {
     renderHome();
     expect(screen.getByText("One clarification round")).toBeInTheDocument();

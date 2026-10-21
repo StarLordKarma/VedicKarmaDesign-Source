@@ -196,6 +196,7 @@ export const appRouter = router({
   }),
   booking: router({
     submit: publicProcedure.input(bookingSchema).mutation(async ({ input, ctx }) => {
+      if (process.env.CHECKOUT_ENABLED === "false") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Online checkout is temporarily unavailable. Please try again later." });
       const selectedPackage = await getActiveServicePackage(input.addon ? "basic_plus" : "basic");
       if (!selectedPackage) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "The selected service package is currently unavailable." });
       const pricing = await getServicePricing(input.currency);

@@ -125,6 +125,7 @@ export function registerDirectPaymentRoutes(app: Express) {
     res.setHeader("Cache-Control", "no-store");
     res.json({
       direct,
+      available: process.env.CHECKOUT_ENABLED !== "false",
       currencies: ["USD", "EUR", "GBP"],
     });
   });

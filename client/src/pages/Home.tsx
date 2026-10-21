@@ -593,7 +593,7 @@ export default function Home() {
   const [currency, setCurrency] = useState<SupportedCurrency>(
     initialDraft?.currency ?? "USD"
   );
-  const [walletOptions, setWalletOptions] = useState<{ direct: boolean; currencies: string[] }>({ direct: false, currencies: ["USD", "EUR", "GBP"] });
+  const [walletOptions, setWalletOptions] = useState<{ direct: boolean; currencies: string[]; available?: boolean }>({ direct: false, currencies: ["USD", "EUR", "GBP"] });
   useEffect(() => {
     let active = true;
     fetch("/api/payment-options").then(r => r.ok ? r.json() : null).then(options => {
@@ -2233,7 +2233,7 @@ export default function Home() {
                             {copy.addOnBody}
                           </span>
                           <span className="mt-1 block text-sm font-semibold text-[#e1b046]">
-                            {formattedTotal}
+                            {formatCurrency(basicPrice + addonPrice, currency, locale)}
                           </span>
                         </span>
                       </label>
@@ -2308,9 +2308,10 @@ export default function Home() {
                       )}
                     </span>
                   </label>
+                  {walletOptions.available === false && <p role="status" className="text-sm text-[#e8d9c0]">{locale === "ru" ? "Онлайн-оплата временно недоступна. Пожалуйста, вернитесь позже." : locale === "de" ? "Die Online-Zahlung ist vorübergehend nicht verfügbar. Bitte versuchen Sie es später erneut." : locale === "es" ? "El pago en línea no está disponible temporalmente. Inténtalo de nuevo más tarde." : "Online checkout is temporarily unavailable. Please try again later."}</p>}
                   <button
                     type="submit"
-                    disabled={submitBooking.isPending}
+                    disabled={submitBooking.isPending || walletOptions.available === false}
                     className="group flex w-full items-center justify-center gap-3 rounded-full bg-[#e1b046] px-6 py-4 text-sm font-bold text-[#28231f] transition-transform hover:-translate-y-0.5 disabled:cursor-wait disabled:opacity-70"
                   >
                     {submitBooking.isPending ? (

@@ -176,7 +176,7 @@ export const COPY: Record<Locale, Copy> = {
         answer: "You will receive a detailed, multi-page PDF document with the main themes of your Vedic natal chart explained in clear language.",
       },
       {
-        question: "What is included in the $10 add-on?",
+        question: "What is included in the numerology add-on?",
         answer: "The add-on includes an Indian numerology overview, traditionally associated favorable and challenging days and numbers, and traditional gemstone suggestions.",
       },
       {
@@ -304,7 +304,7 @@ export const COPY: Record<Locale, Copy> = {
         answer: "Вы получите подробный многостраничный PDF с основными темами вашей ведической натальной карты, изложенными понятным языком.",
       },
       {
-        question: "Что входит в дополнение за $10?",
+        question: "Что входит в дополнение по нумерологии?",
         answer: "Дополнение включает обзор индийской нумерологии, традиционно благоприятных и сложных дней и чисел, а также рекомендации по камням.",
       },
       {
@@ -432,7 +432,7 @@ export const COPY: Record<Locale, Copy> = {
         answer: "Sie erhalten ein ausführliches mehrseitiges PDF mit den wichtigsten Themen Ihrer vedischen Geburtskarte in verständlicher Sprache.",
       },
       {
-        question: "Was beinhaltet die Ergänzung für 10 $?",
+        question: "Was beinhaltet die Numerologie-Ergänzung?",
         answer: "Die Ergänzung umfasst einen Überblick über indische Numerologie, traditionell günstige und herausfordernde Tage und Zahlen sowie Edelsteinempfehlungen.",
       },
       {
@@ -560,7 +560,7 @@ export const COPY: Record<Locale, Copy> = {
         answer: "Recibirás un PDF detallado de varias páginas con los temas principales de tu carta natal védica explicados con claridad.",
       },
       {
-        question: "¿Qué incluye el complemento de 10 $?",
+        question: "¿Qué incluye el complemento de numerología?",
         answer: "Incluye un resumen de numerología india, días y números tradicionalmente favorables o desafiantes y sugerencias de gemas tradicionales.",
       },
       {
