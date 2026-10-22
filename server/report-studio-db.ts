@@ -15,7 +15,7 @@ import { isPaidPaymentStatus } from "@shared/payment-status";
 import { isRefundHeld } from "./refund-proof";
 import { notifyOwner } from "./_core/notification";
 
-const REPORT_TEMPLATE_VERSION = "parasara-light-9-v1";
+const REPORT_TEMPLATE_VERSION = "vedic-editorial-v2";
 const EMPTY_BACKGROUND = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64");
 
 function sha256(value: string) { return createHash("sha256").update(value).digest("hex"); }
@@ -153,7 +153,7 @@ export async function processReportJob(input: { reportJobId: number; actorId: st
     if (narrative.usedFallback) await db.insert(reportAuditEvents).values({ reportJobId: current.id, eventType: "curated_narrative_fallback", actorType: "system", fromStatus: "narrative_draft", toStatus: "narrative_draft", metadataJson: JSON.stringify({ reason: "AI_UNAVAILABLE_OR_INVALID", modelVersion: narrative.modelVersion }) });
     await db.insert(narrativeDrafts).values({ reportJobId: current.id, locale: current.language, modelName: narrative.modelVersion, modelVersion: narrative.modelVersion, promptVersion: narrative.promptVersion, narrativeJson: JSON.stringify(narrative), validationStatus: "valid", createdBy: "system" });
     const narrativeSummary = narrative.sections[0]?.paragraphs[0]?.slice(0, 600);
-    const pdf = await buildFullNatalReportPdf({ background: EMPTY_BACKGROUND, locale: current.language as "ru" | "en" | "de" | "es", clientName: booking.name, packageType: current.packageType, narrative: { sections: narrative.sections.map((section) => ({ sectionKey: section.sectionKey, title: section.title, paragraphs: section.paragraphs, factRefs: section.factRefs })) }, facts });
+    const pdf = await buildFullNatalReportPdf({ background: EMPTY_BACKGROUND, locale: current.language as "ru" | "en" | "de" | "es", clientName: booking.name, birthPlace: `${booking.birthCity}, ${booking.birthCountry}`, packageType: current.packageType, narrative: { sections: narrative.sections.map((section) => ({ sectionKey: section.sectionKey, title: section.title, paragraphs: section.paragraphs, factRefs: section.factRefs })) }, facts });
     const stored = await storagePut(`report-studio/${current.id}/v1-preview.pdf`, pdf, "application/pdf");
     await db.insert(reportVersions).values({ reportJobId: current.id, versionNumber: 1, templateVersion: REPORT_TEMPLATE_VERSION, locale: current.language, pdfStorageKey: stored.key, pdfSha256: sha256(pdf.toString("base64")), status: "needs_review" });
     await db.update(reportJobs).set({ status: "needs_review", factsHash, finishedAt: new Date() }).where(eq(reportJobs.id, current.id));
@@ -287,11 +287,11 @@ export async function reviseReportNarrative(input: { reportJobId: number; baseVe
   if (Number(claim[0].affectedRows ?? 0) !== 1) throw new Error("This report is being changed by another request.");
   try {
     const versionNumber = base.versionNumber + 1;
-    const pdf = await buildFullNatalReportPdf({ background: EMPTY_BACKGROUND, locale: narrative.locale, clientName: detail.booking.name, packageType: detail.job.packageType, narrative, facts });
+    const pdf = await buildFullNatalReportPdf({ background: EMPTY_BACKGROUND, locale: narrative.locale, clientName: detail.booking.name, birthPlace: `${detail.booking.birthCity}, ${detail.booking.birthCountry}`, packageType: detail.job.packageType, narrative, facts });
     const stored = await storagePut(`report-studio/${detail.job.id}/v${versionNumber}-preview.pdf`, pdf, "application/pdf");
     await db.transaction(async tx => {
       await tx.insert(narrativeDrafts).values({ reportJobId: detail.job.id, locale: narrative.locale, modelName: detail.narrative?.modelName ?? "owner-edited", modelVersion: narrative.modelVersion, promptVersion: narrative.promptVersion, narrativeJson: JSON.stringify(narrative), validationStatus: "valid", createdBy: input.actorId });
-      await tx.insert(reportVersions).values({ reportJobId: detail.job.id, versionNumber, templateVersion: base.templateVersion, locale: narrative.locale, pdfStorageKey: stored.key, pdfSha256: sha256(pdf.toString("base64")), status: "needs_review", editorSummary: "Owner revised narrative" });
+      await tx.insert(reportVersions).values({ reportJobId: detail.job.id, versionNumber, templateVersion: REPORT_TEMPLATE_VERSION, locale: narrative.locale, pdfStorageKey: stored.key, pdfSha256: sha256(pdf.toString("base64")), status: "needs_review", editorSummary: "Owner revised narrative" });
       await tx.update(reportVersions).set({ status: "superseded" }).where(and(eq(reportVersions.id, base.id), eq(reportVersions.status, "needs_review")));
       await tx.update(reportJobs).set({ status: "needs_review" }).where(eq(reportJobs.id, detail.job.id));
       await tx.insert(reportAuditEvents).values({ reportJobId: detail.job.id, eventType: "narrative_revised", actorType: "owner", actorId: input.actorId, fromStatus: "needs_review", toStatus: "needs_review", metadataJson: JSON.stringify({ baseVersionId: base.id, versionNumber }) });

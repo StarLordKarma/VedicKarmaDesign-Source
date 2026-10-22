@@ -1,4 +1,4 @@
-import { buildReportContent, type ReportPage } from "./full-report-content";
+import { renderPersonalReport } from "./report-design";
 import PDFDocument from "pdfkit";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -316,63 +316,6 @@ export function decodePdfBase64(contentBase64: string) {
   return buffer;
 }
 
-type ChartPanelPlacement = {
-  planet: string;
-  sign: number;
-  degreeInSign: number;
-};
-
-function drawVedicChartPanel(doc: PDFKit.PDFDocument, placements: ChartPanelPlacement[], x: number, y: number, size: number, title: string, fontName: string) {
-  const cell = size / 4;
-  doc.fillColor("#fffaf0").roundedRect(x, y, size, size, 12).fill();
-  doc.strokeColor("#b47552").lineWidth(1).roundedRect(x, y, size, size, 12).stroke();
-  doc
-    .fillColor("#302a25")
-    .font(fontName)
-    .fontSize(12)
-    .text(title, x, y - 24, { width: size, align: "center" });
-  doc.strokeColor("#8d7868").lineWidth(0.8);
-  const lines = [
-    [0, 0, size, size],
-    [size, 0, 0, size],
-    [cell * 2, 0, cell * 2, size],
-    [0, cell * 2, size, cell * 2],
-    [cell, 0, cell * 2, cell],
-    [size, cell, cell * 2, cell * 2],
-    [cell * 3, 0, cell * 2, cell],
-    [0, cell, cell, cell * 2],
-    [0, cell * 3, cell, cell * 2],
-    [cell * 3, size, cell * 2, cell * 2],
-    [size, cell * 3, cell * 2, cell * 2],
-    [cell, size, cell * 2, cell * 3],
-  ];
-  for (const [x1, y1, x2, y2] of lines)
-    doc
-      .moveTo(x + x1, y + y1)
-      .lineTo(x + x2, y + y2)
-      .stroke();
-  const grouped = new Map<number, ChartPanelPlacement[]>();
-  for (const placement of placements) grouped.set(placement.sign, [...(grouped.get(placement.sign) ?? []), placement]);
-  for (let house = 0; house < 12; house += 1) {
-    const cx = x + ((house % 4) + 0.5) * cell;
-    const cy = y + (Math.floor(house / 4) + 0.5) * cell;
-    const items = grouped.get(house) ?? [];
-    doc
-      .fillColor("#a96346")
-      .font(fontName)
-      .fontSize(7)
-      .text(String(house + 1), cx - 10, cy - 18, {
-        width: 20,
-        align: "center",
-      });
-    doc
-      .fillColor("#302a25")
-      .font(fontName)
-      .fontSize(8)
-      .text(items.map(p => `${p.planet === "Ascendant" ? "Asc" : p.planet.slice(0, 3)} ${p.degreeInSign.toFixed(1)}°`).join("\n") || "—", cx - cell / 2 + 5, cy - 5, { width: cell - 10, align: "center", lineGap: 1 });
-  }
-}
-
 export async function buildFullNatalReportPdf(input: {
   background: Buffer;
   locale: ReportPreviewLocale;
@@ -388,59 +331,10 @@ export async function buildFullNatalReportPdf(input: {
   };
   facts: any;
   fontPath?: string;
-}) {
-  const copy = reportPreviewCopy[input.locale];
-  const doc = new PDFDocument({ size: "A4", margin: 0, info: { Title: copy.title, Subject: "Personal Vedic astrology report" } });
-  const chunks: Buffer[] = [];
-  const result = new Promise<Buffer>((resolve, reject) => { doc.on("data", chunk => chunks.push(Buffer.from(chunk))); doc.on("end", () => resolve(Buffer.concat(chunks))); doc.on("error", reject); });
-  const width = doc.page.width; const height = doc.page.height;
-  const configuredFont = input.fontPath || process.env.REPORT_FONT_PATH || "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf";
-  const fontPath = [configuredFont, "/System/Library/Fonts/Supplemental/Arial.ttf"].find(candidate => existsSync(candidate));
-  if (input.locale === "ru" && !fontPath) throw new Error("A Unicode REPORT_FONT_PATH is required for Russian PDF reports.");
-  const fontName = fontPath ? "ReportSans" : "Helvetica";
-  if (fontPath) doc.registerFont(fontName, fontPath);
-  const contentWidth = width - 144;
-  const pages: ReportPage[] = [{ title: copy.title, body: "" }];
-  // Paginate measured text before drawing, preserving every word without creating
-  // implicit blank pages or allowing content to overlap the footer.
-  for (const page of buildReportContent(input)) {
-    if (page.chart) { pages.push(page); continue; }
-    doc.font(fontName).fontSize(11);
-    let part = "";
-    for (const word of page.body.split(/(\s+)/)) {
-      const candidate = part + word;
-      if (part.trim() && doc.heightOfString(candidate, { width: contentWidth, lineGap: 5 }) > 450) { pages.push({ title: page.title, body: part.trim() }); part = word.trimStart(); }
-      else part = candidate;
-    }
-    pages.push({ title: page.title, body: part.trim() });
-  }
-  const artwork = loadReportArtwork("pdf-meru-cover-300dpi.jpg");
-  const coverImage = artwork ? (doc as any).openImage(artwork) : undefined;
-  const disclaimer = copy.disclaimer.replace(/^Demonstration layout\.\s*/, "").replace(/^Демонстрационный макет\.\s*/, "").replace(/^Demonstrationslayout\.\s*/, "").replace(/^Diseño de muestra\.\s*/, "");
-  for (let index = 0; index < pages.length; index++) {
-    if (index) doc.addPage();
-    const page = pages[index]; const cover = index === 0;
-    doc.fillColor("#F2E9DB").rect(0, 0, width, height).fill();
-    if (cover && coverImage) doc.image(coverImage, 0, 0, { width, height });
-    doc.fillOpacity(cover ? 0.9 : 1).fillColor("#FBF6EC").roundedRect(42, 42, width - 84, height - 84, 18).fill();
-    drawPdfCosmologyOrnament(doc, cover ? "cover" : "chapter", width, height);
-    doc.fillOpacity(1).fillColor("#A96346").font(fontName).fontSize(8).text(`${copy.eyebrow}  ·  ${String(index + 1).padStart(2, "0")} / ${String(pages.length).padStart(2, "0")}`, 72, 72, { characterSpacing: 1 });
-    doc.fillColor("#302A25").font(fontName).fontSize(cover ? 30 : 20).text(page.title, 72, 125, { width: contentWidth, height: 75, lineGap: 4 });
-    doc.fillColor("#73685D").font(fontName).fontSize(9).text(cover ? input.clientName : copy.settingsValue, 72, cover ? 260 : 205, { width: contentWidth, height: 36 });
-    if (cover) {
-      doc.fontSize(12).text(input.packageType === "basic_plus" ? "D1 · D9 · Vimshottari · Numerology" : "D1 · Vimshottari", 72, 325, { width: contentWidth });
-      doc.fontSize(10).text(input.locale === "ru" ? "Ваш персональный отчёт: расчётные положения, периоды и символические темы для самостоятельного осмысления." : input.locale === "de" ? "Ihr persönlicher Bericht: berechnete Positionen, Perioden und symbolische Themen zur Reflexion." : input.locale === "es" ? "Tu informe personal: posiciones calculadas, periodos y temas simbólicos para reflexionar." : "Your personal report: calculated placements, periods and symbolic themes for reflection.", 72, 390, { width: contentWidth, height: 220, lineGap: 5 });
-    } else if (page.chart) {
-      drawVedicChartPanel(doc, input.facts[page.chart], 72, 245, contentWidth, page.title, fontName);
-    } else {
-      doc.fillColor("#514A43").font(fontName).fontSize(11).text(page.body, 72, 240, { width: contentWidth, height: 450, lineGap: 5 });
-    }
-    doc.fillColor("#85776A").font(fontName).fontSize(7).text(disclaimer, 72, height - 110, { width: contentWidth, height: 42, lineGap: 2 });
-    if (process.env.GEOCODING_PROVIDER === "geonames") doc.fontSize(6).text("Location data: GeoNames.org · CC BY 4.0", 72, height - 67, { width: contentWidth, height: 10, link: "https://www.geonames.org/" });
-    doc.fillColor("#A96346").font(fontName).fontSize(7).text("VEDIC KARMA DESIGN · SWISS EPHEMERIS", 72, height - 52, { width: contentWidth, height: 10, characterSpacing: 0.8 });
-  }
-  doc.end();
-  return result;
+  sampleLabel?: string;
+  birthPlace?: string;
+}): Promise<Buffer> {
+  return renderPersonalReport(input);
 }
 
 export function buildSlaEvaluationRunsCsv(

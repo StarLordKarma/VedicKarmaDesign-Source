@@ -1,7 +1,7 @@
 type Locale = "en" | "ru" | "de" | "es";
 import { NAKSHATRA_LABELS } from "../shared/vedic-labels";
 import { numerologyReflection } from "../shared/numerology-reflection";
-export type ReportPage = { title: string; body: string; chart?: "d1" | "d9" };
+export type ReportPage = { title: string; body: string; chart?: "d1" | "d9"; kind?: "periods" };
 
 const labels = {
   en: ["Birth data and calculation", "Ascendant and houses", "Planetary profile", "Zodiac emphasis", "Planetary aspects", "Vimshottari periods", "Life path and birth number", "Personal year", "Sign", "Degree in sign", "Whole-sign house", "Nakshatra / pada", "Retrograde", "Birth date / local time", "UTC offset (minutes)", "Coordinates", "Method", "Reflect on how this symbolic theme appears in your choices, relationships and daily habits. Record one concrete example and one small action you can try. These symbols do not determine events or replace your judgment.", "A house describes an area of experience; a sign describes its symbolic style. Read the ascendant together with the complete chart, rather than as a fixed personality label.", "Numerology is a symbolic reflection practice, not a prediction or a scientific assessment."],
@@ -41,11 +41,11 @@ export function buildReportContent(input: { locale: Locale; packageType: "basic"
     { title: l[0], body: `${l[13]}: ${f.input?.localDate ?? "—"} / ${f.input?.localTime ?? "—"}\n${l[14]}: ${f.input?.timeZoneOffsetMinutes ?? "—"}\n${l[15]}: ${f.input?.latitude ?? "—"}, ${f.input?.longitude ?? "—"}\n\n${l[16]}: Swiss Ephemeris · Lahiri · sidereal · whole-sign\n\n${l[18]}` },
     { title: l[1], body: `${l[8]}: ${sign(ascSign)}\n${l[9]}: ${Number(f.ascendant?.degreeInSign ?? 0).toFixed(2)}°\n\n${Array.from({ length: 12 }, (_, i) => `${i + 1}. ${sign((ascSign + i) % 12)}`).join("\n")}\n\n${l[18]}` },
   ];
-  for (const p of f.planets || []) pages.push({ title: `${planet(p.planet)} · ${l[2]}`, body: `${l[8]}: ${sign(p.sign)}\n${l[9]}: ${Number(p.degreeInSign).toFixed(2)}°\n${l[10]}: ${house(p.sign)}\n${l[11]}: ${NAKSHATRA_LABELS[p.nakshatra] || "—"} (${Number(p.nakshatra) + 1}) / ${p.pada}\n${l[12]}: ${p.retrograde ? "✓" : "—"}\n\n${themes[input.locale][planetNames.en.indexOf(p.planet)] || ""}\n\n${l[17]}` });
+  for (const p of f.planets || []) pages.push({ title: `${planet(p.planet)} · ${l[2]}`, body: `${l[8]}: ${sign(p.sign)}\n${l[9]}: ${Number(p.degreeInSign).toFixed(2)}°\n${l[10]}: ${house(p.sign)}\n${l[11]}: ${NAKSHATRA_LABELS[p.nakshatra] || "—"} (${Number(p.nakshatra) + 1}) / ${p.pada}\n${l[12]}: ${p.retrograde ? ({ en: "Yes", ru: "Да", de: "Ja", es: "Sí" })[input.locale] : ({ en: "No", ru: "Нет", de: "Nein", es: "No" })[input.locale]}\n\n${themes[input.locale][planetNames.en.indexOf(p.planet)] || ""}\n\n${l[17]}` });
   pages.push({ title: l[3], body: signs[input.locale].map((name, index) => `${name}: ${(f.planets || []).filter((p: any) => p.sign === index).map((p: any) => planet(p.planet)).join(", ") || "—"}`).join("\n\n") });
   pages.push({ title: l[4], body: (f.aspects || []).map((a: any) => `${planet(a.source)} → ${a.target === "Ascendant" ? l[1] : planet(a.target)} (${a.housesForward})`).join("\n") || "—" });
   const date = (value: string) => new Intl.DateTimeFormat(input.locale, { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" }).format(new Date(value));
-  pages.push({ title: l[5], body: (f.vimshottari?.periods || []).map((period: any) => `${planet(period.lord)}: ${date(period.startUtc)} → ${date(period.endUtc)}`).join("\n\n") + `\n\n${l[17]}` });
+  pages.push({ title: l[5], kind: "periods", body: (f.vimshottari?.periods || []).map((period: any) => `${planet(period.lord)}: ${date(period.startUtc)} → ${date(period.endUtc)}`).join("\n\n") + `\n\n${l[17]}` });
   for (const section of input.narrative.sections) pages.push({ title: section.title, body: section.paragraphs.map(clean).join("\n\n") });
   if (input.packageType === "basic_plus") {
     pages.push({ title: "D9 · Navāṁśa", body: "", chart: "d9" });

@@ -15,7 +15,7 @@ const narrative = { sections: [{
 await fs.mkdir("tmp/pdfs", { recursive: true });
 const pdf = await buildFullNatalReportPdf({
   background: await fs.readFile("client/public/backgrounds/pdf-meru-cover-300dpi.jpg"),
-  locale: "en", clientName: "Elena Marin - Fictional sample", packageType: "basic", facts, narrative,
+  locale: "en", clientName: "Elena Marin", birthPlace: "Berlin, Germany", sampleLabel: "FICTIONAL SAMPLE / ELENA MARIN", packageType: "basic", facts, narrative,
 });
 await fs.writeFile("tmp/pdfs/public-sample-source.pdf", pdf);
-console.log("Created fictional source report. Select the cover, D1 chart and final interpretation page; label all three as samples before publishing.");
+console.log("Created fictional source report. Select the cover, D1 chart and timeline; all source pages carry a fictional-sample label.");
