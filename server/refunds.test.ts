@@ -42,6 +42,12 @@ describe("refund ledger safety", () => {
   it("freezes the independently verified destination and pauses the paid order before sending", async () => {
     await approved(); expect(refund).toMatchObject({ status: "approved", recipient: payer, merchant, amount: "9.99" }); expect(mocks.booking.paymentStatus).toBe("refund_pending"); expect(audit).toHaveLength(1);
   });
+  it("freezes the net amount and disclosed token fee before wallet preparation", async () => {
+    await approveRefund(1, "owner", "0.12");
+    expect(refund.amount).toBe("9.87"); const frozen = JSON.parse(refund.intentJson);
+    expect(frozen.units).toBe("9870000"); expect(frozen.refundBreakdown).toMatchObject({ grossAmount: "9.99", feeAmount: "0.12", amount: "9.87" });
+    const prepared = await prepareRefundTransfer(1); expect(prepared.transaction.data).toContain(BigInt("9870000").toString(16).padStart(64,"0"));
+  });
   it("does not approve during active report generation", async () => {
     jobs = [{ id: 4, status: "calculating" }]; await expect(approved()).rejects.toThrow("in progress"); expect(refund.status).toBe("requested"); expect(mocks.booking.paymentStatus).toBe("confirmed");
   });

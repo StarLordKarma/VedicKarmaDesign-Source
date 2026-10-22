@@ -8,6 +8,7 @@ import { prepareVerifiedRefund, checkedRefundNetwork, verifyRefundTransfer } fro
 import { transferData, rpc, type Intent } from "./payments/direct";
 import { buildTronPayment, broadcastTronPayment, estimateTronPayment, tronApi, assertTronMainnet } from "./payments/direct-tron";
 import { nativeUsdPrices } from "./payments/direct-estimates";
+import { refundAmount } from "../shared/refund-amount";
 import { notifyOwner } from "./_core/notification";
 
 export const refundsEnabled = () => process.env.REFUNDS_ENABLED === "true";
@@ -21,7 +22,7 @@ export async function getPublicRefund(token: string) {
   const booking = await getBookingRequestById(bookingId);
   const binding = (await db.select({ bookingId: directPaymentBindings.bookingId }).from(directPaymentBindings).where(eq(directPaymentBindings.bookingId, bookingId)).limit(1))[0];
   const refund = (await db.select().from(paymentRefunds).where(eq(paymentRefunds.bookingId, bookingId)).limit(1))[0];
-  return { enabled: true as const, eligible: !!booking && !!binding && !["refunded", "refund_pending"].includes(booking.paymentStatus || ""), refund: refund ? { status: refund.status, amount: refund.amount, network: refund.network, recipient: refund.recipient, transactionHash: refund.transactionHash, decisionNote: refund.decisionNote, updatedAt: refund.updatedAt } : null };
+  return { enabled: true as const, eligible: !!booking && !!binding && !["refunded", "refund_pending"].includes(booking.paymentStatus || ""), refund: refund ? { status: refund.status, amount: refund.amount, network: refund.network, recipient: refund.recipient, transactionHash: refund.transactionHash, breakdown: refund.intentJson ? JSON.parse(refund.intentJson).refundBreakdown ?? null : null, decisionNote: refund.decisionNote, updatedAt: refund.updatedAt } : null };
 }
 export async function requestRefund(input: { token: string; reason: string }) { return createRefund(await accessBooking(input.token), input.reason, "client:private-order-link"); }
 export async function createRefund(bookingId: number, reason: string, actor: string) {
@@ -41,12 +42,15 @@ export async function createRefund(bookingId: number, reason: string, actor: str
 }
 async function getPublicRefundForBooking(bookingId: number) { const db = await database(); return (await db.select({ id: paymentRefunds.id, status: paymentRefunds.status }).from(paymentRefunds).where(eq(paymentRefunds.bookingId, bookingId)).limit(1))[0]; }
 export async function listRefunds() { if (!refundsEnabled()) return { enabled: false, items: [] }; const db = await database(); return { enabled: true, items: await db.select().from(paymentRefunds).orderBy(desc(paymentRefunds.createdAt)).limit(200) }; }
-export async function approveRefund(id: number, actor: string) {
+export async function approveRefund(id: number, actor: string, transferFee = "0") {
   const refund = await row(id); if (refund.status !== "requested") throw new Error("Only a new request can be approved");
   const db = await database(), booking = await getBookingRequestById(refund.bookingId);
   if (!booking) throw new Error("Order not found");
   const binding = (await db.select().from(directPaymentBindings).where(eq(directPaymentBindings.bookingId, booking.id)).limit(1))[0];
   const proof = await prepareVerifiedRefund(booking, binding);
+  const amounts = refundAmount(proof.amount, transferFee, proof.network);
+  proof.amount = amounts.amount;
+  proof.intent = { ...proof.intent, amount: amounts.amount, units: amounts.units, refundBreakdown: amounts } as typeof proof.intent;
   await db.transaction(async tx => {
     // A booking lock serializes competing approvals and pauses future fulfillment.
     await tx.select().from(bookingRequests).where(eq(bookingRequests.id, booking.id)).for("update");
@@ -58,7 +62,7 @@ export async function approveRefund(id: number, actor: string) {
     if (Number(claim[0].affectedRows) !== 1) throw new Error("Refund was already reviewed");
     await tx.update(bookingRequests).set({ paymentStatus: "refund_pending", status: "cancelled", statusUpdatedAt: new Date(), statusUpdatedBy: actor }).where(eq(bookingRequests.id, booking.id));
     if (jobs.length) await tx.update(reportJobs).set({ status: "rejected", lastErrorCode: "REFUND_APPROVED" }).where(and(eq(reportJobs.bookingId, booking.id), inArray(reportJobs.status, ["queued", "calculation_failed", "render_failed", "needs_review", "approved", "delivery_failed"])));
-    await tx.insert(clientChangeHistory).values(audit(booking.id, actor, "refund_approved", { refundId: id, amount: proof.amount, network: proof.network, recipient: proof.recipient }));
+    await tx.insert(clientChangeHistory).values(audit(booking.id, actor, "refund_approved", { refundId: id, network: proof.network, recipient: proof.recipient, ...amounts }));
   });
   return { approved: true };
 }
