@@ -7,6 +7,7 @@ export function independentConfigurationErrors(
   env: NodeJS.ProcessEnv = process.env
 ) {
   if (env.DEPLOYMENT_MODE !== "independent") return [];
+  if (env.AUTH_PROVIDER === "wallet" && env.OWNER_SESSION_SECRET) env = { ...env, JWT_SECRET: env.OWNER_SESSION_SECRET };
   const errors: string[] = [];
   for (const key of [
     "PUBLIC_BASE_URL",

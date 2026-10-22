@@ -4,7 +4,7 @@ export const ENV = {
     (["oidc", "wallet", "sandbox"].includes(process.env.AUTH_PROVIDER || "")
       ? "vedic-karma-design"
       : ""),
-  cookieSecret: process.env.JWT_SECRET ?? "",
+  cookieSecret: (process.env.AUTH_PROVIDER === "wallet" ? process.env.OWNER_SESSION_SECRET || process.env.JWT_SECRET : process.env.JWT_SECRET) ?? "",
   databaseUrl: process.env.DATABASE_URL ?? "",
   oAuthServerUrl: process.env.OAUTH_SERVER_URL ?? "",
   ownerOpenId: process.env.OWNER_OPEN_ID ?? "",
