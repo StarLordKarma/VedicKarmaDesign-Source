@@ -8,6 +8,7 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import VisitorPrivacyChoices from "./components/VisitorPrivacyChoices";
 import Home from "./pages/Home";
+import PageMetadata from "./components/PageMetadata";
 const Admin = lazy(() => import("./pages/Admin"));
 const ReportStudio = lazy(() => import("@/pages/ReportStudio"));
 const ClientStatus = lazy(() => import("@/pages/ClientStatus"));
@@ -58,6 +59,7 @@ function App() {
         switchable
       >
         <TooltipProvider>
+          <PageMetadata />
           <Toaster />
           <Suspense fallback={<div className="grid min-h-screen place-items-center bg-[#f8f5f0] text-sm text-[#635a52]">Loading workspace…</div>}>
             <Router />

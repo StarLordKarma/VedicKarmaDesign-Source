@@ -16,7 +16,7 @@ import {
 import { COPY, Locale } from "@shared/i18n";
 import { trpc } from "@/lib/trpc";
 import { useTheme } from "@/contexts/ThemeContext";
-import { Link } from "wouter";
+import { Link, useSearch } from "wouter";
 import {
   Tooltip,
   TooltipContent,
@@ -543,10 +543,7 @@ function getInitialLocale() {
   const queryLocale = new URLSearchParams(window.location.search).get("lang");
   return queryLocale
     ? resolveLocale(queryLocale)
-    : resolveLocale(
-        window.localStorage.getItem("public-locale") ||
-          navigator.language.split("-")[0]
-      );
+    : "en";
 }
 function base64ToFile(
   contentBase64: string,
@@ -582,6 +579,8 @@ export default function Home() {
   );
   const formRef = useRef<HTMLFormElement>(null);
   const [locale, setLocale] = useState<Locale>(getInitialLocale);
+  const publicSearch = useSearch();
+  useEffect(() => { setLocale(getInitialLocale()); }, [publicSearch]);
   const copy = COPY[locale];
   const { theme, toggleTheme } = useTheme();
   const isDarkTheme = theme === "dark";
@@ -761,12 +760,10 @@ export default function Home() {
   function changeLocale(next: Locale) {
     setLocale(next);
     window.localStorage.setItem("public-locale", next);
-    window.dispatchEvent(
-      new CustomEvent("public-locale-changed", { detail: next })
-    );
     const url = new URL(window.location.href);
     url.searchParams.set("lang", next);
     window.history.replaceState({}, "", url.toString());
+    window.dispatchEvent(new CustomEvent("public-locale-changed", { detail: next }));
   }
 
   useEffect(() => {
@@ -2316,7 +2313,7 @@ export default function Home() {
                     <span>
                       {privacyFormCopy[locale].label}{" "}
                       <Link
-                        href="/privacy"
+                        href={`/privacy?lang=${locale}`}
                         className="text-[#e1b046] underline underline-offset-2"
                       >
                         {privacyFormCopy[locale].link}
@@ -2357,7 +2354,7 @@ export default function Home() {
                   <p className="text-center text-xs leading-5 text-[#b9aa97]">
                     {copy.privacy}{" "}
                     <Link
-                      href="/privacy"
+                      href={`/privacy?lang=${locale}`}
                       className="text-[#e1b046] underline underline-offset-2"
                     >
                       {privacyFormCopy[locale].link}
@@ -2419,7 +2416,7 @@ export default function Home() {
               © {new Date().getFullYear()} · {copy.footerNote}
             </p>
             <Link
-              href="/privacy"
+              href={`/privacy?lang=${locale}`}
               className="mt-2 inline-block text-[#e1b046] underline underline-offset-2"
             >
               {privacyFormCopy[locale].link}

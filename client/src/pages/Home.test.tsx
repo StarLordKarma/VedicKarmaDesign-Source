@@ -486,9 +486,10 @@ describe("Home booking payment UX", () => {
     view.unmount();
   });
 
-  it("restores the saved language and theme for the booking form", () => {
+  it("uses the URL language over a saved preference and restores the theme", () => {
     localStorage.setItem("public-locale", "es");
     localStorage.setItem("theme", "dark");
+    window.history.replaceState({}, "", "/?lang=es");
     renderHome();
     expect(
       screen.getByText("Un mapa más claro para tu cielo interior.")
@@ -496,6 +497,13 @@ describe("Home booking payment UX", () => {
     expect(
       screen.getByRole("button", { name: "Modo claro" })
     ).toBeInTheDocument();
+  });
+
+  it("keeps the default English URL in English despite a stored language", () => {
+    localStorage.setItem("public-locale", "es");
+    renderHome();
+    expect(screen.getByRole("button", { name: "Dark mode" })).toBeInTheDocument();
+    expect(document.documentElement.lang).toBe("en-US");
   });
 
   it("toggles the booking form theme and persists the new choice", () => {
@@ -562,7 +570,7 @@ describe("Home booking payment UX", () => {
     const assign = vi.fn();
     Object.defineProperty(window, "location", {
       configurable: true,
-      value: { assign },
+      value: { assign, search: "", pathname: "/" },
     });
     const view = renderHome();
     expect(
@@ -674,7 +682,7 @@ describe("Home booking payment UX", () => {
     const assign = vi.fn();
     Object.defineProperty(window, "location", {
       configurable: true,
-      value: { assign },
+      value: { assign, search: "", pathname: "/" },
     });
     renderHome();
     fireEvent.change(screen.getByLabelText("Preferred name"), {

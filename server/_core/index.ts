@@ -30,6 +30,7 @@ import {
 import { registerClientReportDownload } from "../client-report-download";
 import { registerSandboxAuthRoutes } from "./sandbox-auth";
 import { applicationSecurityHeaders, crossSiteWriteGuard } from "./security";
+import { registerSearchRoutes, searchIndexingHeaders } from "./seo";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -66,6 +67,8 @@ async function startServer() {
   );
   app.use(requestObservabilityMiddleware);
   app.use(applicationSecurityHeaders);
+  app.use(searchIndexingHeaders);
+  registerSearchRoutes(app);
   app.use(crossSiteWriteGuard);
   const server = createServer(app);
   // Configure body parser with larger size limit for file uploads

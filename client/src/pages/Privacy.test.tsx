@@ -11,7 +11,7 @@ import Privacy from "./Privacy";
 function renderPrivacy(language: string) {
   window.localStorage.clear();
   window.localStorage.setItem("public-locale", language);
-  window.history.replaceState({}, "", "/privacy");
+  window.history.replaceState({}, "", `/privacy?lang=${language}`);
   return render(<ThemeProvider switchable><Router><Privacy /></Router></ThemeProvider>);
 }
 
@@ -41,10 +41,10 @@ describe("Privacy page", () => {
     expect(screen.getByRole("link", { name: "Наверх" })).toHaveAttribute("href", "#privacy-top");
   });
 
-  it("restores the saved locale and theme on a later visit", () => {
+  it("uses an explicit language URL and restores the saved theme", () => {
     window.localStorage.setItem("public-locale", "de");
     window.localStorage.setItem("theme", "dark");
-    window.history.replaceState({}, "", "/privacy");
+    window.history.replaceState({}, "", "/privacy?lang=de");
     render(<ThemeProvider switchable><Router><Privacy /></Router></ThemeProvider>);
     expect(screen.getByRole("heading", { name: "Wie wir personenbezogene Daten verarbeiten" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Heller Modus" })).toBeInTheDocument();
