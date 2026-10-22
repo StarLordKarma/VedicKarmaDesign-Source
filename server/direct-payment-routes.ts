@@ -1,4 +1,6 @@
 import { isDeliveryLeaseExpired } from "./report-delivery-policy";
+import { reconcileRefunds } from "./refunds";
+import { isRefundHeld } from "./refund-proof";
 import {
   createWalletChallenge,
   bindPaymentWallet,
@@ -154,7 +156,8 @@ export function registerDirectPaymentRoutes(app: Express) {
         data: transferData(intent),
         deadline: intent.deadline,
         paid: isPaidPaymentStatus(booking.paymentStatus),
-        manualReview: booking.paymentStatus === "manual_review",
+        manualReview: booking.paymentStatus === "manual_review" || isRefundHeld(booking.paymentStatus),
+        refundState: isRefundHeld(booking.paymentStatus) ? booking.paymentStatus : null,
         language: booking.language,
         networks: [
           ...intentOptions(intent).map(option => ({
@@ -183,7 +186,7 @@ export function registerDirectPaymentRoutes(app: Express) {
     try {
       const { intent, booking } = await load(req.params.token);
       if (
-        isPaidPaymentStatus(booking.paymentStatus) ||
+        isPaidPaymentStatus(booking.paymentStatus) || isRefundHeld(booking.paymentStatus) ||
         booking.paymentStatus === "manual_review"
       )
         throw new Error("Invoice closed");
@@ -207,7 +210,7 @@ export function registerDirectPaymentRoutes(app: Express) {
     try {
       const { intent, booking } = await load(req.params.token);
       if (
-        isPaidPaymentStatus(booking.paymentStatus) ||
+        isPaidPaymentStatus(booking.paymentStatus) || isRefundHeld(booking.paymentStatus) ||
         booking.paymentStatus === "manual_review"
       )
         throw new Error("Invoice closed");
@@ -234,7 +237,7 @@ export function registerDirectPaymentRoutes(app: Express) {
     try {
       const { intent, booking } = await load(req.params.token);
       if (
-        isPaidPaymentStatus(booking.paymentStatus) ||
+        isPaidPaymentStatus(booking.paymentStatus) || isRefundHeld(booking.paymentStatus) ||
         Date.now() / 1000 >= intent.deadline
       ) {
         res.status(409).json({ error: "Invoice is closed" });
@@ -269,7 +272,7 @@ export function registerDirectPaymentRoutes(app: Express) {
       const { intent, booking } = await load(req.params.token);
       if (
         !intent.tron ||
-        isPaidPaymentStatus(booking.paymentStatus) ||
+        isPaidPaymentStatus(booking.paymentStatus) || isRefundHeld(booking.paymentStatus) ||
         booking.paymentStatus === "manual_review" ||
         Date.now() / 1000 >= intent.deadline
       ) {
@@ -306,7 +309,7 @@ export function registerDirectPaymentRoutes(app: Express) {
       const { intent, booking } = await load(req.params.token);
       if (
         !intent.tron ||
-        isPaidPaymentStatus(booking.paymentStatus) ||
+        isPaidPaymentStatus(booking.paymentStatus) || isRefundHeld(booking.paymentStatus) ||
         Date.now() / 1000 >= intent.deadline ||
         JSON.stringify(req.body).length > 16000
       ) {
@@ -341,6 +344,7 @@ export function registerDirectPaymentRoutes(app: Express) {
         res.json({ paid: true });
         return;
       }
+      if (isRefundHeld(booking.paymentStatus)) { res.status(409).json({ error: "This order is in the refund process. Do not pay again." }); return; }
       if (
         typeof req.body?.hash !== "string" ||
         !(
@@ -434,6 +438,7 @@ export async function runDirectPaymentWorker() {
   if (busy || process.env.PAYMENT_PROVIDER !== "direct") return;
   busy = true;
   try {
+    await reconcileRefunds().catch(() => console.error("[Refunds] Reconciliation needs attention"));
     const db = await getDb();
     if (!db) return;
     const pending = await db
@@ -586,6 +591,7 @@ export async function runDirectPaymentWorker() {
       )
       .limit(5);
     for (const job of queued) {
+      if (job.status !== "queued" && job.finishedAt && Date.now() - job.finishedAt.getTime() < (job.attemptCount < 2 ? 60000 : 300000)) continue;
       try {
         await processReportJob({
           reportJobId: job.id,
@@ -625,6 +631,7 @@ export async function runDirectPaymentWorker() {
           .update(reportJobs)
           .set({ lastErrorCode: "AUTO_REVIEW_REQUIRED" })
           .where(eq(reportJobs.id, job.id));
+        void notifyOwner({ title: "Report held for quality review", content: `Order #${job.bookingId}, report #${job.id}: the quality check stopped automatic delivery. Review the existing report; no repeat payment is needed.` });
         continue;
       }
       try {
@@ -700,6 +707,7 @@ export async function runDirectPaymentWorker() {
           .update(reportJobs)
           .set({ lastErrorCode: "AUTO_DELIVERY_STOPPED" })
           .where(eq(reportJobs.id, job.id));
+        void notifyOwner({ title: "Report email needs reconciliation", content: `Order #${job.bookingId}, report #${job.id}: automatic email retries stopped. Check the provider delivery log before resending. The protected order PDF remains available.` });
         continue;
       }
       if (

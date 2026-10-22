@@ -406,7 +406,14 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     payload.response_format = normalizedResponseFormat;
   }
 
-  const response = await fetchWithBackoff(resolveApiUrl(), {
+  const cloudflare = process.env.LLM_BASE_URL?.match(/^https:\/\/api\.cloudflare\.com\/client\/v4\/accounts\/([a-z0-9]+)\/ai\/v1\/?$/i);
+  const nativeCloudflare = Boolean(cloudflare && model?.startsWith("@cf/"));
+  // Workers AI's native JSON mode takes the schema itself, not OpenAI's
+  // {name, strict, schema} wrapper. Preserve structured constraints explicitly.
+  if (nativeCloudflare && normalizedResponseFormat?.type === "json_schema") payload.response_format = { type: "json_schema", json_schema: normalizedResponseFormat.json_schema.schema };
+  const endpoint = nativeCloudflare ? `https://api.cloudflare.com/client/v4/accounts/${cloudflare![1]}/ai/run/${model}` : resolveApiUrl();
+
+  const response = await fetchWithBackoff(endpoint, {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -421,7 +428,13 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     );
   }
 
-  return (await response.json()) as InvokeResult;
+  const body = await response.json();
+  if (nativeCloudflare) {
+    if (body.success !== true || !body.result || body.result.response === undefined) throw new Error("Workers AI did not return a generated response");
+    const content = typeof body.result.response === "string" ? body.result.response : JSON.stringify(body.result.response);
+    return { id: "workers-ai", object: "chat.completion", created: Math.floor(Date.now() / 1000), model: model!, choices: [{ index: 0, message: { role: "assistant", content }, finish_reason: "stop" }], usage: body.result.usage } as InvokeResult;
+  }
+  return body as InvokeResult;
 }
 
 export type ModelInfo = {

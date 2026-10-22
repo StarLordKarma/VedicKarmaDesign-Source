@@ -38,6 +38,7 @@ type Quote = {
   deadline: number;
   paid: boolean;
   manualReview?: boolean;
+  refundState?: "refund_pending" | "refunded" | null;
   language: string;
   networks: Network[];
 };
@@ -537,7 +538,7 @@ export default function WalletPayment() {
           </p>
         ) : quote.paid || quote.manualReview ? (
           <div className="mt-5 leading-relaxed" role="status">
-            <p>{quote.manualReview ? t.manual : c.next}</p>
+            <p>{quote.refundState ? (locale === "ru" ? (quote.refundState === "refunded" ? "Возврат подтверждён. Повторно платить не нужно." : "Возврат одобрен. Следите за статусом заказа; повторно не платите.") : locale === "de" ? "Diese Bestellung wird erstattet. Nicht erneut bezahlen; prüfen Sie den Bestellstatus." : locale === "es" ? "Este pedido está en proceso de reembolso. No vuelvas a pagar; consulta su estado." : "This order is in the refund process. Do not pay again; check the order status.") : quote.manualReview ? t.manual : c.next}</p>
             {quote.statusUrl && (
               <a className="inline-block mt-4 underline" href={quote.statusUrl}>
                 {locale === "ru"

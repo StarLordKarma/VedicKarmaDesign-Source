@@ -32,6 +32,7 @@ const menuItems = [
   { icon: Layers3, label: "Service packages", path: "/admin/packages" },
   { icon: FileCheck2, label: "Report Studio", path: "/admin/report-studio" },
   { icon: CreditCard, label: "Payment Test Lab", path: "/admin/payment-test" },
+  { icon: CreditCard, label: "Refunds / Возвраты", path: "/admin/refunds" },
   { icon: LayoutDashboard, label: "Metrics & SLA", path: "/admin/metrics" },
   { icon: FileCheck2, label: "Client status links", path: "/admin/status-links" },
 ];

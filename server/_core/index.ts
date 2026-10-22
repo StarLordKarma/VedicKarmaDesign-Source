@@ -22,6 +22,7 @@ import {
 import { healthHandler, readinessHandler } from "../health";
 import { scheduledTaskGuard } from "./scheduledAuth";
 import { registerOidcRoutes } from "./oidc";
+import { registerOwnerWalletAuth } from "./owner-wallet-auth";
 import {
   independentConfigurationErrors,
   sandboxConfigurationErrors,
@@ -82,6 +83,7 @@ async function startServer() {
   registerSandboxAuthRoutes(app);
   registerOAuthRoutes(app);
   registerOidcRoutes(app);
+  registerOwnerWalletAuth(app);
   app.post(
     "/api/scheduled/cleanup-receipts",
     scheduledTaskGuard,

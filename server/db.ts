@@ -5,6 +5,7 @@ import { READING_PRICES } from "@shared/pricing";
 import { ENV } from './_core/env';
 import { resolveDatabaseUrl } from "./_core/database-url";
 import { isPaidPaymentStatus } from "@shared/payment-status";
+import { isRefundHeld } from "./refund-proof";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -495,6 +496,7 @@ export async function updateBookingPaymentStatus(input: {
     .limit(1);
   if (!current[0]) return { previousStatus: null, isConfirmed: false, missing: true };
   const previousStatus = current[0].paymentStatus;
+  if (isRefundHeld(previousStatus)) return { previousStatus, isConfirmed: false, ignored: true };
   // A fixed-price order must never be fulfilled from an underpayment. Providers
   // report those separately so the owner can reconcile or request the remainder.
   const isConfirmed = isPaidPaymentStatus(input.paymentStatus);
@@ -506,7 +508,7 @@ export async function updateBookingPaymentStatus(input: {
     ...(input.paymentId ? { paymentId: input.paymentId } : {}),
     paymentStatus: nextPaymentStatus,
     ...(isConfirmed || wasConfirmed ? { status: "in_progress" as const } : {}),
-  }).where(eq(bookingRequests.id, input.id));
+  }).where(and(eq(bookingRequests.id, input.id), sql`${bookingRequests.paymentStatus} <=> ${previousStatus}`));
   return { previousStatus, isConfirmed: isConfirmed || wasConfirmed };
 }
 

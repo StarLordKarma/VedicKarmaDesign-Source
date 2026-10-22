@@ -3,7 +3,7 @@ import { assertAutomaticReportQuality } from "./report-auto-policy";
 const section = {
   sectionKey: "core-themes",
   title: "Themes",
-  paragraphs: ["A reflective theme invites careful consideration of patterns in daily experience. Explore a concrete example from a recent conversation, consider how your own choices influenced it, and choose one small action to try. This is an invitation to reflection rather than a statement about inevitable events."],
+  paragraphs: ["A reflective theme invites careful consideration of patterns in daily experience. Explore a concrete example from a recent conversation, consider how your own choices influenced it, and choose one small action to try. This is an invitation to reflection rather than a statement about inevitable events.", "Consider one small change you can observe and revisit the result after a week."],
   factRefs: ["ascendant"],
   warnings: [] as string[],
 };

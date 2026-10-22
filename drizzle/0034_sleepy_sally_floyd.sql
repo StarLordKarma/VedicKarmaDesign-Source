@@ -1,0 +1,23 @@
+CREATE TABLE `payment_refunds` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`bookingId` int NOT NULL,
+	`status` varchar(24) NOT NULL DEFAULT 'requested',
+	`reason` varchar(1000) NOT NULL,
+	`decisionNote` varchar(1000),
+	`network` varchar(24),
+	`amount` varchar(40),
+	`recipient` varchar(64),
+	`merchant` varchar(64),
+	`intentJson` text,
+	`transactionHash` varchar(128),
+	`lastCheckError` varchar(500),
+	`approvedBy` varchar(64),
+	`approvedAt` timestamp,
+	`submittedAt` timestamp,
+	`confirmedAt` timestamp,
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	CONSTRAINT `payment_refunds_id` PRIMARY KEY(`id`),
+	CONSTRAINT `payment_refund_booking_unique` UNIQUE(`bookingId`),
+	CONSTRAINT `payment_refund_tx_unique` UNIQUE(`network`,`transactionHash`)
+);

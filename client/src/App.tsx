@@ -15,6 +15,9 @@ const AdminMetrics = lazy(() => import("@/pages/AdminMetrics"));
 const AdminStatusLinks = lazy(() => import("@/pages/AdminStatusLinks"));
 const ServicePackages = lazy(() => import("@/pages/ServicePackages"));
 const PaymentTestLab = lazy(() => import("@/pages/PaymentTestLab"));
+const Refunds = lazy(() => import("@/pages/Refunds"));
+const RefundPolicy = lazy(() => import("@/pages/RefundPolicy"));
+const OwnerLogin = lazy(() => import("@/pages/OwnerLogin"));
 
 const WalletPayment = lazy(() => import("@/pages/WalletPayment"));
 
@@ -25,6 +28,9 @@ function Router() {
       <Route path={"/"} component={Home} />
       <Route path={"/pay/:token"} component={WalletPayment} />
       <Route path={"/privacy"} component={Privacy} />
+      <Route path={"/refunds"} component={RefundPolicy} />
+      <Route path={"/owner-login"} component={OwnerLogin} />
+      <Route path={"/admin/refunds"} component={Refunds} />
       <Route path={"/admin"} component={Admin} />
       <Route path={"/admin/report-studio"} component={ReportStudio} />
       <Route path={"/status/:token"} component={ClientStatus} />

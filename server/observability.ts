@@ -142,6 +142,7 @@ export function createRateLimit(options: RateLimitOptions): RequestHandler {
 }
 
 const routeLimits: Array<{ pattern: RegExp; limiter: RequestHandler }> = [
+  { pattern: /refunds\.request/, limiter: createRateLimit({ name: "refund-request", windowMs: 15 * 60000, max: 5 }) },
   {
     pattern: /booking\.submit/,
     limiter: createRateLimit({

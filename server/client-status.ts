@@ -10,6 +10,7 @@ import {
 import { getDb } from "./db";
 import { storageGetSignedUrl } from "./storage";
 import { isPaidPaymentStatus } from "@shared/payment-status";
+import { isRefundHeld } from "./refund-proof";
 
 const TOKEN_BYTES = 32;
 const MIN_EXPIRY_HOURS = 1;
@@ -31,7 +32,7 @@ export function isValidClientAccessToken(token: string) {
   return /^[A-Za-z0-9_-]{32,100}$/.test(token.trim());
 }
 
-async function findActiveAccess(rawToken: string) {
+export async function findActiveAccess(rawToken: string) {
   const normalized = rawToken.trim();
   if (!isValidClientAccessToken(normalized))
     return { kind: "not_found" as const };
@@ -196,14 +197,14 @@ export async function getPublicClientStatus(rawToken: string) {
     reference: publicReference(tokenHash),
     expiresAt: access.expiresAt.toISOString(),
     paymentState:
-      isPaidPaymentStatus(booking.paymentStatus)
+      booking.paymentStatus === "refunded" ? "refunded" : booking.paymentStatus === "refund_pending" ? "refund_pending" : booking.paymentStatus === "manual_review" ? "review" : booking.paymentStatus === "expired" ? "expired" : isPaidPaymentStatus(booking.paymentStatus)
         ? "paid"
         : booking.paymentStatus === "failed"
           ? "failed"
           : "pending",
-    preparationState: toPreparationState(jobStatus),
+    preparationState: isRefundHeld(booking.paymentStatus) ? "cancelled" as const : toPreparationState(jobStatus),
     deliveryState:
-      booking.deliveryStatus === "sent" || jobStatus === "sent"
+      isRefundHeld(booking.paymentStatus) ? "cancelled" : booking.deliveryStatus === "sent" || jobStatus === "sent"
         ? "sent"
         : booking.deliveryStatus === "failed" || jobStatus === "delivery_failed"
           ? "failed"
@@ -215,7 +216,7 @@ export async function getPublicClientStatus(rawToken: string) {
       booking.createdAt
     ).toISOString(),
     reportDownloadUrl:
-      ["sent", "approved", "delivery_failed"].includes(jobStatus)
+      !isRefundHeld(booking.paymentStatus) && ["sent", "approved", "delivery_failed"].includes(jobStatus)
         ? `/api/client/report/${encodeURIComponent(normalized)}`
         : null,
   };
@@ -225,6 +226,8 @@ export async function getClientReportDownload(rawToken: string) {
   const resolved = await findActiveAccess(rawToken);
   if (resolved.kind !== "active") return resolved;
   const { db, access, tokenHash } = resolved;
+  const booking = (await db.select({ paymentStatus: bookingRequests.paymentStatus }).from(bookingRequests).where(eq(bookingRequests.id, access.bookingId)).limit(1))[0];
+  if (!booking || isRefundHeld(booking.paymentStatus)) return { kind: "not_ready" as const };
   const job = (
     await db
       .select({ id: reportJobs.id, status: reportJobs.status })

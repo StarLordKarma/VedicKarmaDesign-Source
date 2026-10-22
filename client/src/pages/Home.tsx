@@ -171,7 +171,7 @@ const packageCopy: Record<
     basicHint:
       "A focused natal reading with the core chart interpretation and a detailed PDF.",
     basicPlusHint:
-      "Everything in Basic, plus Indian numerology, supportive numbers, days, and stones.",
+      "Everything in Basic, plus D9, birth-date numerology and personal-year reflection.",
   },
   ru: {
     label: "Выберите чтение",
@@ -180,7 +180,7 @@ const packageCopy: Record<
     basicHint:
       "Основной разбор натальной карты с ключевой интерпретацией и подробным PDF.",
     basicPlusHint:
-      "Всё из базового пакета плюс индийская нумерология, числа, дни и камни.",
+      "Всё из базового пакета плюс D9, нумерология даты рождения и осмысление личного года.",
   },
   de: {
     label: "Lesung auswählen",
@@ -189,7 +189,7 @@ const packageCopy: Record<
     basicHint:
       "Fokussierte Deutung der Geburtskarte mit Kerninterpretation und ausführlichem PDF.",
     basicPlusHint:
-      "Alles aus der Basisdeutung plus indische Numerologie, Zahlen, Tage und Steine.",
+      "Alles aus der Basisdeutung plus D9, Geburtsdatumsnumerologie und Reflexion zum persönlichen Jahr.",
   },
   es: {
     label: "Elige tu lectura",
@@ -198,7 +198,7 @@ const packageCopy: Record<
     basicHint:
       "Una lectura natal centrada con la interpretación esencial y un PDF detallado.",
     basicPlusHint:
-      "Todo lo incluido en Básica, más numerología india, números, días y piedras.",
+      "Todo lo de Básica, más D9, numerología de nacimiento y reflexión sobre el año personal.",
   },
 };
 const promoCopy: Record<
@@ -259,7 +259,7 @@ const includedCopy: Record<
     basicPlus: [
       "Everything in Basic",
       "Indian numerology overview",
-      "Traditional days, numbers, and gemstone symbolism",
+      "D9 chart and personal-year reflection",
     ],
   },
   ru: {
@@ -272,7 +272,7 @@ const includedCopy: Record<
     basicPlus: [
       "Всё из базового пакета",
       "Обзор индийской нумерологии",
-      "Традиционные дни, числа и символика камней",
+      "Карта D9 и осмысление личного года",
     ],
   },
   de: {
@@ -285,7 +285,7 @@ const includedCopy: Record<
     basicPlus: [
       "Alles aus der Basisdeutung",
       "Überblick über indische Numerologie",
-      "Traditionelle Tage, Zahlen und Edelsteinsymbolik",
+      "D9-Horoskop und Reflexion zum persönlichen Jahr",
     ],
   },
   es: {
@@ -298,7 +298,7 @@ const includedCopy: Record<
     basicPlus: [
       "Todo lo de la lectura básica",
       "Resumen de numerología india",
-      "Días, números y simbolismo de piedras tradicionales",
+      "Carta D9 y reflexión sobre el año personal",
     ],
   },
 };
@@ -2434,6 +2434,7 @@ export default function Home() {
                 Source code · AGPL
               </a>
             )}
+            <a href={`/refunds?lang=${locale}`} className="ml-4 inline-block text-[#e1b046] underline underline-offset-2">{locale === "ru" ? "Проблемы и возвраты" : locale === "de" ? "Probleme & Erstattungen" : locale === "es" ? "Problemas y reembolsos" : "Problems & refunds"}</a>
           </div>
         </div>
       </footer>

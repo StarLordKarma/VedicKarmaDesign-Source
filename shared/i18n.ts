@@ -126,7 +126,7 @@ export const COPY: Record<Locale, Copy> = {
     basicBody: "A personal Jyotish natal chart interpretation, focused on key planetary placements, houses, strengths, tendencies, and areas for reflection.",
     optional: "Optional add-on",
     addOn: "Indian numerology & traditional symbols",
-    addOnBody: "Numerology overview, traditionally associated favorable and challenging days and numbers, plus traditional gemstone suggestions.",
+    addOnBody: "D9 chart, life-path and birth-number calculations with symbolic interpretation, plus a personal-year reflection plan.",
     process: "The process",
     processTitle: "Simple to begin. Thoughtful in delivery.",
     steps: [
@@ -177,7 +177,7 @@ export const COPY: Record<Locale, Copy> = {
       },
       {
         question: "What is included in the numerology add-on?",
-        answer: "The add-on includes an Indian numerology overview, traditionally associated favorable and challenging days and numbers, and traditional gemstone suggestions.",
+        answer: "The add-on includes a D9 chart, life-path and birth-number calculations with their method, symbolic interpretations, and a personal-year reflection plan.",
       },
       {
         question: "Is this medical, legal, or financial advice?",
@@ -201,7 +201,7 @@ export const COPY: Record<Locale, Copy> = {
     priceBasic: "Basic reading",
     priceBasicHint: "The core Vedic natal chart interpretation delivered as a detailed multi-page PDF.",
     priceAddon: "Indian numerology add-on",
-    priceAddonHint: "An optional overview of Indian numerology, traditional days, numbers, and gemstone symbolism.",
+    priceAddonHint: "An optional D9 chart, birth-date numerology, calculation method and personal-year reflection plan.",
     priceTotal: "Total",
     priceTotalHint: "The amount for the selected services in the currency shown above.",
     priceAddonNotSelected: "Not selected",
@@ -254,7 +254,7 @@ export const COPY: Record<Locale, Copy> = {
     basicBody: "Персональная интерпретация натальной карты в традиции Джйотиш: положения планет, дома, сильные стороны, склонности и темы для размышления.",
     optional: "Дополнительно",
     addOn: "Индийская нумерология и традиционные символы",
-    addOnBody: "Обзор нумерологии, традиционно благоприятных и сложных дней и чисел, а также рекомендации по камням.",
+    addOnBody: "Карта D9, расчёт жизненного пути и числа рождения с символическим разбором, а также план осмысления личного года.",
     process: "Процесс",
     processTitle: "Начать просто. Результат — продуманный.",
     steps: [
@@ -305,7 +305,7 @@ export const COPY: Record<Locale, Copy> = {
       },
       {
         question: "Что входит в дополнение по нумерологии?",
-        answer: "Дополнение включает обзор индийской нумерологии, традиционно благоприятных и сложных дней и чисел, а также рекомендации по камням.",
+        answer: "Дополнение включает карту D9, расчёт жизненного пути и числа рождения с объяснением метода, символический разбор и план осмысления личного года.",
       },
       {
         question: "Это медицинская, юридическая или финансовая консультация?",
@@ -329,7 +329,7 @@ export const COPY: Record<Locale, Copy> = {
     priceBasic: "Базовое чтение",
     priceBasicHint: "Основная интерпретация ведической натальной карты в подробном многостраничном PDF.",
     priceAddon: "Дополнение: индийская нумерология",
-    priceAddonHint: "Дополнительный обзор индийской нумерологии, традиционных дней, чисел и символики камней.",
+    priceAddonHint: "Дополнительная карта D9, нумерология даты рождения с объяснением метода и план осмысления личного года.",
     priceTotal: "Итого",
     priceTotalHint: "Сумма выбранных услуг в указанной выше валюте.",
     priceAddonNotSelected: "Не выбрано",
@@ -382,7 +382,7 @@ export const COPY: Record<Locale, Copy> = {
     basicBody: "Eine persönliche Jyotish-Deutung Ihrer Geburtskarte mit Fokus auf wichtige Planetenkonstellationen, Häuser, Stärken, Tendenzen und Reflexionsthemen.",
     optional: "Optionale Ergänzung",
     addOn: "Indische Numerologie & traditionelle Symbole",
-    addOnBody: "Überblick über Numerologie, traditionell günstige und herausfordernde Tage und Zahlen sowie traditionelle Edelsteinempfehlungen.",
+    addOnBody: "D9-Horoskop, Lebensweg- und Geburtszahl mit symbolischer Deutung sowie ein Reflexionsplan für das persönliche Jahr.",
     process: "Der Ablauf",
     processTitle: "Einfach beginnen. Sorgfältig geliefert.",
     steps: [
@@ -433,7 +433,7 @@ export const COPY: Record<Locale, Copy> = {
       },
       {
         question: "Was beinhaltet die Numerologie-Ergänzung?",
-        answer: "Die Ergänzung umfasst einen Überblick über indische Numerologie, traditionell günstige und herausfordernde Tage und Zahlen sowie Edelsteinempfehlungen.",
+        answer: "Die Ergänzung umfasst ein D9-Horoskop, Lebensweg- und Geburtszahl mit Rechenweg, symbolische Deutungen und einen Reflexionsplan für das persönliche Jahr.",
       },
       {
         question: "Ist das medizinische, rechtliche oder finanzielle Beratung?",
@@ -457,7 +457,7 @@ export const COPY: Record<Locale, Copy> = {
     priceBasic: "Basisdeutung",
     priceBasicHint: "Die zentrale vedische Geburtskarten-Deutung als ausführliches mehrseitiges PDF.",
     priceAddon: "Zusatz: indische Numerologie",
-    priceAddonHint: "Eine optionale Übersicht zu indischer Numerologie, traditionellen Tagen, Zahlen und Edelsteinsymbolik.",
+    priceAddonHint: "Optionales D9-Horoskop, Geburtsdatumsnumerologie mit Rechenweg und Reflexion zum persönlichen Jahr.",
     priceTotal: "Gesamtsumme",
     priceTotalHint: "Der Betrag für die ausgewählten Leistungen in der oben angezeigten Währung.",
     priceAddonNotSelected: "Nicht ausgewählt",
@@ -510,7 +510,7 @@ export const COPY: Record<Locale, Copy> = {
     basicBody: "Una interpretación personal de tu carta natal Jyotish, centrada en posiciones planetarias, casas, fortalezas, tendencias y temas de reflexión.",
     optional: "Complemento opcional",
     addOn: "Numerología india y símbolos tradicionales",
-    addOnBody: "Resumen de numerología, días y números tradicionalmente favorables o desafiantes, y sugerencias de gemas tradicionales.",
+    addOnBody: "Carta D9, cálculo e interpretación simbólica del camino de vida y número natal, y un plan de reflexión para el año personal.",
     process: "El proceso",
     processTitle: "Fácil de comenzar. Cuidado en la entrega.",
     steps: [
@@ -561,7 +561,7 @@ export const COPY: Record<Locale, Copy> = {
       },
       {
         question: "¿Qué incluye el complemento de numerología?",
-        answer: "Incluye un resumen de numerología india, días y números tradicionalmente favorables o desafiantes y sugerencias de gemas tradicionales.",
+        answer: "Incluye una carta D9, los cálculos y el método del camino de vida y número natal, interpretaciones simbólicas y un plan de reflexión para el año personal.",
       },
       {
         question: "¿Es asesoramiento médico, legal o financiero?",
@@ -585,7 +585,7 @@ export const COPY: Record<Locale, Copy> = {
     priceBasic: "Lectura básica",
     priceBasicHint: "La interpretación principal de tu carta natal védica en un PDF detallado de varias páginas.",
     priceAddon: "Complemento de numerología india",
-    priceAddonHint: "Un resumen opcional de numerología india, días, números tradicionales y simbolismo de gemas.",
+    priceAddonHint: "Carta D9 opcional, numerología de nacimiento con su método y reflexión sobre el año personal.",
     priceTotal: "Total",
     priceTotalHint: "El importe de los servicios seleccionados en la moneda indicada arriba.",
     priceAddonNotSelected: "No seleccionado",

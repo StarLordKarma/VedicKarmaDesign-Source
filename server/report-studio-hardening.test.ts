@@ -28,7 +28,7 @@ describe("Report Studio hardening", () => {
     expect(db.update).not.toHaveBeenCalled();
   });
   it("bounds calculation retries before invoking any provider", async () => {
-    const db = fakeDatabase([[{ id: 7, bookingId: 3, status: "calculation_failed", attemptCount: 3 }]]); mocks.getDb.mockResolvedValue(db); mocks.booking.mockResolvedValue({ id: 3 });
+    const db = fakeDatabase([[{ id: 7, bookingId: 3, status: "calculation_failed", attemptCount: 3 }]]); mocks.getDb.mockResolvedValue(db); mocks.booking.mockResolvedValue({ id: 3, paymentStatus: "confirmed" });
     await expect(processReportJob({ reportJobId: 7, actorId: "owner" })).rejects.toThrow("Retry limit");
     expect(db.update).not.toHaveBeenCalled();
   });

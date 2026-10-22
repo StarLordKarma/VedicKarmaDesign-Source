@@ -67,10 +67,11 @@ export async function notifyOwner(
   const { title, content } = validatePayload(payload);
 
   if (process.env.NOTIFICATION_PROVIDER === "resend") {
+    const recipient = await ownerNotificationEmail();
     if (
       !ENV.resendApiKey ||
       !ENV.resendFromEmail ||
-      !process.env.OWNER_ALERT_EMAIL
+      !recipient
     )
       return false;
     try {
@@ -84,7 +85,7 @@ export async function notifyOwner(
           },
           body: JSON.stringify({
             from: ENV.resendFromEmail,
-            to: [process.env.OWNER_ALERT_EMAIL],
+            to: [recipient],
             subject: title,
             text: content,
           }),
@@ -134,4 +135,17 @@ export async function notifyOwner(
     console.warn("[Notification] Error calling notification service:", error);
     return false;
   }
+}
+
+export async function ownerNotificationEmail() {
+  const configured = process.env.OWNER_ALERT_EMAIL?.trim();
+  if (configured) return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(configured) ? configured : null;
+  // Use only the authenticated owner record, never a booking's email address.
+  if (!ENV.ownerOpenId) return null;
+  try {
+    const { getUserByOpenId } = await import("../db");
+    const owner = await getUserByOpenId(ENV.ownerOpenId);
+    const email = owner?.role === "admin" ? owner.email?.trim() : undefined;
+    return email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : null;
+  } catch { return null; }
 }

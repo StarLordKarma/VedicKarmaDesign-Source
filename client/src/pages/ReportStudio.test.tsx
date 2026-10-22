@@ -17,6 +17,7 @@ vi.mock("@/lib/trpc", () => ({
       createTestJob: { useMutation: () => ({ mutate: state.createTestJob, isPending: false }) },
       deleteTestJob: { useMutation: () => ({ mutate: state.deleteTestJob, isPending: false }) },
       runCalculation: { useMutation: () => ({ mutate: vi.fn(), isPending: false }) },
+      recoverGeneration: { useMutation: () => ({ mutate: vi.fn(), isPending: false }) },
       approve: { useMutation: () => ({ mutate: vi.fn(), isPending: false }) },
       retryDelivery: { useMutation: () => ({ mutate: vi.fn(), isPending: false }) },
       reviseNarrative: { useMutation: () => ({ mutate: vi.fn(), isPending: false }) },

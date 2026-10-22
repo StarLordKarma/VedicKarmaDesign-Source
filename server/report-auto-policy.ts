@@ -1,4 +1,5 @@
 import { validateNarrativeDraft } from "./report-narrative";
+import { TECHNICAL_FACT_TEXT } from "../shared/vedic-labels";
 
 export function assertAutomaticReportQuality(input: {
   factsJson: string;
@@ -17,7 +18,7 @@ export function assertAutomaticReportQuality(input: {
     new Set(narrative.sections.map(s => s.sectionKey)).size !==
       narrative.sections.length ||
     narrative.sections.some(
-      s => !s.title.trim() || s.paragraphs.join(" ").trim().length < 250 || s.paragraphs.some(p => !p.trim() || /factRefs?\s*:/i.test(p))
+      s => !s.title.trim() || s.paragraphs.length < 2 || s.paragraphs.join(" ").trim().length < 250 || s.paragraphs.some(p => !p.trim() || TECHNICAL_FACT_TEXT.test(p))
     ) ||
     narrative.sections.some(s => !s.factRefs.length || s.warnings.length)
   )

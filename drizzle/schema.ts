@@ -517,3 +517,26 @@ export const directPaymentBindings = mysqlTable("direct_payment_bindings", {
   statusToken: varchar("statusToken", { length: 64 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 }, table => ({ intentUnique: uniqueIndex("direct_payment_binding_intent_unique").on(table.intentId) }));
+
+// Full refunds only. Transaction snapshots are immutable after owner approval.
+export const paymentRefunds = mysqlTable("payment_refunds", {
+  id: int("id").autoincrement().primaryKey(),
+  bookingId: int("bookingId").notNull(),
+  status: varchar("status", { length: 24 }).notNull().default("requested"),
+  reason: varchar("reason", { length: 1000 }).notNull(),
+  decisionNote: varchar("decisionNote", { length: 1000 }),
+  network: varchar("network", { length: 24 }),
+  amount: varchar("amount", { length: 40 }),
+  recipient: varchar("recipient", { length: 64 }),
+  merchant: varchar("merchant", { length: 64 }),
+  intentJson: text("intentJson"),
+  preparedTransactionJson: text("preparedTransactionJson"),
+  transactionHash: varchar("transactionHash", { length: 128 }),
+  lastCheckError: varchar("lastCheckError", { length: 500 }),
+  approvedBy: varchar("approvedBy", { length: 64 }),
+  approvedAt: timestamp("approvedAt"),
+  submittedAt: timestamp("submittedAt"),
+  confirmedAt: timestamp("confirmedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, table => ({ bookingUnique: uniqueIndex("payment_refund_booking_unique").on(table.bookingId), txUnique: uniqueIndex("payment_refund_tx_unique").on(table.network, table.transactionHash) }));

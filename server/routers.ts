@@ -22,9 +22,12 @@ import { approveReportVersion, createReportStudioTestJob, deleteReportStudioTest
 import { AI_NARRATIVE_MODELS } from "./report-narrative";
 import { resolveBirthLocation } from "./report-geocoding";
 import { createClientStatusLink, getPublicClientStatus, listClientStatusLinks, revokeClientStatusLink } from "./client-status";
+import { getPublicRefund, requestRefund, createRefund, listRefunds, approveRefund, declineRefund, prepareRefundTransfer, recordRefundTransfer, checkRefundTransfer, broadcastRefund, renewExpiredTronRefund } from "./refunds";
 import { evaluateSla, getOwnerMetrics, getSlaEvaluationRuns, getSlaSettings, setSlaSettings } from "./sla";
 import { timingSafeEqual } from "node:crypto";
-import { reviseReportNarrative } from "./report-studio-db";
+import { reviseReportNarrative, recoverReportJob } from "./report-studio-db";
+import { ownerNotificationEmail } from "./_core/notification";
+import { isRefundHeld } from "./refund-proof";
 
 function secretsMatch(expected: string, provided: string | undefined) {
   if (!expected || !provided) return false;
@@ -121,6 +124,7 @@ export const appRouter = router({
     sendNatalPdf: adminProcedure.input(sendNatalPdfSchema).mutation(async ({ input, ctx }) => {
       const booking = await getBookingRequestById(input.bookingId);
       if (!booking) throw new TRPCError({ code: "NOT_FOUND", message: "Booking request not found." });
+      if (isRefundHeld(booking.paymentStatus)) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Refunded orders cannot send new reports." });
       if (!booking.natalPdfKey || !booking.natalPdfName) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Attach a natal-chart PDF before sending it." });
       await updateBookingDelivery({ id: booking.id, deliveryStatus: "sending", deliveryError: null });
       try {
@@ -138,6 +142,7 @@ export const appRouter = router({
       for (const bookingId of input.bookingIds) {
         const booking = await getBookingRequestById(bookingId);
         if (!booking) { results.push({ bookingId, success: false, error: "Booking request not found." }); continue; }
+        if (isRefundHeld(booking.paymentStatus)) { results.push({ bookingId, success: false, error: "Refunded orders cannot send new reports." }); continue; }
         if (!booking.natalPdfKey || !booking.natalPdfName) { results.push({ bookingId, success: false, error: "No natal-chart PDF attached." }); continue; }
         await updateBookingDelivery({ id: booking.id, deliveryStatus: "sending", deliveryError: null });
         try {
@@ -154,6 +159,8 @@ export const appRouter = router({
     }),
   }),
   reportStudio: router({
+    recoverGeneration: adminProcedure.input(reportRunSchema).mutation(({ input, ctx }) => recoverReportJob(input.reportJobId, ctx.user.openId)),
+    readiness: adminProcedure.query(async () => ({ ownerAlertsConfigured: Boolean(await ownerNotificationEmail()), emailConfigured: Boolean(ENV.resendApiKey && ENV.resendFromEmail), storageConfigured: process.env.STORAGE_PROVIDER === "s3" && Boolean(process.env.S3_BUCKET && process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY), aiConfigured: Boolean(process.env.LLM_BASE_URL && process.env.LLM_API_KEY), refundsEnabled: process.env.REFUNDS_ENABLED === "true" })),
     queue: adminProcedure.query(() => listReportReviewJobs()),
     getJob: adminProcedure.input(z.object({ reportJobId: z.number().int().positive() })).query(({ input }) => getReportReviewJob(input.reportJobId)),
     createTestJob: adminProcedure.input(createReportStudioTestJobSchema).mutation(({ input, ctx }) => createReportStudioTestJob({ ...input, actorId: ctx.user.openId })),
@@ -167,6 +174,19 @@ export const appRouter = router({
   }),
   status: router({
     get: publicProcedure.input(z.object({ token: z.string().min(32).max(100) })).query(({ input }) => getPublicClientStatus(input.token)),
+  }),
+  refunds: router({
+    info: publicProcedure.input(z.object({ token: z.string().min(32).max(100) })).query(({ input }) => getPublicRefund(input.token)),
+    request: publicProcedure.input(z.object({ token: z.string().min(32).max(100), reason: z.string().trim().min(10).max(1000) })).mutation(({ input }) => requestRefund(input)),
+    list: adminProcedure.query(() => listRefunds()),
+    create: adminProcedure.input(z.object({ bookingId: z.number().int().positive(), reason: z.string().trim().min(10).max(1000) })).mutation(({ input, ctx }) => createRefund(input.bookingId, input.reason, ctx.user.openId)),
+    approve: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(({ input, ctx }) => approveRefund(input.id, ctx.user.openId)),
+    decline: adminProcedure.input(z.object({ id: z.number().int().positive(), note: z.string().trim().min(10).max(1000) })).mutation(({ input, ctx }) => declineRefund(input.id, input.note, ctx.user.openId)),
+    prepare: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(({ input }) => prepareRefundTransfer(input.id)),
+    record: adminProcedure.input(z.object({ id: z.number().int().positive(), hash: z.string().max(128) })).mutation(({ input, ctx }) => recordRefundTransfer(input.id, input.hash, ctx.user.openId)),
+    check: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(({ input }) => checkRefundTransfer(input.id)),
+    broadcast: adminProcedure.input(z.object({ id: z.number().int().positive(), transaction: z.any() })).mutation(({ input }) => broadcastRefund(input.id, input.transaction)),
+    renewTron: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(({ input }) => renewExpiredTronRefund(input.id)),
   }),
   pricing: router({
     current: publicProcedure.input(pricingCurrencySchema.optional()).query(({ input }) => getServicePricing(input?.currency)),

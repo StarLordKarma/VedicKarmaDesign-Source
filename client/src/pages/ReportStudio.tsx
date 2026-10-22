@@ -50,6 +50,7 @@ export default function ReportStudio() {
     { enabled: selectedJobId !== null }
   );
   const utils = trpc.useUtils();
+  const recoverGeneration = trpc.reportStudio.recoverGeneration.useMutation({ onSuccess: () => { toast.success("Existing paid order recovered. No new payment is needed."); void utils.reportStudio.queue.invalidate(); void detail.refetch(); }, onError: error => toast.error(error.message) });
   const reviseNarrative = trpc.reportStudio.reviseNarrative.useMutation({ onSuccess: () => { toast.success("A new PDF version is ready for review."); setReviewedVersionId(null); void utils.reportStudio.queue.invalidate(); void detail.refetch(); }, onError: error => toast.error(error.message) });
   const refreshQueue = () => void utils.reportStudio.queue.invalidate();
   const runCalculation = trpc.reportStudio.runCalculation.useMutation({
@@ -329,6 +330,7 @@ export default function ReportStudio() {
                           configured geocoding service.
                         </p>
                         <div className="mt-5 flex flex-wrap gap-2">
+                          {detail.data && ["calculation_failed", "render_failed"].includes(detail.data.job.status) && <Button variant="outline" disabled={recoverGeneration.isPending} onClick={() => recoverGeneration.mutate({ reportJobId: selectedJobId })}>Recover existing paid order</Button>}
                           <Button
                             className="bg-[#a96346] text-white hover:bg-[#8f5037]"
                             onClick={() =>

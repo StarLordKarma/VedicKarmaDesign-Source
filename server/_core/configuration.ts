@@ -13,10 +13,6 @@ export function independentConfigurationErrors(
     "JWT_SECRET",
     "SCHEDULED_TASK_SECRET",
     "OWNER_OPEN_ID",
-    "OIDC_ISSUER",
-    "OIDC_CLIENT_ID",
-    "OIDC_CLIENT_SECRET",
-    "OIDC_OWNER_SUBJECT",
     "S3_BUCKET",
     "LLM_BASE_URL",
     "LLM_API_KEY",
@@ -28,6 +24,7 @@ export function independentConfigurationErrors(
     if (!env[key]?.trim() || /replace-with|example\.com/.test(env[key]!))
       errors.push(`${key} is missing or still a placeholder`);
   }
+  if (env.AUTH_PROVIDER === "oidc") for (const key of ["OIDC_ISSUER", "OIDC_CLIENT_ID", "OIDC_CLIENT_SECRET", "OIDC_OWNER_SUBJECT"]) if (!env[key]?.trim() || /replace-with|example\.com/.test(env[key]!)) errors.push(`${key} is missing or still a placeholder`);
   if (env.GEOCODING_PROVIDER !== "geonames" && !env.GOOGLE_MAPS_API_KEY?.trim()) errors.push("GOOGLE_MAPS_API_KEY is missing or still a placeholder");
   const paymentProvider = env.PAYMENT_PROVIDER || "nowpayments";
   const paymentRequirements: Record<string, string[]> = {
@@ -76,7 +73,8 @@ export function independentConfigurationErrors(
       }
     }
   }
-  if (env.AUTH_PROVIDER !== "oidc") errors.push("AUTH_PROVIDER must be oidc");
+  if (!["oidc", "wallet"].includes(env.AUTH_PROVIDER || "")) errors.push("AUTH_PROVIDER must be oidc or wallet");
+  if (env.AUTH_PROVIDER === "wallet" && (!/^0x[0-9a-fA-F]{40}$/.test(env.DIRECT_WALLET_ADDRESS || "") || /^0x0{40}$/i.test(env.DIRECT_WALLET_ADDRESS || ""))) errors.push("Wallet owner authentication requires nonzero DIRECT_WALLET_ADDRESS");
   if (env.STORAGE_PROVIDER !== "s3") errors.push("STORAGE_PROVIDER must be s3");
   if (env.NOTIFICATION_PROVIDER !== "resend")
     errors.push("NOTIFICATION_PROVIDER must be resend");

@@ -11,7 +11,7 @@ describe("independent launch safety", () => {
       PUBLIC_BASE_URL: "http://localhost",
       AUTH_PROVIDER: "manus",
     });
-    expect(errors.join(" ")).toContain("OIDC_CLIENT_ID");
+    expect(errors.join(" ")).toContain("OWNER_OPEN_ID");
     expect(errors.join(" ")).toContain("requires HTTPS");
     expect(errors.join(" ")).not.toContain("sensitive");
     expect(errors.join(" ")).toContain("AUTH_PROVIDER must be oidc");
@@ -19,6 +19,14 @@ describe("independent launch safety", () => {
   });
   it("preserves the existing managed deployment configuration", () => {
     expect(independentConfigurationErrors({})).toEqual([]);
+  });
+  it("requires OIDC credentials only for OIDC and explicit owner identity for wallet login", () => {
+    const oidc = independentConfigurationErrors({ DEPLOYMENT_MODE: "independent", AUTH_PROVIDER: "oidc" }).join(" ");
+    expect(oidc).toContain("OIDC_CLIENT_ID");
+    const wallet = independentConfigurationErrors({ DEPLOYMENT_MODE: "independent", AUTH_PROVIDER: "wallet" }).join(" ");
+    expect(wallet).not.toContain("OIDC_CLIENT_ID");
+    expect(wallet).toContain("DIRECT_WALLET_ADDRESS");
+    expect(wallet).toContain("OWNER_OPEN_ID");
   });
   it("rejects invalid direct wallet settings without requiring a gateway key", () => {
     const errors = independentConfigurationErrors({ DEPLOYMENT_MODE: "independent", PAYMENT_PROVIDER: "direct", DIRECT_WALLET_ADDRESS: "0x" + "0".repeat(40), DIRECT_RPC_URL: "http://localhost" });

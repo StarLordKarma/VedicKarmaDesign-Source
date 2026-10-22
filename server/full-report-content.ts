@@ -1,4 +1,6 @@
 type Locale = "en" | "ru" | "de" | "es";
+import { NAKSHATRA_LABELS } from "../shared/vedic-labels";
+import { numerologyReflection } from "../shared/numerology-reflection";
 export type ReportPage = { title: string; body: string; chart?: "d1" | "d9" };
 
 const labels = {
@@ -39,7 +41,7 @@ export function buildReportContent(input: { locale: Locale; packageType: "basic"
     { title: l[0], body: `${l[13]}: ${f.input?.localDate ?? "—"} / ${f.input?.localTime ?? "—"}\n${l[14]}: ${f.input?.timeZoneOffsetMinutes ?? "—"}\n${l[15]}: ${f.input?.latitude ?? "—"}, ${f.input?.longitude ?? "—"}\n\n${l[16]}: Swiss Ephemeris · Lahiri · sidereal · whole-sign\n\n${l[18]}` },
     { title: l[1], body: `${l[8]}: ${sign(ascSign)}\n${l[9]}: ${Number(f.ascendant?.degreeInSign ?? 0).toFixed(2)}°\n\n${Array.from({ length: 12 }, (_, i) => `${i + 1}. ${sign((ascSign + i) % 12)}`).join("\n")}\n\n${l[18]}` },
   ];
-  for (const p of f.planets || []) pages.push({ title: `${planet(p.planet)} · ${l[2]}`, body: `${l[8]}: ${sign(p.sign)}\n${l[9]}: ${Number(p.degreeInSign).toFixed(2)}°\n${l[10]}: ${house(p.sign)}\n${l[11]}: ${Number(p.nakshatra) + 1} / ${p.pada}\n${l[12]}: ${p.retrograde ? "✓" : "—"}\n\n${themes[input.locale][planetNames.en.indexOf(p.planet)] || ""}\n\n${l[17]}` });
+  for (const p of f.planets || []) pages.push({ title: `${planet(p.planet)} · ${l[2]}`, body: `${l[8]}: ${sign(p.sign)}\n${l[9]}: ${Number(p.degreeInSign).toFixed(2)}°\n${l[10]}: ${house(p.sign)}\n${l[11]}: ${NAKSHATRA_LABELS[p.nakshatra] || "—"} (${Number(p.nakshatra) + 1}) / ${p.pada}\n${l[12]}: ${p.retrograde ? "✓" : "—"}\n\n${themes[input.locale][planetNames.en.indexOf(p.planet)] || ""}\n\n${l[17]}` });
   pages.push({ title: l[3], body: signs[input.locale].map((name, index) => `${name}: ${(f.planets || []).filter((p: any) => p.sign === index).map((p: any) => planet(p.planet)).join(", ") || "—"}`).join("\n\n") });
   pages.push({ title: l[4], body: (f.aspects || []).map((a: any) => `${planet(a.source)} → ${a.target === "Ascendant" ? l[1] : planet(a.target)} (${a.housesForward})`).join("\n") || "—" });
   const date = (value: string) => new Intl.DateTimeFormat(input.locale, { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" }).format(new Date(value));
@@ -50,10 +52,12 @@ export function buildReportContent(input: { locale: Locale; packageType: "basic"
     const digits = String(f.input?.localDate || "").replace(/\D/g, "");
     const lifePath = reduceNumber(digits.split("").reduce((sum, digit) => sum + Number(digit), 0));
     const day = Number(String(f.input?.localDate || "").slice(8, 10));
-    pages.push({ title: l[6], body: `${f.input?.localDate}\n${digits.split("").join(" + ")} = ${digits.split("").reduce((sum, digit) => sum + Number(digit), 0)} → ${lifePath}\n\n${day} → ${reduceNumber(day)}\n\n${l[19]}\n\n${l[17]}` });
     const year = new Date().getUTCFullYear();
     const yearDigits = `${String(f.input?.localDate || "").slice(5).replace(/\D/g, "")}${year}`;
-    pages.push({ title: `${l[7]} · ${year}`, body: `${yearDigits.split("").join(" + ")} → ${reduceNumber(yearDigits.split("").reduce((sum, digit) => sum + Number(digit), 0))}\n\n${l[19]}\n\n${l[17]}` });
+    const personalYear = reduceNumber(yearDigits.split("").reduce((sum, digit) => sum + Number(digit), 0));
+    const reflection = numerologyReflection(input.locale, lifePath, reduceNumber(day), personalYear);
+    pages.push({ title: l[6], body: `${f.input?.localDate}\n${digits.split("").join(" + ")} = ${digits.split("").reduce((sum, digit) => sum + Number(digit), 0)} → ${lifePath}\n\n${day} → ${reduceNumber(day)}\n\n${reflection.life}\n\n${reflection.method}\n\n${l[19]}` });
+    pages.push({ title: `${l[7]} · ${year}`, body: `${yearDigits.split("").join(" + ")} → ${personalYear}\n\n${reflection.year}\n\n${l[19]}` });
   }
   return pages;
 }

@@ -12,6 +12,7 @@ import {
   Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import RefundRequest from "@/components/RefundRequest";
 
 const copy = {
   en: {
@@ -169,7 +170,7 @@ export default function ClientStatus() {
   const rows = [
     {
       label: t.paid,
-      value: data.paymentState === "paid" ? t.paidValue : t.pending,
+      value: data.paymentState === "paid" ? t.paidValue : data.paymentState === "refunded" ? ({ ru: "Возвращено", en: "Refunded", de: "Erstattet", es: "Reembolsado" })[language()] : data.paymentState === "refund_pending" ? ({ ru: "Возврат одобрен", en: "Refund approved", de: "Erstattung genehmigt", es: "Reembolso aprobado" })[language()] : data.paymentState === "expired" ? ({ ru: "Срок оплаты истёк", en: "Payment window expired", de: "Zahlungsfrist abgelaufen", es: "Plazo de pago vencido" })[language()] : ["review", "failed"].includes(data.paymentState) ? t.failed : t.pending,
       icon: CheckCircle2,
     },
     {
@@ -218,6 +219,7 @@ export default function ClientStatus() {
             </span>
           </CardContent>
         </Card>
+        <RefundRequest token={token} locale={language()} />
         {data.reportDownloadUrl && (
           <Card className="mt-6 border-[#d9a441]/50 bg-[#fffaf1]">
             <CardContent className="p-6">

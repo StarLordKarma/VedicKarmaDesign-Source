@@ -1,7 +1,7 @@
 export const ENV = {
   appId:
     process.env.VITE_APP_ID ||
-    (["oidc", "sandbox"].includes(process.env.AUTH_PROVIDER || "")
+    (["oidc", "wallet", "sandbox"].includes(process.env.AUTH_PROVIDER || "")
       ? "vedic-karma-design"
       : ""),
   cookieSecret: process.env.JWT_SECRET ?? "",

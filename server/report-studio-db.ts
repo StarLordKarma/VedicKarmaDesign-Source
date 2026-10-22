@@ -8,9 +8,12 @@ import { calculateVedicSnapshot } from "./vedic-astrology-calculator";
 import { buildFullNatalReportPdf } from "./export";
 import { resolveBirthLocation } from "./report-geocoding";
 import { generateNarrativeDraft, validateNarrativeDraft } from "./report-narrative";
+import { generateProductionNarrative } from "./report-narrative-curated";
 import { storagePut } from "./storage";
 import { sendClientReportPdf } from "./client-delivery";
 import { isPaidPaymentStatus } from "@shared/payment-status";
+import { isRefundHeld } from "./refund-proof";
+import { notifyOwner } from "./_core/notification";
 
 const REPORT_TEMPLATE_VERSION = "parasara-light-9-v1";
 const EMPTY_BACKGROUND = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64");
@@ -118,6 +121,8 @@ export async function processReportJob(input: { reportJobId: number; actorId: st
   if (!["queued", "paid", "calculation_failed", "render_failed"].includes(current.status)) return { skipped: true, job: current };
   const booking = await getBookingRequestById(current.bookingId);
   if (!booking) throw new Error("Booking request not found");
+  if (isRefundHeld(booking.paymentStatus)) throw new Error("Report processing is paused for this refund");
+  if (!current.testJob && !isPaidPaymentStatus(booking.paymentStatus)) throw new Error("Report generation requires a confirmed payment");
   if (current.attemptCount >= 3) throw new Error("Retry limit reached. Review the cause before creating a new report job.");
   if (!current.testJob) {
     const frozenHash = sha256(JSON.stringify({ bookingId: booking.id, birthDate: booking.birthDate, birthTime: booking.birthTime, birthCity: booking.birthCity, birthCountry: booking.birthCountry, language: languageCode(booking.language), addon: Boolean(booking.addon) }));
@@ -144,7 +149,8 @@ export async function processReportJob(input: { reportJobId: number; actorId: st
     await db.insert(calculationResults).values({ reportJobId: current.id, schemaVersion: facts.contractVersion, engineName: facts.engine.adapter, engineVersion: facts.engine.engineVersion, ephemerisVersion: facts.engine.ephemerisMode, factsJson, factsHash, validationStatus: "valid" }).onDuplicateKeyUpdate({ set: { factsJson, factsHash, validationStatus: "valid", validationErrorsJson: null } });
     await db.update(reportJobs).set({ status: "narrative_draft", factsHash }).where(eq(reportJobs.id, current.id));
     const aiSettings = await getReportProcessingSettings();
-    const narrative = await generateNarrativeDraft({ facts, locale: current.language as "ru" | "en" | "de" | "es", settings: { aiModel: aiSettings.aiModel as "gpt-5-nano" | "gpt-5-mini" | "gpt-5" | "claude-haiku-4-5" | "claude-sonnet-4-6" | "gemini-3-flash-preview", maxTokens: aiSettings.maxTokens, maxSections: aiSettings.maxSections, maxParagraphChars: aiSettings.maxParagraphChars } });
+    const narrative = await generateProductionNarrative({ facts, locale: current.language as "ru" | "en" | "de" | "es", settings: { aiModel: aiSettings.aiModel as "gpt-5-nano" | "gpt-5-mini" | "gpt-5" | "claude-haiku-4-5" | "claude-sonnet-4-6" | "gemini-3-flash-preview", maxTokens: aiSettings.maxTokens, maxSections: aiSettings.maxSections, maxParagraphChars: aiSettings.maxParagraphChars } });
+    if (narrative.usedFallback) await db.insert(reportAuditEvents).values({ reportJobId: current.id, eventType: "curated_narrative_fallback", actorType: "system", fromStatus: "narrative_draft", toStatus: "narrative_draft", metadataJson: JSON.stringify({ reason: "AI_UNAVAILABLE_OR_INVALID", modelVersion: narrative.modelVersion }) });
     await db.insert(narrativeDrafts).values({ reportJobId: current.id, locale: current.language, modelName: narrative.modelVersion, modelVersion: narrative.modelVersion, promptVersion: narrative.promptVersion, narrativeJson: JSON.stringify(narrative), validationStatus: "valid", createdBy: "system" });
     const narrativeSummary = narrative.sections[0]?.paragraphs[0]?.slice(0, 600);
     const pdf = await buildFullNatalReportPdf({ background: EMPTY_BACKGROUND, locale: current.language as "ru" | "en" | "de" | "es", clientName: booking.name, packageType: current.packageType, narrative: { sections: narrative.sections.map((section) => ({ sectionKey: section.sectionKey, title: section.title, paragraphs: section.paragraphs, factRefs: section.factRefs })) }, facts });
@@ -156,8 +162,26 @@ export async function processReportJob(input: { reportJobId: number; actorId: st
   } catch (error) {
     const message = error instanceof Error ? error.message : "Calculation failed";
     await db.update(reportJobs).set({ status: "calculation_failed", lastErrorCode: "CALCULATION_FAILED", lastErrorMessage: message.slice(0, 1000), finishedAt: new Date() }).where(eq(reportJobs.id, current.id));
+    await db.insert(reportAuditEvents).values({ reportJobId: current.id, eventType: "generation_failed", actorType: "system", fromStatus: "calculating", toStatus: "calculation_failed", metadataJson: JSON.stringify({ attempt: current.attemptCount + 1 }) });
+    if (!current.testJob) void notifyOwner({ title: "Paid report needs attention", content: `Order #${current.bookingId}, report #${current.id}: generation attempt ${current.attemptCount + 1} failed. Review Report Studio; do not request another payment.` });
     throw error;
   }
+}
+
+export async function recoverReportJob(reportJobId: number, actorId: string) {
+  const db = await getDb(); if (!db) throw new Error("Database unavailable");
+  const detail = await getReportReviewJob(reportJobId);
+  if (!detail?.booking || !["calculation_failed", "render_failed"].includes(detail.job.status)) throw new Error("Only failed generation jobs can be recovered");
+  if (!isPaidPaymentStatus(detail.booking.paymentStatus) || isRefundHeld(detail.booking.paymentStatus)) throw new Error("Payment must remain confirmed; a refund blocks recovery");
+  const version = detail.versions[0];
+  const status = version?.status === "needs_review" ? "needs_review" : "queued";
+  if (version && version.status !== "needs_review") throw new Error("An existing approved or sent PDF must be reconciled instead of regenerated");
+  await db.transaction(async tx => {
+    const claim = await tx.update(reportJobs).set({ status, attemptCount: 0, lastErrorCode: null, lastErrorMessage: null, startedAt: null, finishedAt: null }).where(and(eq(reportJobs.id, reportJobId), eq(reportJobs.status, detail.job.status)));
+    if (Number(claim[0].affectedRows) !== 1) throw new Error("Report state changed; refresh the queue");
+    await tx.insert(reportAuditEvents).values({ reportJobId, eventType: "owner_recovered_generation", actorType: "owner", actorId, fromStatus: detail.job.status, toStatus: status });
+  });
+  return { status };
 }
 
 export async function retryReportDelivery(input: { reportJobId: number; versionId: number; actorId: string }) {
@@ -178,6 +202,8 @@ export async function deliverApprovedReport(input: { reportJobId: number; versio
   if (job.testJob) throw new Error("Synthetic test reports cannot be delivered to clients.");
   const bookingRequest = await getBookingRequestById(job.bookingId);
   if (!bookingRequest) throw new Error("Booking request not found");
+  if (isRefundHeld(bookingRequest.paymentStatus)) throw new Error("Refunded orders cannot send new reports");
+  if (!isPaidPaymentStatus(bookingRequest.paymentStatus)) throw new Error("Report delivery requires a confirmed payment");
   const idempotencyKey = `report:${current.id}:approved:${current.pdfSha256 ?? current.versionNumber}`;
   let existing = (await db.select().from(reportDeliveryAttempts).where(eq(reportDeliveryAttempts.idempotencyKey, idempotencyKey)).limit(1))[0];
   if (existing?.status === "sent") {

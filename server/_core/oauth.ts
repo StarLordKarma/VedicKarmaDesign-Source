@@ -16,7 +16,7 @@ function getQueryParam(req: Request, key: string): string | undefined {
 }
 
 export function registerOAuthRoutes(app: Express) {
-  if (["oidc", "sandbox"].includes(process.env.AUTH_PROVIDER || "")) return;
+  if (["oidc", "wallet", "sandbox"].includes(process.env.AUTH_PROVIDER || "")) return;
   app.get("/api/oauth/callback", async (req: Request, res: Response) => {
     const code = getQueryParam(req, "code");
     const state = getQueryParam(req, "state");
