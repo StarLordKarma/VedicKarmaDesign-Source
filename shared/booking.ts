@@ -1,3 +1,4 @@
+import {READING_PRODUCTS} from './reading-products';
 import { z } from "zod";
 import { READING_PRICES } from "./pricing";
 
@@ -6,12 +7,17 @@ export const PRIVACY_NOTICE_VERSION = "privacy-2026-10-21";
 export const bookingSchema = z.object({
   name: z.string().trim().min(2, "Please enter your name.").max(160),
   email: z.string().trim().email("Please enter a valid email.").max(320),
-  birthDate: z.string().date("Please enter a valid birth date."),
-  birthTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Please enter a valid birth time."),
-  birthCity: z.string().trim().min(2, "Birth city is required.").max(160),
-  birthCountry: z.string().trim().min(2, "Birth country is required.").max(160),
+  birthDate: z.string().default(""),
+  birthTime: z.string().default(""),
+  birthCity: z.string().trim().max(160).default(""),
+  birthCountry: z.string().trim().max(160).default(""),
   language: z.enum(["English", "Русский", "Deutsch", "Español"]),
   addon: z.boolean(),
+  product: z.enum(READING_PRODUCTS).optional(),
+  currentZone: z.string().max(64).default("UTC").refine(x=>{try{new Intl.DateTimeFormat("en",{timeZone:x});return true}catch{return false}},"Invalid time zone"),
+  month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/).optional(),
+  unknownTime: z.boolean().default(false),
+  disambiguation: z.enum(["reject","earlier","later"]).default("reject"),
   currency: z.enum(["USD", "EUR", "GBP"]).default("USD"),
   interest: z.string().trim().max(1000).optional(),
   promoCode: z.string().trim().max(32).optional(),
@@ -20,6 +26,15 @@ export const bookingSchema = z.object({
   privacyLocale: z.enum(["en", "ru", "de", "es"]),
   smokeTest: z.boolean().optional().default(false),
   smokeTestRunId: z.string().regex(/^production-smoke-\d{10,}$/).optional(),
+}).superRefine((v,ctx)=>{
+ if(v.product==='tarot')return;
+ if(!z.string().date().safeParse(v.birthDate).success||v.birthDate>new Date().toISOString().slice(0,10))ctx.addIssue({code:'custom',path:['birthDate'],message:'Please enter a valid birth date.'});
+ const allowUnknown=v.unknownTime&&['portrait','daily','monthly'].includes(v.product||'');
+ if(!allowUnknown&&!/^([01]\d|2[0-3]):[0-5]\d$/.test(v.birthTime))ctx.addIssue({code:'custom',path:['birthTime'],message:'Please enter a valid birth time.'});
+ if(v.birthCity.length<2)ctx.addIssue({code:'custom',path:['birthCity'],message:'Birth city is required.'});
+ if(v.birthCountry.length<2)ctx.addIssue({code:'custom',path:['birthCountry'],message:'Birth country is required.'});
+ if(v.product==='monthly'&&!v.month)ctx.addIssue({code:'custom',path:['month'],message:'Please select a month.'});
+ if(v.product&&!v.product.startsWith('vedic_')&&v.currency!=='USD')ctx.addIssue({code:'custom',path:['currency'],message:'This product is priced in USD.'});
 });
 
 export type BookingInput = z.infer<typeof bookingSchema>;

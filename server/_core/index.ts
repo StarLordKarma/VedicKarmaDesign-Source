@@ -1,3 +1,5 @@
+import {registerReadingSite}from'../reading-site';
+import {startKnowledgeUpdates}from'../knowledge/updates';
 import { registerDirectPaymentRoutes, startDirectPaymentWorker } from "../direct-payment-routes";
 import "dotenv/config";
 import express from "express";
@@ -78,6 +80,8 @@ async function startServer() {
   app.get("/ready", readinessHandler);
   registerDirectPaymentRoutes(app);
   startDirectPaymentWorker();
+  startKnowledgeUpdates();
+  registerReadingSite(app);
   registerNowPaymentsWebhook(app);
   registerHeleketWebhook(app);
   registerPayCryptoWebhook(app);

@@ -13,7 +13,7 @@ for (const width of [768, 1280]) {
       page,
     }) => {
       await page.setViewportSize({ width, height: 900 });
-      await page.goto(`/?lang=${locale}`);
+      await page.goto(`/?legacy=1&lang=${locale}`);
       await expect(page.getByRole("heading", { name: heading })).toBeVisible();
       const visuals = await page.evaluate(() => {
         const hero = document.querySelector<HTMLElement>(".editorial-hero");

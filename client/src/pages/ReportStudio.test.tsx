@@ -9,6 +9,7 @@ const state = vi.hoisted(() => ({ queue: [] as unknown[], detail: undefined as u
 vi.mock("@/components/DashboardLayout", () => ({ default: ({ children }: { children: React.ReactNode }) => <>{children}</> }));
 vi.mock("@/lib/trpc", () => ({
   trpc: {
+    knowledge:{status:{useQuery:()=>({data:{status:null},refetch:vi.fn()})},refresh:{useMutation:()=>({mutate:vi.fn(),isPending:false})},approve:{useMutation:()=>({mutate:vi.fn(),isPending:false})}},
     reportStudio: {
       queue: { useQuery: () => ({ data: state.queue, isLoading: false, error: null }) },
       processingSettings: { useQuery: () => ({ data: { autoProcessEnabled: false }, refetch: vi.fn() }) },
@@ -32,12 +33,12 @@ describe("Report Studio review screen", () => {
   afterEach(() => cleanup());
   beforeEach(() => { state.queue = []; state.detail = undefined; state.createTestJob.mockReset(); state.deleteTestJob.mockReset(); });
 
-  it("explains the verified-payment queue and owner approval gate", () => {
+  it("explains automatic processing and the exception queue", () => {
     render(<ReportStudio />);
     expect(screen.getByText("Review & approve reports")).toBeInTheDocument();
     expect(screen.getByText("Report queue")).toBeInTheDocument();
     expect(screen.getByText(/No paid report jobs yet/i)).toBeInTheDocument();
-    expect(screen.getByText(/approve it before any client delivery/i)).toBeInTheDocument();
+    expect(screen.getByText(/reports are generated, checked and emailed automatically/i)).toBeInTheDocument();
   });
 
   it("offers open and download actions for an owner-reviewed generated PDF", () => {

@@ -199,6 +199,7 @@ export async function sendClientReportPdf(input: {
   language: string;
   idempotencyKey?: string;
   statusUrl?: string;
+  product?: string;
 }) {
   if (!ENV.resendApiKey || !ENV.resendFromEmail)
     throw new TRPCError({
@@ -221,7 +222,11 @@ export async function sendClientReportPdf(input: {
       message: "The approved report PDF exceeds the delivery limit.",
     });
   const copy = getDeliveryCopy(input.language);
-  const safeName = escapeHtml(input.name);
+  if(input.product){const locale=input.language==='Русский'?'ru':input.language==='Deutsch'?'de':input.language==='Español'?'es':'en';const area=input.product.startsWith('vedic_')?0:input.product==='tarot'?2:1;const names={en:['Vedic astrology','Western astrology','Tarot'],ru:['Ведическая астрология','Западная астрология','Таро'],es:['Astrología védica','Astrología occidental','Tarot'],de:['Vedische Astrologie','Westliche Astrologie','Tarot']};copy.subject=names[locale][area]+' · '+({en:'Your personal report',ru:'Ваш личный отчёт',es:'Tu informe personal',de:'Ihr persönlicher Bericht'})[locale];copy.body=({en:'Thank you for your order. Your personal illustrated report is attached as a PDF. We hope you enjoy reading it. You can save it and, if you wish, share it with family, friends or your partner.',ru:'Спасибо за ваш заказ. К письму приложен ваш персональный красочный отчёт в формате PDF. Желаем приятного чтения! Сохраните его и при желании поделитесь с семьёй, друзьями или партнёром.',es:'Gracias por tu pedido. Adjuntamos tu informe personal ilustrado en PDF. Esperamos que disfrutes de la lectura. Puedes guardarlo y, si lo deseas, compartirlo con tu familia, tus amistades o tu pareja.',de:'Vielen Dank für Ihre Bestellung. Im Anhang finden Sie Ihren persönlichen illustrierten PDF-Bericht. Wir wünschen Ihnen eine angenehme Lektüre. Sie können ihn speichern und auf Wunsch mit Ihrer Familie, Freunden oder Ihrem Partner teilen.'})[locale]}
+
+  const locale = input.language === 'Русский' ? 'ru' : input.language === 'Deutsch' ? 'de' : input.language === 'Español' ? 'es' : 'en';
+  const statusLabel = {en:'Order status and PDF',ru:'Статус заказа и PDF',es:'Estado del pedido y PDF',de:'Bestellstatus und PDF'}[locale];
+  const safeName = escapeHtml(input.name.trim());
   const safeStatusUrl = input.statusUrl && /^https:\/\//.test(input.statusUrl) ? escapeHtml(input.statusUrl) : undefined;
   const response = await fetch(resendEndpoint(), {
     method: "POST",
@@ -235,7 +240,8 @@ export async function sendClientReportPdf(input: {
       from: ENV.resendFromEmail,
       to: [input.email],
       subject: copy.subject,
-      html: `<p>${copy.greeting} ${safeName},</p><p>${copy.body}</p>${safeStatusUrl ? `<p><a href="${safeStatusUrl}">${input.language === "Русский" ? "Статус заказа и PDF" : "Order status and PDF"}</a></p>` : ""}<p style="font-size:12px;color:#635a52">${copy.disclaimer}</p><p>${copy.signoff},<br />Jyotish</p>`,
+      text: `${copy.greeting}, ${input.name.trim()}!\n\n${copy.body}\n\n${input.statusUrl ? statusLabel+": "+input.statusUrl+"\n\n" : ""}${copy.signoff},\nKarma Life Design`,
+      html: `<html lang="${locale}"><body><p>${copy.greeting}, ${safeName}!</p><p>${copy.body}</p>${safeStatusUrl ? `<p><a href="${safeStatusUrl}">${statusLabel}</a></p>` : ""}<p style="font-size:12px;color:#635a52">${copy.disclaimer}</p><p>${copy.signoff},<br />Karma Life Design</p></body></html>`,
       attachments: [
         {
           filename: input.pdfName || "vedic-report.pdf",

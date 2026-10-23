@@ -33,7 +33,7 @@ for (const width of [320, 375, 430]) {
       page,
     }) => {
       await page.setViewportSize({ width, height: 844 });
-      await page.goto(`/?lang=${locale}`);
+      await page.goto(`/?legacy=1&lang=${locale}`);
 
       await expect(page.locator("html")).toHaveAttribute("lang", copy.html);
       await expect(page.getByText(new RegExp(copy.date))).toBeVisible();

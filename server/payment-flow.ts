@@ -5,6 +5,7 @@ export async function createCheckoutForBooking(input: {
   totalUsd: number;
   priceCurrency?: string;
   addon: boolean;
+  product?: string;
   origin: string;
   provider?: PaymentProvider;
   savePayment: (data: { id: number; paymentId: string; paymentUrl: string; paymentStatus: string }) => Promise<void>;
@@ -16,7 +17,7 @@ export async function createCheckoutForBooking(input: {
       priceAmount: input.totalUsd,
       priceCurrency: input.priceCurrency,
       orderId: `booking-${input.bookingId}`,
-      orderDescription: `Vedic astrology reading${input.addon ? " + Indian numerology add-on" : ""}`,
+      orderDescription: input.product && !input.product.startsWith("vedic_") ? ({portrait:"Western astrology full report",daily:"Western astrology daily forecast",monthly:"Western astrology monthly forecast",tarot:"Tarot report"}[input.product] || "Personal report") : `Vedic astrology reading${input.addon ? " + Indian numerology add-on" : ""}`,
       callbackUrl: `${input.origin}${provider.webhookPath}`,
       successUrl: `${input.origin}/?payment=success#book`,
       cancelUrl: `${input.origin}/?payment=cancelled#book`,

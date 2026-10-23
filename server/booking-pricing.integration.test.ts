@@ -106,3 +106,15 @@ describe("booking pricing integration", () => {
     expect(mocks.createCheckoutForBooking).not.toHaveBeenCalled();
   });
 });
+
+describe('new-product checkout language and price',()=>{
+  it.each(['English','Русский','Español','Deutsch'] as const)('persists %s for each new product',async language=>{
+    const caller=appRouter.createCaller({req:smokeRequest(),res:{} as never,user:null});
+    for(const [product,cents]of [['portrait',999],['daily',199],['monthly',499],['tarot',499]] as const){
+      await caller.booking.submit({name:'Maya',email:'maya@example.com',product,birthDate:product==='tarot'?'':'1990-04-12',birthTime:product==='tarot'?'':'08:30',birthCity:product==='tarot'?'':'Berlin',birthCountry:product==='tarot'?'':'Germany',month:'2026-10',language,addon:false,currency:'USD',privacyAcknowledged:true,privacyNoticeVersion:PRIVACY_NOTICE_VERSION,privacyLocale:'en'});
+      const saved=mocks.createBookingRequest.mock.calls.at(-1)?.[0];expect(saved).toEqual(expect.objectContaining({language,packageCode:product,totalUsd:cents/100}));
+      expect(JSON.parse(String(saved?.priceSnapshotJson)).reading.automaticDelivery).toBe(true);
+      expect(mocks.createCheckoutForBooking).toHaveBeenLastCalledWith(expect.objectContaining({product,totalUsd:cents/100}));
+    }
+  });
+});

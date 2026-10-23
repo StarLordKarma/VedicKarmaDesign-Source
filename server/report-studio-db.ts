@@ -1,8 +1,10 @@
+import {frozenBookingInput,processThreeDirectionReport,expandedNarrative,reviseThreeDirectionReport,assertThreeDirectionQuality} from './three-direction-reports';
+import {readingOptions} from '../shared/reading-products';
 import { assertDeliveryRetryWindow } from "./report-delivery-policy";
 import { TRPCError } from "@trpc/server";
 import { createHash } from "node:crypto";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
-import { calculationResults, calculationSnapshots, narrativeDrafts, reportAuditEvents, reportDeliveryAttempts, reportJobs, reportSections, reportStudioProcessingSettings, reportVersions, directPaymentBindings } from "../drizzle/schema";
+import { calculationResults, calculationSnapshots, narrativeDrafts, reportAuditEvents, reportDeliveryAttempts, reportJobs, reportSections, reportStudioProcessingSettings, reportVersions, directPaymentBindings, bookingRequests } from "../drizzle/schema";
 import { createBookingRequest, deleteBookingRequest, getBookingRequestById, getDb } from "./db";
 import { calculateVedicSnapshot } from "./vedic-astrology-calculator";
 import { buildFullNatalReportPdf } from "./export";
@@ -24,7 +26,7 @@ function languageCode(language: string): "ru" | "en" | "de" | "es" { return lang
 export async function enqueueReportJobForBooking(bookingId: number, confirmedBy = "system") {
   const booking = await getBookingRequestById(bookingId);
   if (!booking || !isPaidPaymentStatus(booking.paymentStatus)) return { created: false, reason: "payment-not-confirmed" as const };
-  const input = { bookingId, birthDate: booking.birthDate, birthTime: booking.birthTime, birthCity: booking.birthCity, birthCountry: booking.birthCountry, language: languageCode(booking.language), addon: Boolean(booking.addon) };
+  const input = frozenBookingInput(booking);
   const inputHash = sha256(JSON.stringify(input));
   const idempotencyKey = `${bookingId}:1:${inputHash}:${REPORT_TEMPLATE_VERSION}`;
   const db = await getDb();
@@ -65,7 +67,7 @@ export async function isReportStudioAutoProcessingEnabled() {
 export async function listReportReviewJobs() {
   const db = await getDb();
   if (!db) return [];
-  return db.select({ job: reportJobs, version: reportVersions }).from(reportJobs).leftJoin(reportVersions, and(eq(reportVersions.reportJobId, reportJobs.id), sql`${reportVersions.versionNumber} = (select max(rv.versionNumber) from report_versions rv where rv.reportJobId = ${reportJobs.id})`)).orderBy(desc(reportJobs.createdAt));
+  return db.select({ job: reportJobs, version: reportVersions, productCode: bookingRequests.packageCode }).from(reportJobs).leftJoin(reportVersions, and(eq(reportVersions.reportJobId, reportJobs.id), sql`${reportVersions.versionNumber} = (select max(rv.versionNumber) from report_versions rv where rv.reportJobId = ${reportJobs.id})`)).leftJoin(bookingRequests,eq(bookingRequests.id,reportJobs.bookingId)).orderBy(desc(reportJobs.createdAt));
 }
 
 export async function createReportStudioTestJob(input: { packageType: "basic" | "basic_plus"; language: "en" | "ru" | "de" | "es"; actorId: string }) {
@@ -110,7 +112,7 @@ export async function getReportReviewJob(reportJobId: number) {
   const versions = await db.select().from(reportVersions).where(eq(reportVersions.reportJobId, reportJobId)).orderBy(desc(reportVersions.versionNumber));
   const result = (await db.select().from(calculationResults).where(eq(calculationResults.reportJobId, reportJobId)).limit(1))[0];
   const narrative = (await db.select().from(narrativeDrafts).where(eq(narrativeDrafts.reportJobId, reportJobId)).orderBy(desc(narrativeDrafts.createdAt), desc(narrativeDrafts.id)).limit(1))[0];
-  return { job, booking, versions, calculation: result, narrative };
+  return { job, booking, versions, calculation: result, narrative: await expandedNarrative(narrative) };
 }
 
 export async function processReportJob(input: { reportJobId: number; actorId: string }) {
@@ -125,7 +127,7 @@ export async function processReportJob(input: { reportJobId: number; actorId: st
   if (!current.testJob && !isPaidPaymentStatus(booking.paymentStatus)) throw new Error("Report generation requires a confirmed payment");
   if (current.attemptCount >= 3) throw new Error("Retry limit reached. Review the cause before creating a new report job.");
   if (!current.testJob) {
-    const frozenHash = sha256(JSON.stringify({ bookingId: booking.id, birthDate: booking.birthDate, birthTime: booking.birthTime, birthCity: booking.birthCity, birthCountry: booking.birthCountry, language: languageCode(booking.language), addon: Boolean(booking.addon) }));
+    const frozenHash = sha256(JSON.stringify(frozenBookingInput(booking)));
     if (frozenHash !== current.inputHash) throw new Error("Birth details changed after payment. A new reviewed snapshot is required.");
   }
   try {
@@ -135,6 +137,7 @@ export async function processReportJob(input: { reportJobId: number; actorId: st
     if (Number(claim[0].affectedRows ?? 0) !== 1) {
       return { skipped: true, job: current, reason: "already-claimed" as const };
     }
+  if(readingOptions(booking))return await processThreeDirectionReport(db,booking,current);
   const location = await resolveBirthLocation({ city: booking.birthCity, country: booking.birthCountry, birthDate: booking.birthDate, birthTime: booking.birthTime });
   if (location.qualityFlags.length) throw new Error(`Birth location requires manual review: ${location.qualityFlags.join(", ")}`);
   const birthUtc = new Date(Date.UTC(Number(booking.birthDate.slice(0, 4)), Number(booking.birthDate.slice(5, 7)) - 1, Number(booking.birthDate.slice(8, 10)), Number(booking.birthTime.slice(0, 2)), Number(booking.birthTime.slice(3, 5))) - location.timeZoneOffsetMinutes * 60_000);
@@ -236,7 +239,7 @@ export async function deliverApprovedReport(input: { reportJobId: number; versio
   try {
     const binding = (await db.select().from(directPaymentBindings).where(eq(directPaymentBindings.bookingId, bookingRequest.id)).limit(1))[0];
     const statusUrl = binding?.statusToken && process.env.PUBLIC_BASE_URL ? `${process.env.PUBLIC_BASE_URL.replace(/\/$/, "")}/status/${binding.statusToken}` : undefined;
-    const result = await sendClientReportPdf({ email: bookingRequest.email, name: bookingRequest.name, pdfKey: current.pdfStorageKey, pdfName: `vedic-report-${bookingRequest.id}.pdf`, language: bookingRequest.language, idempotencyKey, statusUrl });
+    const result = await sendClientReportPdf({ email: bookingRequest.email, name: bookingRequest.name, pdfKey: current.pdfStorageKey, pdfName: `${readingOptions(bookingRequest)?.product||"vedic"}-report-${bookingRequest.id}.pdf`, language: bookingRequest.language, idempotencyKey, statusUrl, product: readingOptions(bookingRequest)?.product });
     await db.update(reportDeliveryAttempts).set({ status: "sent", providerMessageId: result.id ?? null, completedAt: new Date() }).where(eq(reportDeliveryAttempts.id, attemptId));
     await db.update(reportVersions).set({ status: "sent" }).where(eq(reportVersions.id, current.id));
     await db.update(reportJobs).set({ status: "sent", finishedAt: new Date() }).where(eq(reportJobs.id, input.reportJobId));
@@ -251,16 +254,19 @@ export async function deliverApprovedReport(input: { reportJobId: number; versio
   }
 }
 
-export async function approveReportVersion(input: { reportJobId: number; versionId: number; actorId: string; summary?: string }) {
+export async function approveReportVersion(input: { reportJobId: number; versionId: number; actorId: string; summary?: string; specialistChecked?: boolean }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   const version = (await db.select().from(reportVersions).where(and(eq(reportVersions.id, input.versionId), eq(reportVersions.reportJobId, input.reportJobId))).limit(1))[0];
   if (!version || !version.pdfStorageKey) throw new Error("Report version with PDF not found");
   const job = (await db.select().from(reportJobs).where(eq(reportJobs.id, input.reportJobId)).limit(1))[0];
   if (!job || job.testJob) throw new Error("Synthetic test reports cannot be approved or delivered.");
+  const booking=await getBookingRequestById(job.bookingId);
+  if(job.lastErrorCode==='NEW_WORDING_REQUIRED')throw new Error('Revise repeated wording before approving this order.');
   if (job.status !== "needs_review") throw new Error("This job is not awaiting owner review.");
   const calculation = (await db.select().from(calculationResults).where(eq(calculationResults.reportJobId, job.id)).limit(1))[0];
   if (calculation?.validationStatus !== "valid") throw new Error("Validated calculation facts are required before approval.");
+  const meta=JSON.parse(calculation.factsJson);if(meta.contractVersion==='three-readings.v1')await assertThreeDirectionQuality(meta,job.language);
   if (version.status !== "needs_review") throw new Error("Only a report awaiting review can be approved.");
   await db.transaction(async tx => {
     const claim = await tx.update(reportJobs).set({ status: "approved", updatedAt: new Date() }).where(and(eq(reportJobs.id, input.reportJobId), eq(reportJobs.status, "needs_review")));
@@ -277,6 +283,7 @@ export async function reviseReportNarrative(input: { reportJobId: number; baseVe
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   const detail = await getReportReviewJob(input.reportJobId);
+  if(readingOptions(detail?.booking||{}))return reviseThreeDirectionReport(db,detail,input);
   const base = detail?.versions[0];
   if (!detail?.booking || !base || base.id !== input.baseVersionId || base.status !== "needs_review" || detail.job.status !== "needs_review") throw new Error("Only the current unapproved draft can be edited. Refresh the report.");
   if (detail.calculation?.validationStatus !== "valid") throw new Error("Validated facts are required.");

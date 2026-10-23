@@ -1,3 +1,5 @@
+import {assertThreeDirectionQuality} from './three-direction-reports';
+import {readingOptions} from '../shared/reading-products';
 import { isDeliveryLeaseExpired } from "./report-delivery-policy";
 import { reconcileRefunds } from "./refunds";
 import { isRefundHeld } from "./refund-proof";
@@ -621,7 +623,8 @@ export async function runDirectPaymentWorker() {
       if (!detail?.calculation?.factsJson || !detail.narrative?.narrativeJson)
         continue;
       try {
-        assertAutomaticReportQuality({
+        const reportMeta=JSON.parse(detail.calculation.factsJson);
+        if(reportMeta.contractVersion==='three-readings.v1')await assertThreeDirectionQuality(reportMeta,job.language);else assertAutomaticReportQuality({
           factsJson: detail.calculation.factsJson,
           narrativeJson: detail.narrative.narrativeJson,
           locale: job.language,

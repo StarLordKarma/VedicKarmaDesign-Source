@@ -12,3 +12,11 @@ coverage
 *.tar
 *.tar.gz
 *.zip
+
+.validation
+sandbox
+reading-core/output
+NEW-CHAT-START.md
+PROJECT-HANDOFF-*.md
+PROJECT-SEO-UPDATE-*.md
+marketing

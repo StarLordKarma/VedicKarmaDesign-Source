@@ -1,3 +1,5 @@
+import KnowledgeUpdates from '@/components/KnowledgeUpdates';
+import {specialistArea} from '@shared/reading-products';
 import DashboardLayout from "@/components/DashboardLayout";
 import ReportEvidencePanel from "@/components/ReportEvidencePanel";
 import { Button } from "@/components/ui/button";
@@ -150,9 +152,7 @@ export default function ReportStudio() {
                 Review & approve reports
               </h1>
               <p className="mt-2 max-w-2xl text-sm text-[#635a52]">
-                Verified payments create a queued job. Resolve birth location,
-                run the deterministic calculation, inspect the PDF preview, then
-                approve it before any client delivery.
+                Verified payments create a queued job. When automatic processing and delivery are enabled, reports are generated, checked and emailed automatically. Review held reports and delivery failures here.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -237,6 +237,7 @@ export default function ReportStudio() {
               </Link>
             </div>
           </div>
+          <KnowledgeUpdates/>
           {queue.error ? (
             <Card className="border-red-200 bg-red-50">
               <CardContent className="p-5 text-sm text-red-800">
@@ -265,7 +266,7 @@ export default function ReportStudio() {
                       validate the full PDF workflow.
                     </p>
                   ) : (
-                    queue.data.map(({ job, version }) => (
+                    queue.data.map(({ job, version, productCode }) => (
                       <button
                         key={job.id}
                         type="button"
@@ -281,7 +282,7 @@ export default function ReportStudio() {
                           </span>
                         </div>
                         <p className="mt-1 text-xs text-[#635a52]">
-                          {job.packageType} · {job.language} · attempt{" "}
+                          {specialistArea(productCode)} · {productCode||job.packageType} · {job.language} · attempt{" "}
                           {job.attemptCount}
                           {job.testJob ? " · SYNTHETIC TEST" : ""}
                         </p>

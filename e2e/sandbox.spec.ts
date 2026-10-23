@@ -9,7 +9,7 @@ test("public order, signed mock payment, report rendering and email delivery", a
   page,
   request,
 }) => {
-  await page.goto("/");
+  await page.goto("/?legacy=1");
   const decline = page.getByRole("button", {
     name: /Continue without analytics|Продолжить без аналитики/,
   });

@@ -1,3 +1,5 @@
+import{knowledgeRouter}from'./knowledge/router';
+import {PRODUCT_CENTS} from '../shared/reading-products';
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
@@ -158,6 +160,7 @@ export const appRouter = router({
       return { results, sent: results.filter((result) => result.success).length, failed: results.filter((result) => !result.success).length } as const;
     }),
   }),
+  knowledge:knowledgeRouter,
   reportStudio: router({
     recoverGeneration: adminProcedure.input(reportRunSchema).mutation(({ input, ctx }) => recoverReportJob(input.reportJobId, ctx.user.openId)),
     readiness: adminProcedure.query(async () => ({ ownerAlertsConfigured: Boolean(await ownerNotificationEmail()), emailConfigured: Boolean(ENV.resendApiKey && ENV.resendFromEmail), storageConfigured: process.env.STORAGE_PROVIDER === "s3" && Boolean(process.env.S3_BUCKET && process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY), aiConfigured: Boolean(process.env.LLM_BASE_URL && process.env.LLM_API_KEY), refundsEnabled: process.env.REFUNDS_ENABLED === "true" })),
@@ -167,7 +170,7 @@ export const appRouter = router({
     deleteTestJob: adminProcedure.input(reportRunSchema).mutation(({ input, ctx }) => deleteReportStudioTestJob({ ...input, actorId: ctx.user.openId })),
     runCalculation: adminProcedure.input(reportRunSchema).mutation(({ input, ctx }) => processReportJob({ ...input, actorId: ctx.user.openId })),
     approve: adminProcedure.input(reportApprovalSchema).mutation(({ input, ctx }) => approveReportVersion({ ...input, actorId: ctx.user.openId })),
-    reviseNarrative: adminProcedure.input(z.object({ reportJobId: z.number().int().positive(), baseVersionId: z.number().int().positive(), narrativeJson: z.string().max(100_000) })).mutation(({ input, ctx }) => reviseReportNarrative({ ...input, actorId: ctx.user.openId })),
+    reviseNarrative: adminProcedure.input(z.object({ reportJobId: z.number().int().positive(), baseVersionId: z.number().int().positive(), narrativeJson: z.string().max(300_000) })).mutation(({ input, ctx }) => reviseReportNarrative({ ...input, actorId: ctx.user.openId })),
     retryDelivery: adminProcedure.input(reportApprovalSchema.pick({ reportJobId: true, versionId: true })).mutation(({ input, ctx }) => retryReportDelivery({ ...input, actorId: ctx.user.openId })),
     processingSettings: adminProcedure.query(() => getReportProcessingSettings()),
     updateProcessingSettings: adminProcedure.input(z.object({ autoProcessEnabled: z.boolean(), aiModel: z.enum(AI_NARRATIVE_MODELS), maxTokens: z.number().int().min(1000).max(12000), maxSections: z.number().int().min(1).max(12), maxParagraphChars: z.number().int().min(300).max(1800) })).mutation(({ input, ctx }) => setReportProcessingSettings({ ...input, actorId: ctx.user.openId })),
@@ -218,15 +221,19 @@ export const appRouter = router({
   booking: router({
     submit: publicProcedure.input(bookingSchema).mutation(async ({ input, ctx }) => {
       if (process.env.CHECKOUT_ENABLED === "false") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Online checkout is temporarily unavailable. Please try again later." });
-      if (process.env.GEOCODING_PROVIDER === "geonames") {
-        try { await resolveBirthLocation({ city: input.birthCity, country: input.birthCountry, birthDate: input.birthDate, birthTime: input.birthTime }); }
+      if (process.env.GEOCODING_PROVIDER === "geonames" && input.product !== "tarot") {
+        try { await resolveBirthLocation({ city: input.birthCity, country: input.birthCountry, birthDate: input.birthDate, birthTime: input.unknownTime ? "12:00" : input.birthTime,disambiguation:input.disambiguation }); }
         catch (error) { throw new TRPCError({ code: "BAD_REQUEST", message: error instanceof Error ? error.message : "Birth location could not be verified before payment." }); }
       }
-      const selectedPackage = await getActiveServicePackage(input.addon ? "basic_plus" : "basic");
+      if(input.product?.startsWith("vedic_")&&input.addon!==(input.product==="vedic_plus"))throw new TRPCError({code:"BAD_REQUEST",message:"Package selection mismatch"});
+      const newProduct=input.product&&!input.product.startsWith("vedic_");
+      const selectedPackage = newProduct ? {version:1} : await getActiveServicePackage(input.addon ? "basic_plus" : "basic");
       if (!selectedPackage) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "The selected service package is currently unavailable." });
       const pricing = await getServicePricing(input.currency);
       if (input.promoCode && !validatePromoCode(input.promoCode).valid) throw new TRPCError({ code: "BAD_REQUEST", message: "This promo code is not valid." });
-      const priceSnapshot = { ...buildBookingPriceSnapshot({ addon: input.addon, currency: input.currency, basicAmount: pricing.basicUsd, addonAmount: pricing.numerologyAddonUsd, promoCode: input.promoCode }), packageVersion: selectedPackage.version };
+      const legacyPriceSnapshot = { ...buildBookingPriceSnapshot({ addon: input.addon, currency: input.currency, basicAmount: pricing.basicUsd, addonAmount: pricing.numerologyAddonUsd, promoCode: input.promoCode }), packageVersion: selectedPackage.version };
+      if(newProduct && input.promoCode)throw new TRPCError({code:"BAD_REQUEST",message:"Promo codes are not available for this product."});
+      const priceSnapshot = input.product ? {...legacyPriceSnapshot,...(newProduct?{packageCode:input.product,totalAmount:PRODUCT_CENTS[input.product]/100,basicAmount:PRODUCT_CENTS[input.product]/100,addonAmount:0}:{}),reading:{product:input.product,currentZone:input.currentZone,month:input.month||new Date().toISOString().slice(0,7),unknownTime:input.unknownTime,disambiguation:input.disambiguation,referenceDate:new Date().toISOString(),automaticDelivery:true as const}}:legacyPriceSnapshot;
       const totalUsd = priceSnapshot.totalAmount;
       const result = await createBookingRequest({
         name: input.name,
@@ -236,7 +243,7 @@ export const appRouter = router({
         birthCity: input.birthCity,
         birthCountry: input.birthCountry,
         language: input.language,
-        addon: input.addon ? 1 : 0,
+        addon: input.product ? (input.product === "vedic_plus" ? 1 : 0) : input.addon ? 1 : 0,
         packageCode: priceSnapshot.packageCode,
         packageVersion: priceSnapshot.packageVersion,
         priceSnapshotJson: JSON.stringify(priceSnapshot),
@@ -258,7 +265,7 @@ export const appRouter = router({
       }
       if (isSmokeRun) await createSmokeTestRun(input.smokeTestRunId!);
       void notifyOwner({
-        title: "New Vedic astrology booking",
+        title: "New personal reading booking",
         content: `Booking #${result.id} received. Open the owner dashboard to review it. Payment checkout is being created.`,
       });
       try {
@@ -266,6 +273,7 @@ export const appRouter = router({
         const invoice = await createCheckoutForBooking({
           bookingId: result.id,
           totalUsd,
+          ...(input.product ? {product:input.product} : {}),
           priceCurrency: input.currency,
           addon: input.addon,
           origin,

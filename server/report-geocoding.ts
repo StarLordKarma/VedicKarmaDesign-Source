@@ -24,7 +24,7 @@ function assertCoordinates(latitude: number, longitude: number) {
 
 // Use IANA historical rules, not today's raw UTC offset. Reject the DST gap
 // and overlap rather than silently choosing a different birth instant.
-export function resolveHistoricalOffset(date: string, time: string, timezone: string) {
+export function resolveHistoricalOffset(date: string, time: string, timezone: string, disambiguation: string = "reject") {
   const local = parseLocalAsUtc(date, time).getTime();
   const formatter = new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" });
   const wallTime = (instant: number) => {
@@ -37,14 +37,15 @@ export function resolveHistoricalOffset(date: string, time: string, timezone: st
     offsets.add(wallTime(instant) - instant);
   }
   const candidates = Array.from(offsets).filter(offset => wallTime(local - offset) === local);
+  if(candidates.length>1&&["earlier","later"].includes(disambiguation)){const sorted=candidates.sort((a,b)=>b-a);return (disambiguation==="earlier"?sorted[0]:sorted.at(-1)!)/60000;}
   if (candidates.length !== 1) throw new Error(candidates.length ? "Ambiguous birth time during daylight-saving overlap; manual confirmation is required." : "Birth time falls in a daylight-saving gap; correct the local time.");
   return candidates[0] / 60_000;
 }
 
-export async function resolveBirthLocation(input: { city: string; country: string; birthDate: string; birthTime: string }): Promise<ResolvedBirthLocation> {
+export async function resolveBirthLocation(input: { city: string; country: string; birthDate: string; birthTime: string; disambiguation?:string }): Promise<ResolvedBirthLocation> {
   if (process.env.GEOCODING_PROVIDER === "geonames") {
     const city = findOfflineBirthCity(input.city, input.country);
-    return { latitude: city.latitude, longitude: city.longitude, timezone: city.timezone, timeZoneOffsetMinutes: resolveHistoricalOffset(input.birthDate, input.birthTime, city.timezone), formattedAddress: `${city.name}, ${city.country} (GeoNames ${city.geonameId})`, locationType: "GEOMETRIC_CENTER", source: "geonames-offline", qualityFlags: [] };
+    return { latitude: city.latitude, longitude: city.longitude, timezone: city.timezone, timeZoneOffsetMinutes: resolveHistoricalOffset(input.birthDate, input.birthTime, city.timezone,input.disambiguation), formattedAddress: `${city.name}, ${city.country} (GeoNames ${city.geonameId})`, locationType: "GEOMETRIC_CENTER", source: "geonames-offline", qualityFlags: [] };
   }
   const address = `${input.city.trim()}, ${input.country.trim()}`;
   const geocode = await makeRequest<GeocodingResult>("/maps/api/geocode/json", { address });
@@ -64,5 +65,5 @@ export async function resolveBirthLocation(input: { city: string; country: strin
   if (geocode.results.length > 1) qualityFlags.push("ambiguous_geocode");
   if (!["ROOFTOP", "GEOMETRIC_CENTER"].includes(match.geometry.location_type)) qualityFlags.push("low_confidence_geocode");
   if (refinedZone.status !== "OK") qualityFlags.push("timezone_refinement_failed");
-  return { latitude, longitude, timezone: zone.timeZoneId, timeZoneOffsetMinutes: resolveHistoricalOffset(input.birthDate, input.birthTime, zone.timeZoneId), formattedAddress: match.formatted_address, locationType: match.geometry.location_type, source: "google-maps-proxy", qualityFlags };
+  return { latitude, longitude, timezone: zone.timeZoneId, timeZoneOffsetMinutes: resolveHistoricalOffset(input.birthDate, input.birthTime, zone.timeZoneId,input.disambiguation), formattedAddress: match.formatted_address, locationType: match.geometry.location_type, source: "google-maps-proxy", qualityFlags };
 }

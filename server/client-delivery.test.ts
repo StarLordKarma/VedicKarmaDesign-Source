@@ -62,3 +62,21 @@ describe("client natal PDF delivery", () => {
     fetchMock.mockRestore();
   });
 });
+
+describe('three-direction personalized report emails',()=>{
+  it.each(['English','Русский','Español','Deutsch'])('uses the selected %s language, name and correct discipline',async language=>{
+    signedUrl.mockResolvedValue('https://storage.example/report.pdf');
+    const fetchMock=vi.spyOn(globalThis,'fetch');
+    try{for(const product of ['vedic_basic','portrait','tarot']){
+      fetchMock.mockResolvedValueOnce(new Response('%PDF-1.7')).mockResolvedValueOnce(Response.json({id:'mock-email'}));
+      await sendClientReportPdf({email:'client@example.com',name:'Maya <script>',pdfKey:'private/report.pdf',pdfName:product+'.pdf',language,product,idempotencyKey:'order:1',statusUrl:'https://example.com/order/private'});
+      const mail=JSON.parse(String(fetchMock.mock.calls.at(-1)?.[1]?.body));
+      expect(mail.html).toContain('Maya &lt;script&gt;');expect(mail.html).not.toContain('<script>');expect(mail.text).toContain('Maya <script>');
+      const locale={English:'en','Русский':'ru','Español':'es',Deutsch:'de'}[language];expect(mail.html).toContain(`lang="${locale}"`);
+      expect(mail.html).toContain({English:'Thank you for your order',Русский:'Спасибо за ваш заказ',Español:'Gracias por tu pedido',Deutsch:'Vielen Dank für Ihre Bestellung'}[language]);
+      expect(mail.attachments[0].filename).toBe(product+'.pdf');
+      if(product==='tarot')expect(mail.subject).toMatch(/Tarot|Таро/);
+      if(product==='portrait')expect(mail.subject).toMatch(/Western|Западная|occidental|Westliche/);
+    }}finally{fetchMock.mockRestore()}
+  });
+});
