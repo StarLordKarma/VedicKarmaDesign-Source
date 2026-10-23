@@ -29,8 +29,8 @@ describe("public search metadata", () => {
   it("only advertises public canonical pages in the XML sitemap", () => {
     const document = new JSDOM(sitemapXml(), { contentType: "application/xml" }).window.document;
     const urls = [...document.querySelectorAll("loc")].map(el => el.textContent!);
-    expect(urls).toHaveLength(12);
-    expect(new Set(urls).size).toBe(12);
+    expect(urls).toHaveLength(PUBLIC_PAGE_PATHS.length * SEO_LOCALES.length);
+    expect(new Set(urls).size).toBe(PUBLIC_PAGE_PATHS.length * SEO_LOCALES.length);
     expect(urls).toEqual(PUBLIC_PAGE_PATHS.flatMap(p => SEO_LOCALES.map(l => publicPageUrl(p, l))));
     expect(urls.join(" ")).not.toMatch(/pay\/|status\/|admin|token|utm_/);
   });

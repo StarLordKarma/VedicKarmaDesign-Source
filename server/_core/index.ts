@@ -1,6 +1,7 @@
 import{requestBoundaries}from'../request-boundaries';
 import{createRateLimit}from'../observability';
 import {registerReadingSite}from'../reading-site';
+import {registerReadingGuides} from '../reading-guides';
 import {startKnowledgeUpdates}from'../knowledge/updates';
 import { registerDirectPaymentRoutes, startDirectPaymentWorker } from "../direct-payment-routes";
 import "dotenv/config";
@@ -84,6 +85,7 @@ async function startServer() {
   registerDirectPaymentRoutes(app);
   startDirectPaymentWorker();
   startKnowledgeUpdates();
+  registerReadingGuides(app);
   registerReadingSite(app);
   registerNowPaymentsWebhook(app);
   registerHeleketWebhook(app);

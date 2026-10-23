@@ -13,7 +13,7 @@ The home page includes a short localized initial HTML overview and three existin
 ## Discovery and exclusion
 
 - `/robots.txt` is plain text and advertises `/sitemap.xml`.
-- `/sitemap.xml` is XML and lists exactly twelve public canonical URLs; private orders, tokens and administrative pages are excluded.
+- `/sitemap.xml` is XML and lists the public canonical URLs; private orders, tokens and administrative pages are excluded. The original twelve URLs are joined by twelve guide URLs (three guides in four languages) in the 2026-10-24 promotion changes. Deployment of that change must be verified separately.
 - Payment, status, owner and admin pages receive both `X-Robots-Tag: noindex, nofollow, noarchive` and equivalent HTML metadata. The header also covers API responses, including private download endpoints.
 - Private HTML remains crawlable so a crawler can see noindex; authentication and report access control remain necessary and unchanged. Robots is not an access-control mechanism.
 - Unknown page URLs return HTTP 404 and noindex instead of a misleading 200. Direct `/index.html` requests redirect permanently to `/`.
@@ -39,3 +39,9 @@ Verification is a separate access-control action: it establishes owner privilege
 - Check title, canonical and structured data after switching languages in a real browser, and the initial public overview with JavaScript disabled.
 
 Official references: [robots](https://developers.google.com/search/docs/crawling-indexing/robots/intro), [localized versions](https://developers.google.com/search/docs/specialty/international/localized-versions), [Search Console verification](https://support.google.com/webmasters/answer/9008080).
+
+## Reading guides (2026-10-24)
+
+`shared/reading-guides.ts` contains the three editorial guides in EN/RU/DE/ES. `server/reading-guides.ts` serves complete HTML without JavaScript, using the existing canonical/hreflang metadata helpers. The reading home page links to the guides, which link to the relevant fictional samples. The articles do not collect birth data, submit orders or load analytics. Canonical URLs exclude marketing parameters. Unknown guide routes retain the existing 404/noindex handling.
+
+`reading-core/app.mjs` now recognizes `#sample-western`, `#sample-tarot`, and the other supported sample/offer anchors before scrolling, so an external sample link selects the correct product pane. The article locale remains explicit when returning to the storefront.

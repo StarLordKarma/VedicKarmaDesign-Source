@@ -1,7 +1,8 @@
+import { GUIDE_PATHS, readingGuide } from "./reading-guides";
 export const SITE_ORIGIN = "https://karmalifedesign.com";
 export const SEO_LOCALES = ["en", "ru", "de", "es"] as const;
 export type SeoLocale = typeof SEO_LOCALES[number];
-export const PUBLIC_PAGE_PATHS = ["/", "/privacy", "/refunds"] as const;
+export const PUBLIC_PAGE_PATHS = ["/", "/privacy", "/refunds", ...GUIDE_PATHS] as const;
 export type PublicPagePath = typeof PUBLIC_PAGE_PATHS[number];
 export const SOCIAL_IMAGE = `${SITE_ORIGIN}/social/report-preview.jpg`;
 export function seoLocale(value: string | null | undefined): SeoLocale {
@@ -74,6 +75,8 @@ export const seoCopy = {
 } as const;
 export function pageMetadata(path: string, locale: SeoLocale) {
   const t = seoCopy[locale];
+  const guide = readingGuide(path, locale);
+  if (guide) return { title: `${guide.title} | Karma Life Design`, description: guide.description };
   if (path === "/privacy") return { title: `${t.privacy} | Vedic Karma Design`, description: t.privacyDescription };
   if (path === "/refunds") return { title: `${t.refunds} | Vedic Karma Design`, description: t.refundsDescription };
   if (path === "/") return { title: t.title, description: t.description };
