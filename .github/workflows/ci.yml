@@ -64,6 +64,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec drizzle-kit migrate
       - run: pnpm exec vitest run server/notifications.admin.test.ts
+      - run: RUN_PIPELINE_MYSQL_TESTS=true pnpm exec vitest run server/pipeline-mysql.integration.test.ts
 
   sandbox-e2e:
     runs-on: ubuntu-latest

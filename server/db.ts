@@ -1,6 +1,6 @@
 import { drizzle } from "drizzle-orm/mysql2";
 import { and, asc, count, desc, eq, gte, gt, like, lt, sql } from "drizzle-orm";
-import { ClientChangeHistory, InsertBookingRequest, InsertUser, bookingRequests, clientChangeHistory, paymentTestLabRuns, paymentTestLabRetentionSettings, paymentTestLabRetentionChanges, paymentTestLabCleanupHistory, servicePackages, servicePricing, servicePricingCurrencies, servicePricingHistory, smokeTestRuns, users, receiptFiles, receiptRetentionSettings, receiptEmailAttempts, receiptEmailFailureAlerts, slaEmailAllowlist, directPaymentBindings } from "../drizzle/schema";
+import { ClientChangeHistory, InsertBookingRequest, InsertUser, bookingRequests, clientChangeHistory, paymentTestLabRuns, paymentTestLabRetentionSettings, paymentTestLabRetentionChanges, paymentTestLabCleanupHistory, servicePackages, servicePricing, servicePricingCurrencies, servicePricingHistory, smokeTestRuns, users, receiptFiles, receiptRetentionSettings, receiptEmailAttempts, receiptEmailFailureAlerts, slaEmailAllowlist, directPaymentBindings, verifiedPaymentClaims } from "../drizzle/schema";
 import { READING_PRICES } from "@shared/pricing";
 import { ENV } from './_core/env';
 import { resolveDatabaseUrl } from "./_core/database-url";
@@ -490,26 +490,29 @@ export async function updateBookingPaymentStatus(input: {
     throw new Error("Database is not available");
   }
 
-  const current = await db.select({ paymentStatus: bookingRequests.paymentStatus })
-    .from(bookingRequests)
-    .where(eq(bookingRequests.id, input.id))
-    .limit(1);
-  if (!current[0]) return { previousStatus: null, isConfirmed: false, missing: true };
-  const previousStatus = current[0].paymentStatus;
-  if (isRefundHeld(previousStatus)) return { previousStatus, isConfirmed: false, ignored: true };
-  // A fixed-price order must never be fulfilled from an underpayment. Providers
-  // report those separately so the owner can reconcile or request the remainder.
-  const isConfirmed = isPaidPaymentStatus(input.paymentStatus);
-  const wasConfirmed = isPaidPaymentStatus(previousStatus);
-  const nextPaymentStatus = wasConfirmed && !isConfirmed
-    ? previousStatus
-    : input.paymentStatus;
-  await db.update(bookingRequests).set({
-    ...(input.paymentId ? { paymentId: input.paymentId } : {}),
-    paymentStatus: nextPaymentStatus,
-    ...(isConfirmed || wasConfirmed ? { status: "in_progress" as const } : {}),
-  }).where(and(eq(bookingRequests.id, input.id), sql`${bookingRequests.paymentStatus} <=> ${previousStatus}`));
-  return { previousStatus, isConfirmed: isConfirmed || wasConfirmed };
+  return db.transaction(async tx => {
+    const current = (await tx.select().from(bookingRequests).where(eq(bookingRequests.id,input.id)).for("update"))[0];
+    if(!current)return {previousStatus:null,isConfirmed:false,missing:true};
+    const previousStatus=current.paymentStatus;
+    if(isRefundHeld(previousStatus))return {previousStatus,isConfirmed:false,ignored:true};
+    const wasConfirmed=isPaidPaymentStatus(previousStatus),incomingConfirmed=isPaidPaymentStatus(input.paymentStatus);
+    if(incomingConfirmed&&input.paymentId&&/^0x[0-9a-f]+:(?:0x)?[0-9a-f]{64}$/i.test(input.paymentId)){
+      const paymentId=input.paymentId.toLowerCase();
+      const historical=await tx.select({id:bookingRequests.id}).from(bookingRequests).where(and(eq(bookingRequests.paymentId,paymentId),sql`${bookingRequests.id} <> ${input.id}`)).limit(1);
+      if(historical.length)throw Error("This blockchain transaction already belongs to another order");
+      await tx.insert(verifiedPaymentClaims).values({paymentId,bookingId:input.id}).onDuplicateKeyUpdate({set:{paymentId}});
+      const claim=(await tx.select().from(verifiedPaymentClaims).where(eq(verifiedPaymentClaims.paymentId,paymentId)).limit(1))[0];
+      if(claim?.bookingId!==input.id)throw Error("This blockchain transaction already belongs to another order");
+    }
+    // Late pending/failure events cannot replace a verified payment identity.
+    const nextPaymentStatus=wasConfirmed?previousStatus:input.paymentStatus;
+    await tx.update(bookingRequests).set({
+      ...(!wasConfirmed&&input.paymentId?{paymentId:input.paymentId}:{}),
+      paymentStatus:nextPaymentStatus,
+      ...(!wasConfirmed&&incomingConfirmed?{status:"in_progress" as const}:{})
+    }).where(eq(bookingRequests.id,input.id));
+    return {previousStatus,isConfirmed:wasConfirmed||incomingConfirmed};
+  });
 }
 
 export async function getBookingRequestById(id: number) {

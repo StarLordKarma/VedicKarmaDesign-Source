@@ -61,7 +61,7 @@ export const bookingRequests = mysqlTable("booking_requests", {
   deliveredAt: timestamp("deliveredAt"),
   deliveredBy: varchar("deliveredBy", { length: 64 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-});
+},table=>({paymentIdentityIdx:index("booking_requests_payment_identity_idx").on(table.paymentId)}));
 
 export type BookingRequest = typeof bookingRequests.$inferSelect;
 export type InsertBookingRequest = typeof bookingRequests.$inferInsert;
@@ -540,3 +540,11 @@ export const paymentRefunds = mysqlTable("payment_refunds", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 }, table => ({ bookingUnique: uniqueIndex("payment_refund_booking_unique").on(table.bookingId), txUnique: uniqueIndex("payment_refund_tx_unique").on(table.network, table.transactionHash) }));
+
+// One independently verified blockchain transaction may fund only one order.
+export const verifiedPaymentClaims = mysqlTable('verified_payment_claims', {
+  id: int('id').autoincrement().primaryKey(),
+  paymentId: varchar('paymentId',{length:128}).notNull(),
+  bookingId: int('bookingId').notNull(),
+  createdAt: timestamp('createdAt').defaultNow().notNull(),
+},table=>({paymentUnique:uniqueIndex('verified_payment_claims_payment_unique').on(table.paymentId),bookingIdx:index('verified_payment_claims_booking_idx').on(table.bookingId)}));

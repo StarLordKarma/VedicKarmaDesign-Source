@@ -133,10 +133,6 @@ export function registerDirectPaymentRoutes(app: Express) {
       currencies: ["USD", "EUR", "GBP"],
     });
   });
-  app.use(
-    "/api/direct-payment",
-    createRateLimit({ name: "wallet-payments", windowMs: 60000, max: 30 })
-  );
   app.get("/api/direct-payment/:token", async (req, res) => {
     res.setHeader("Cache-Control", "no-store");
     try {

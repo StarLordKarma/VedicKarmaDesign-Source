@@ -7,13 +7,14 @@ export const PRIVACY_NOTICE_VERSION = "privacy-2026-10-21";
 export const bookingSchema = z.object({
   name: z.string().trim().min(2, "Please enter your name.").max(160),
   email: z.string().trim().email("Please enter a valid email.").max(320),
-  birthDate: z.string().default(""),
-  birthTime: z.string().default(""),
+  birthDate: z.string().max(10).default(""),
+  birthTime: z.string().max(5).default(""),
   birthCity: z.string().trim().max(160).default(""),
   birthCountry: z.string().trim().max(160).default(""),
   language: z.enum(["English", "Русский", "Deutsch", "Español"]),
   addon: z.boolean(),
   product: z.enum(READING_PRODUCTS).optional(),
+  expectedAmountCents:z.number().int().positive().max(100000000).optional(),
   currentZone: z.string().max(64).default("UTC").refine(x=>{try{new Intl.DateTimeFormat("en",{timeZone:x});return true}catch{return false}},"Invalid time zone"),
   month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/).optional(),
   unknownTime: z.boolean().default(false),
@@ -27,6 +28,8 @@ export const bookingSchema = z.object({
   smokeTest: z.boolean().optional().default(false),
   smokeTestRunId: z.string().regex(/^production-smoke-\d{10,}$/).optional(),
 }).superRefine((v,ctx)=>{
+ if(v.product&&!v.product.startsWith('vedic_')&&v.currency!=='USD')ctx.addIssue({code:'custom',path:['currency'],message:'This product is priced in USD.'});
+ if(v.product&&!v.product.startsWith('vedic_')&&v.addon)ctx.addIssue({code:'custom',path:['addon'],message:'This product does not include a Vedic add-on.'});
  if(v.product==='tarot')return;
  if(!z.string().date().safeParse(v.birthDate).success||v.birthDate>new Date().toISOString().slice(0,10))ctx.addIssue({code:'custom',path:['birthDate'],message:'Please enter a valid birth date.'});
  const allowUnknown=v.unknownTime&&['portrait','daily','monthly'].includes(v.product||'');
@@ -34,7 +37,8 @@ export const bookingSchema = z.object({
  if(v.birthCity.length<2)ctx.addIssue({code:'custom',path:['birthCity'],message:'Birth city is required.'});
  if(v.birthCountry.length<2)ctx.addIssue({code:'custom',path:['birthCountry'],message:'Birth country is required.'});
  if(v.product==='monthly'&&!v.month)ctx.addIssue({code:'custom',path:['month'],message:'Please select a month.'});
- if(v.product&&!v.product.startsWith('vedic_')&&v.currency!=='USD')ctx.addIssue({code:'custom',path:['currency'],message:'This product is priced in USD.'});
+ if(v.birthDate<'1800-01-01')ctx.addIssue({code:'custom',path:['birthDate'],message:'Birth dates before 1800 are not supported.'});
+ if(v.month&&(v.month<'1800-01'||v.month>'2399-11'))ctx.addIssue({code:'custom',path:['month'],message:'This forecast month is outside the supported calculation range.'});
 });
 
 export type BookingInput = z.infer<typeof bookingSchema>;

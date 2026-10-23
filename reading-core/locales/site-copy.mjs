@@ -816,3 +816,5 @@ export const SITE={
     }
   }
 };
+
+for(const[l,text]of Object.entries({en:"The price changed. Refresh the page and confirm the current price before paying.",ru:"Цена изменилась. Обновите страницу и проверьте актуальную цену перед оплатой.",es:"El precio ha cambiado. Actualiza la página y confirma el precio antes de pagar.",de:"Der Preis hat sich geändert. Laden Sie die Seite neu und prüfen Sie den aktuellen Preis vor der Zahlung."}))SITE[l].priceChanged=text;

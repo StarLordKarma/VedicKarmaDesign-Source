@@ -1,3 +1,5 @@
+import {readReportAttachment,assertReportAttachment} from './report-attachment';
+import {knowledgeStore} from './knowledge/store';
 import { TRPCError } from "@trpc/server";
 import { ENV } from "./_core/env";
 import { storageGetSignedUrl } from "./storage";
@@ -200,12 +202,23 @@ export async function sendClientReportPdf(input: {
   idempotencyKey?: string;
   statusUrl?: string;
   product?: string;
+  expectedPdfSha256?: string | null;
+  outboxKey?: string;
 }) {
   if (!ENV.resendApiKey || !ENV.resendFromEmail)
     throw new TRPCError({
       code: "PRECONDITION_FAILED",
       message: "Email delivery is not configured.",
     });
+  if(input.outboxKey&&(!input.idempotencyKey||!input.expectedPdfSha256))throw new TRPCError({code:"PRECONDITION_FAILED",message:"Delivery snapshot requires a verified PDF and idempotency key."});
+  const outbox=input.outboxKey?knowledgeStore():undefined;
+  const saved=outbox?await outbox.get(input.outboxKey!):null;
+  let mail:any;
+  if(saved){
+    if(saved.schemaVersion!=="report-mail/v1"||typeof saved.payload?.attachments?.[0]?.content!=="string"||saved.payload.attachments[0].content.length>16*1024*1024||saved.idempotencyKey!==input.idempotencyKey||saved.payload?.to?.length!==1||saved.payload.to[0]!==input.email||saved.payload.attachments?.length!==1)throw new TRPCError({code:'PRECONDITION_FAILED',message:'Delivery snapshot integrity check failed.'});
+    assertReportAttachment(Buffer.from(saved.payload.attachments[0].content,'base64'),input.expectedPdfSha256);
+    mail=saved.payload;
+  }else{
   const signedUrl = await storageGetSignedUrl(input.pdfKey);
   const pdfResponse = await fetch(signedUrl, {
     signal: AbortSignal.timeout(20_000),
@@ -215,12 +228,7 @@ export async function sendClientReportPdf(input: {
       code: "BAD_GATEWAY",
       message: "Could not retrieve the approved report PDF from storage.",
     });
-  const pdfBytes = new Uint8Array(await pdfResponse.arrayBuffer());
-  if (pdfBytes.length > 12 * 1024 * 1024)
-    throw new TRPCError({
-      code: "PAYLOAD_TOO_LARGE",
-      message: "The approved report PDF exceeds the delivery limit.",
-    });
+  const pdfBytes = await readReportAttachment(pdfResponse,input.expectedPdfSha256);
   const copy = getDeliveryCopy(input.language);
   if(input.product){const locale=input.language==='Русский'?'ru':input.language==='Deutsch'?'de':input.language==='Español'?'es':'en';const area=input.product.startsWith('vedic_')?0:input.product==='tarot'?2:1;const names={en:['Vedic astrology','Western astrology','Tarot'],ru:['Ведическая астрология','Западная астрология','Таро'],es:['Astrología védica','Astrología occidental','Tarot'],de:['Vedische Astrologie','Westliche Astrologie','Tarot']};copy.subject=names[locale][area]+' · '+({en:'Your personal report',ru:'Ваш личный отчёт',es:'Tu informe personal',de:'Ihr persönlicher Bericht'})[locale];copy.body=({en:'Thank you for your order. Your personal illustrated report is attached as a PDF. We hope you enjoy reading it. You can save it and, if you wish, share it with family, friends or your partner.',ru:'Спасибо за ваш заказ. К письму приложен ваш персональный красочный отчёт в формате PDF. Желаем приятного чтения! Сохраните его и при желании поделитесь с семьёй, друзьями или партнёром.',es:'Gracias por tu pedido. Adjuntamos tu informe personal ilustrado en PDF. Esperamos que disfrutes de la lectura. Puedes guardarlo y, si lo deseas, compartirlo con tu familia, tus amistades o tu pareja.',de:'Vielen Dank für Ihre Bestellung. Im Anhang finden Sie Ihren persönlichen illustrierten PDF-Bericht. Wir wünschen Ihnen eine angenehme Lektüre. Sie können ihn speichern und auf Wunsch mit Ihrer Familie, Freunden oder Ihrem Partner teilen.'})[locale]}
 
@@ -228,15 +236,7 @@ export async function sendClientReportPdf(input: {
   const statusLabel = {en:'Order status and PDF',ru:'Статус заказа и PDF',es:'Estado del pedido y PDF',de:'Bestellstatus und PDF'}[locale];
   const safeName = escapeHtml(input.name.trim());
   const safeStatusUrl = input.statusUrl && /^https:\/\//.test(input.statusUrl) ? escapeHtml(input.statusUrl) : undefined;
-  const response = await fetch(resendEndpoint(), {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${ENV.resendApiKey}`,
-      "Content-Type": "application/json",
-      Accept: "application/json",
-      ...(input.idempotencyKey ? { "Idempotency-Key": input.idempotencyKey } : {}),
-    },
-    body: JSON.stringify({
+    mail={
       from: ENV.resendFromEmail,
       to: [input.email],
       subject: copy.subject,
@@ -248,17 +248,31 @@ export async function sendClientReportPdf(input: {
           content: bytesToBase64(pdfBytes),
         },
       ],
-    }),
+    };
+    if(outbox)await outbox.put(input.outboxKey!,{schemaVersion:'report-mail/v1',idempotencyKey:input.idempotencyKey,payload:mail});
+  }
+  const response = await fetch(resendEndpoint(), {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${ENV.resendApiKey}`,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      ...(input.idempotencyKey ? { "Idempotency-Key": input.idempotencyKey } : {}),
+    },
+    body: JSON.stringify(mail),
     signal: AbortSignal.timeout(20_000),
   });
   if (!response.ok) {
     const detail = await response.text().catch(() => "");
+    let concurrent=false;try{concurrent=JSON.parse(detail).name==="concurrent_idempotent_requests"}catch{}
     throw new TRPCError({
-      code: response.status >= 400 && response.status < 500 && response.status !== 429 ? "BAD_REQUEST" : "BAD_GATEWAY",
+      code: response.status >= 400 && response.status < 500 && response.status !== 429 && !concurrent ? "BAD_REQUEST" : "BAD_GATEWAY",
       message: `Email provider rejected the report delivery${detail ? `: ${detail.slice(0, 240)}` : "."}`,
     });
   }
-  return (await response.json()) as { id?: string };
+  const accepted=await response.json();
+  if(typeof accepted?.id!=="string"||!accepted.id||accepted.id.length>160)throw new TRPCError({code:"BAD_GATEWAY",message:"Email provider returned an ambiguous acknowledgement."});
+  return accepted as {id:string};
 }
 
 export async function sendSlaChartPdf(input: {

@@ -175,3 +175,10 @@ describe("direct USDT checkout", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 });
+
+it('does not accept an event removed by a reorg',async()=>{receipt.logs[0].removed=true;await expect(verifyTransfer(intent,hash)).rejects.toThrow('not received')});
+it('rechecks canonical block hash after observing finality',async()=>{
+ const f=vi.mocked(fetch),original=f.getMockImplementation()!;let blocks=0;
+ f.mockImplementation(async(url,init)=>{const q=JSON.parse(String(init!.body));if(q.method==='eth_getBlockByNumber'&&q.params[0]!=='finalized'&&++blocks>1)return Response.json({result:{...block,hash:'replacement'}});return original(url,init)});
+ expect(await verifyTransfer(intent,hash)).toBe(false);
+});

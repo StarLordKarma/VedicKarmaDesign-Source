@@ -235,6 +235,7 @@ export const appRouter = router({
       if(newProduct && input.promoCode)throw new TRPCError({code:"BAD_REQUEST",message:"Promo codes are not available for this product."});
       const priceSnapshot = input.product ? {...legacyPriceSnapshot,...(newProduct?{packageCode:input.product,totalAmount:PRODUCT_CENTS[input.product]/100,basicAmount:PRODUCT_CENTS[input.product]/100,addonAmount:0}:{}),reading:{product:input.product,currentZone:input.currentZone,month:input.month||new Date().toISOString().slice(0,7),unknownTime:input.unknownTime,disambiguation:input.disambiguation,referenceDate:new Date().toISOString(),automaticDelivery:true as const}}:legacyPriceSnapshot;
       const totalUsd = priceSnapshot.totalAmount;
+      if(input.expectedAmountCents!==undefined&&input.expectedAmountCents!==Math.round(totalUsd*100))throw new TRPCError({code:"CONFLICT",message:"Price changed. Refresh the page and confirm the current price before payment."});
       const result = await createBookingRequest({
         name: input.name,
         email: input.email,

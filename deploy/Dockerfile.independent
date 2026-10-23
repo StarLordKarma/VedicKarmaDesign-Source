@@ -18,6 +18,7 @@ RUN corepack pnpm install --frozen-lockfile
 COPY . .
 RUN corepack pnpm run build \
   && test -s /app/dist/index.js \
+  && test -s /app/dist/reading-worker.js \
   && corepack pnpm prune --prod
 
 RUN chown -R app:app /app

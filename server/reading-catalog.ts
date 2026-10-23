@@ -1,0 +1,3 @@
+import{getServicePricing}from'./db';import{PRODUCT_CENTS}from'../shared/reading-products';
+let cached:typeof PRODUCT_CENTS|undefined,expires=0,pending:Promise<typeof PRODUCT_CENTS>|undefined;
+export async function readingPrices(){if(cached&&Date.now()<expires)return cached;if(pending)return pending;pending=(async()=>{const pricing=await getServicePricing('USD');const result={...PRODUCT_CENTS,vedic_basic:Math.round(pricing.basicUsd*100),vedic_plus:Math.round((pricing.basicUsd+pricing.numerologyAddonUsd)*100)};if(Object.values(result).some(n=>!Number.isSafeInteger(n)||n<=0))throw Error('Invalid catalog price');cached=result;expires=Date.now()+30000;return result})();try{return await pending}finally{pending=undefined}}

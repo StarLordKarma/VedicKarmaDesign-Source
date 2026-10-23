@@ -118,3 +118,10 @@ describe('new-product checkout language and price',()=>{
     }
   });
 });
+
+it("rejects a displayed price that no longer matches the active server price",async()=>{
+  mocks.createBookingRequest.mockClear();
+  const caller=appRouter.createCaller({req:smokeRequest(),res:{} as never,user:null});
+  await expect(caller.booking.submit({name:'Maya',email:'maya@example.com',product:'vedic_basic',expectedAmountCents:999,language:'English',addon:false,birthDate:'1990-04-12',birthTime:'08:30',birthCity:'Berlin',birthCountry:'Germany',privacyAcknowledged:true,privacyNoticeVersion:PRIVACY_NOTICE_VERSION,privacyLocale:'en'})).rejects.toMatchObject({code:'CONFLICT'});
+  expect(mocks.createBookingRequest).not.toHaveBeenCalled();
+});

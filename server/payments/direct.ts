@@ -214,8 +214,13 @@ export async function verifyTransfer(
   const finalized = await call("eth_getBlockByNumber", ["finalized", false]);
   if (!finalized || BigInt(finalized.number) < BigInt(receipt.blockNumber))
     return false;
+  // A reorg may occur between the first block lookup and the finality lookup.
+  // Confirm the canonical hash again after observing finality.
+  const canonical=await call("eth_getBlockByNumber",[receipt.blockNumber,false]);
+  if(!canonical||canonical.hash!==receipt.blockHash)return false;
   const paid = receipt.logs.some(
     (log: any) =>
+      log.removed !== true &&
       log.address?.toLowerCase() === config.token &&
       log.topics?.[0] === TRANSFER_TOPIC &&
       log.topics?.[1]?.toLowerCase() ===

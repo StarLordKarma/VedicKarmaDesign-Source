@@ -1,3 +1,7 @@
+import{renderLegacyOffThread}from'./report-renderer';
+import{runReportWork}from'./report-work-queue';
+import{withPaidBookingLock}from'./fulfillment-claims';
+import{reportDigest}from'./report-attachment';
 import {frozenBookingInput,processThreeDirectionReport,expandedNarrative,reviseThreeDirectionReport,assertThreeDirectionQuality} from './three-direction-reports';
 import {readingOptions} from '../shared/reading-products';
 import { assertDeliveryRetryWindow } from "./report-delivery-policy";
@@ -115,13 +119,16 @@ export async function getReportReviewJob(reportJobId: number) {
   return { job, booking, versions, calculation: result, narrative: await expandedNarrative(narrative) };
 }
 
-export async function processReportJob(input: { reportJobId: number; actorId: string }) {
+export function processReportJob(input: { reportJobId: number; actorId: string }) {
+  return runReportWork(input.reportJobId,()=>processReportJobUnlocked(input));
+}
+async function processReportJobUnlocked(input: { reportJobId: number; actorId: string }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   const current = (await db.select().from(reportJobs).where(eq(reportJobs.id, input.reportJobId)).limit(1))[0];
   if (!current) throw new Error("Report job not found");
   if (!["queued", "paid", "calculation_failed", "render_failed"].includes(current.status)) return { skipped: true, job: current };
-  const booking = await getBookingRequestById(current.bookingId);
+  let booking = await getBookingRequestById(current.bookingId);
   if (!booking) throw new Error("Booking request not found");
   if (isRefundHeld(booking.paymentStatus)) throw new Error("Report processing is paused for this refund");
   if (!current.testJob && !isPaidPaymentStatus(booking.paymentStatus)) throw new Error("Report generation requires a confirmed payment");
@@ -131,9 +138,13 @@ export async function processReportJob(input: { reportJobId: number; actorId: st
     if (frozenHash !== current.inputHash) throw new Error("Birth details changed after payment. A new reviewed snapshot is required.");
   }
   try {
-    const claim = await db.update(reportJobs)
+    const claim = await withPaidBookingLock(db,current.bookingId,async(tx,freshBooking)=>{
+      if(!current.testJob&&sha256(JSON.stringify(frozenBookingInput(freshBooking)))!==current.inputHash)throw Error("Birth details changed after payment");
+      booking=freshBooking;
+      return tx.update(reportJobs)
       .set({ status: "calculating", startedAt: new Date(), attemptCount: current.attemptCount + 1, lastErrorCode: null, lastErrorMessage: null })
       .where(and(eq(reportJobs.id, current.id), eq(reportJobs.status, current.status)));
+    },Boolean(current.testJob));
     if (Number(claim[0].affectedRows ?? 0) !== 1) {
       return { skipped: true, job: current, reason: "already-claimed" as const };
     }
@@ -156,15 +167,17 @@ export async function processReportJob(input: { reportJobId: number; actorId: st
     if (narrative.usedFallback) await db.insert(reportAuditEvents).values({ reportJobId: current.id, eventType: "curated_narrative_fallback", actorType: "system", fromStatus: "narrative_draft", toStatus: "narrative_draft", metadataJson: JSON.stringify({ reason: "AI_UNAVAILABLE_OR_INVALID", modelVersion: narrative.modelVersion }) });
     await db.insert(narrativeDrafts).values({ reportJobId: current.id, locale: current.language, modelName: narrative.modelVersion, modelVersion: narrative.modelVersion, promptVersion: narrative.promptVersion, narrativeJson: JSON.stringify(narrative), validationStatus: "valid", createdBy: "system" });
     const narrativeSummary = narrative.sections[0]?.paragraphs[0]?.slice(0, 600);
-    const pdf = await buildFullNatalReportPdf({ background: EMPTY_BACKGROUND, locale: current.language as "ru" | "en" | "de" | "es", clientName: booking.name, birthPlace: `${booking.birthCity}, ${booking.birthCountry}`, packageType: current.packageType, narrative: { sections: narrative.sections.map((section) => ({ sectionKey: section.sectionKey, title: section.title, paragraphs: section.paragraphs, factRefs: section.factRefs })) }, facts });
+    const pdf = await renderLegacyOffThread({ background: EMPTY_BACKGROUND, locale: current.language as "ru" | "en" | "de" | "es", clientName: booking.name, birthPlace: `${booking.birthCity}, ${booking.birthCountry}`, packageType: current.packageType, narrative: { sections: narrative.sections.map((section) => ({ sectionKey: section.sectionKey, title: section.title, paragraphs: section.paragraphs, factRefs: section.factRefs })) }, facts });
     const stored = await storagePut(`report-studio/${current.id}/v1-preview.pdf`, pdf, "application/pdf");
-    await db.insert(reportVersions).values({ reportJobId: current.id, versionNumber: 1, templateVersion: REPORT_TEMPLATE_VERSION, locale: current.language, pdfStorageKey: stored.key, pdfSha256: sha256(pdf.toString("base64")), status: "needs_review" });
-    await db.update(reportJobs).set({ status: "needs_review", factsHash, finishedAt: new Date() }).where(eq(reportJobs.id, current.id));
-    await db.insert(reportAuditEvents).values({ reportJobId: current.id, eventType: "pdf_ready_for_review", actorType: "system", fromStatus: "calculating", toStatus: "needs_review", metadataJson: JSON.stringify({ factsHash }) });
+    await db.transaction(async tx=>{
+    await tx.insert(reportVersions).values({ reportJobId: current.id, versionNumber: 1, templateVersion: REPORT_TEMPLATE_VERSION, locale: current.language, pdfStorageKey: stored.key, pdfSha256: reportDigest(pdf), status: "needs_review" });
+    await tx.update(reportJobs).set({ status: "needs_review", factsHash, finishedAt: new Date() }).where(eq(reportJobs.id, current.id));
+    await tx.insert(reportAuditEvents).values({ reportJobId: current.id, eventType: "pdf_ready_for_review", actorType: "system", fromStatus: "calculating", toStatus: "needs_review", metadataJson: JSON.stringify({ factsHash }) });
+    });
     return { skipped: false, status: "needs_review" as const, pdfUrl: stored.url };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Calculation failed";
-    await db.update(reportJobs).set({ status: "calculation_failed", lastErrorCode: "CALCULATION_FAILED", lastErrorMessage: message.slice(0, 1000), finishedAt: new Date() }).where(eq(reportJobs.id, current.id));
+    await db.update(reportJobs).set({ status: "calculation_failed", lastErrorCode: "CALCULATION_FAILED", lastErrorMessage: message.slice(0, 1000), finishedAt: new Date() }).where(and(eq(reportJobs.id,current.id),inArray(reportJobs.status,["calculating","narrative_draft","rendering"])));
     await db.insert(reportAuditEvents).values({ reportJobId: current.id, eventType: "generation_failed", actorType: "system", fromStatus: "calculating", toStatus: "calculation_failed", metadataJson: JSON.stringify({ attempt: current.attemptCount + 1 }) });
     if (!current.testJob) void notifyOwner({ title: "Paid report needs attention", content: `Order #${current.bookingId}, report #${current.id}: generation attempt ${current.attemptCount + 1} failed. Review Report Studio; do not request another payment.` });
     throw error;
@@ -229,23 +242,26 @@ export async function deliverApprovedReport(input: { reportJobId: number; versio
   } catch (error) {
     throw new TRPCError({ code: "PRECONDITION_FAILED", message: (error as Error).message });
   }
-  const claim = await db.update(reportDeliveryAttempts)
+  const claim = await withPaidBookingLock(db,bookingRequest.id,async tx=>tx.update(reportDeliveryAttempts)
     .set({ status: "sending", startedAt: new Date(), errorCode: null, errorMessage: null, completedAt: null })
-    .where(and(eq(reportDeliveryAttempts.id, existing.id), inArray(reportDeliveryAttempts.status, ["queued", "failed"])));
+    .where(and(eq(reportDeliveryAttempts.id, existing.id), inArray(reportDeliveryAttempts.status, ["queued", "failed"]))));
   if (Number(claim[0].affectedRows ?? 0) !== 1) {
     return { status: existing.status === "sent" ? "sent" as const : "sending" as const, providerMessageId: existing.providerMessageId };
   }
   const attemptId = existing.id;
+  let providerAccepted=false;
   try {
     const binding = (await db.select().from(directPaymentBindings).where(eq(directPaymentBindings.bookingId, bookingRequest.id)).limit(1))[0];
     const statusUrl = binding?.statusToken && process.env.PUBLIC_BASE_URL ? `${process.env.PUBLIC_BASE_URL.replace(/\/$/, "")}/status/${binding.statusToken}` : undefined;
-    const result = await sendClientReportPdf({ email: bookingRequest.email, name: bookingRequest.name, pdfKey: current.pdfStorageKey, pdfName: `${readingOptions(bookingRequest)?.product||"vedic"}-report-${bookingRequest.id}.pdf`, language: bookingRequest.language, idempotencyKey, statusUrl, product: readingOptions(bookingRequest)?.product });
+    const result = await sendClientReportPdf({ email: existing.recipientEmail, name: bookingRequest.name, pdfKey: current.pdfStorageKey, pdfName: `${readingOptions(bookingRequest)?.product||"vedic"}-report-${bookingRequest.id}.pdf`, language: ({en:"English",ru:"Русский",es:"Español",de:"Deutsch"} as Record<string,string>)[job.language]||"English", idempotencyKey, statusUrl, expectedPdfSha256:current.pdfSha256, outboxKey:process.env.STORAGE_PROVIDER==="s3"?`report-delivery/${attemptId}.json`:undefined, product: readingOptions(bookingRequest)?.product });
+    providerAccepted=true;
     await db.update(reportDeliveryAttempts).set({ status: "sent", providerMessageId: result.id ?? null, completedAt: new Date() }).where(eq(reportDeliveryAttempts.id, attemptId));
     await db.update(reportVersions).set({ status: "sent" }).where(eq(reportVersions.id, current.id));
     await db.update(reportJobs).set({ status: "sent", finishedAt: new Date() }).where(eq(reportJobs.id, input.reportJobId));
     await db.insert(reportAuditEvents).values({ reportJobId: input.reportJobId, eventType: "approved_pdf_sent", actorType: "system", actorId: input.actorId, fromStatus: "approved", toStatus: "sent", metadataJson: JSON.stringify({ versionId: current.id, providerMessageId: result.id ?? null }) });
     return { status: "sent" as const, providerMessageId: result.id ?? null };
   } catch (error) {
+    if(providerAccepted)throw error; // Reconcile the accepted attempt; never downgrade it to failed.
     const message = error instanceof Error ? error.message : "Report delivery failed.";
     await db.update(reportDeliveryAttempts).set({ status: "failed", errorCode: error instanceof TRPCError && ["BAD_REQUEST", "PRECONDITION_FAILED", "PAYLOAD_TOO_LARGE"].includes(error.code) ? "PERMANENT_DELIVERY_ERROR" : "TRANSIENT_DELIVERY_ERROR", errorMessage: message.slice(0, 1000), completedAt: new Date() }).where(eq(reportDeliveryAttempts.id, attemptId));
     await db.update(reportJobs).set({ status: "delivery_failed", lastErrorCode: "DELIVERY_FAILED", lastErrorMessage: message.slice(0, 1000) }).where(eq(reportJobs.id, input.reportJobId));
@@ -294,11 +310,11 @@ export async function reviseReportNarrative(input: { reportJobId: number; baseVe
   if (Number(claim[0].affectedRows ?? 0) !== 1) throw new Error("This report is being changed by another request.");
   try {
     const versionNumber = base.versionNumber + 1;
-    const pdf = await buildFullNatalReportPdf({ background: EMPTY_BACKGROUND, locale: narrative.locale, clientName: detail.booking.name, birthPlace: `${detail.booking.birthCity}, ${detail.booking.birthCountry}`, packageType: detail.job.packageType, narrative, facts });
+    const pdf = await renderLegacyOffThread({ background: EMPTY_BACKGROUND, locale: narrative.locale, clientName: detail.booking.name, birthPlace: `${detail.booking.birthCity}, ${detail.booking.birthCountry}`, packageType: detail.job.packageType, narrative, facts });
     const stored = await storagePut(`report-studio/${detail.job.id}/v${versionNumber}-preview.pdf`, pdf, "application/pdf");
     await db.transaction(async tx => {
       await tx.insert(narrativeDrafts).values({ reportJobId: detail.job.id, locale: narrative.locale, modelName: detail.narrative?.modelName ?? "owner-edited", modelVersion: narrative.modelVersion, promptVersion: narrative.promptVersion, narrativeJson: JSON.stringify(narrative), validationStatus: "valid", createdBy: input.actorId });
-      await tx.insert(reportVersions).values({ reportJobId: detail.job.id, versionNumber, templateVersion: REPORT_TEMPLATE_VERSION, locale: narrative.locale, pdfStorageKey: stored.key, pdfSha256: sha256(pdf.toString("base64")), status: "needs_review", editorSummary: "Owner revised narrative" });
+      await tx.insert(reportVersions).values({ reportJobId: detail.job.id, versionNumber, templateVersion: REPORT_TEMPLATE_VERSION, locale: narrative.locale, pdfStorageKey: stored.key, pdfSha256: reportDigest(pdf), status: "needs_review", editorSummary: "Owner revised narrative" });
       await tx.update(reportVersions).set({ status: "superseded" }).where(and(eq(reportVersions.id, base.id), eq(reportVersions.status, "needs_review")));
       await tx.update(reportJobs).set({ status: "needs_review" }).where(eq(reportJobs.id, detail.job.id));
       await tx.insert(reportAuditEvents).values({ reportJobId: detail.job.id, eventType: "narrative_revised", actorType: "owner", actorId: input.actorId, fromStatus: "needs_review", toStatus: "needs_review", metadataJson: JSON.stringify({ baseVersionId: base.id, versionNumber }) });

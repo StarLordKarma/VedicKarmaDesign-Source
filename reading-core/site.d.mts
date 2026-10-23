@@ -1,1 +1,1 @@
-export function renderPage(locale?:string):string;
+export function renderPage(locale?:string,catalog?:Record<string,number>):string;

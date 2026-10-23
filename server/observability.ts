@@ -101,17 +101,22 @@ export type RateLimitOptions = {
   windowMs: number;
   max: number;
   key?: (req: Request) => string;
+  maxKeys?: number;
 };
 
 type Bucket = { count: number; resetAt: number };
 
 export function createRateLimit(options: RateLimitOptions): RequestHandler {
   const buckets = new Map<string, Bucket>();
+  const maxKeys=options.maxKeys??10000;
+  let nextSweep=0;
   return (req, res, next) => {
     const now = Date.now();
+    if(now>=nextSweep){buckets.forEach((bucket,key)=>{if(bucket.resetAt<=now)buckets.delete(key)});nextSweep=now+60000;}
     const key = `${options.name}:${(options.key ?? getClientIp)(req)}`;
     const current = buckets.get(key);
     if (!current || current.resetAt <= now) {
+      if(!current&&buckets.size>=maxKeys){res.setHeader("Retry-After","60");res.status(429).json({error:"rate_limit_capacity",retryAfterSeconds:60});return;}
       buckets.set(key, { count: 1, resetAt: now + options.windowMs });
       next();
       return;
@@ -187,7 +192,7 @@ const routeLimits: Array<{ pattern: RegExp; limiter: RequestHandler }> = [
 ];
 
 export const trpcRateLimitMiddleware: RequestHandler = (req, res, next) => {
-  const route = req.originalUrl || req.url || req.path;
+  let route:string;try{route=decodeURIComponent((req.originalUrl||req.url||req.path).split("?")[0])}catch{return void res.status(400).json({error:"invalid_path"})}
   const matched = routeLimits.find(item => item.pattern.test(route));
   if (!matched) return next();
   return matched.limiter(req, res, next);

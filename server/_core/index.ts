@@ -1,3 +1,5 @@
+import{requestBoundaries}from'../request-boundaries';
+import{createRateLimit}from'../observability';
 import {registerReadingSite}from'../reading-site';
 import {startKnowledgeUpdates}from'../knowledge/updates';
 import { registerDirectPaymentRoutes, startDirectPaymentWorker } from "../direct-payment-routes";
@@ -73,9 +75,10 @@ async function startServer() {
   registerSearchRoutes(app);
   app.use(crossSiteWriteGuard);
   const server = createServer(app);
-  // Configure body parser with larger size limit for file uploads
-  app.use(express.json({ limit: "50mb" }));
-  app.use(express.urlencoded({ limit: "50mb", extended: true }));
+  // Reject abusive requests before reading and allocating their bodies.
+  app.use("/api/trpc",trpcRateLimitMiddleware);
+  app.use("/api/direct-payment",createRateLimit({name:"wallet-payments",windowMs:60000,max:30}));
+  app.use(requestBoundaries());
   app.get("/health", healthHandler);
   app.get("/ready", readinessHandler);
   registerDirectPaymentRoutes(app);
@@ -107,10 +110,10 @@ async function startServer() {
     cleanupPaymentTestLabRunsHandler
   );
   // tRPC API
-  app.use("/api/trpc", trpcRateLimitMiddleware);
   app.use(
     "/api/trpc",
     createExpressMiddleware({
+      maxBatchSize:20,
       router: appRouter,
       createContext,
     })

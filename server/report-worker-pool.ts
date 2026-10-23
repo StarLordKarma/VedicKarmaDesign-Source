@@ -1,0 +1,9 @@
+import{Worker,type WorkerOptions}from'node:worker_threads';
+export function createReportWorkerPool(file:string|URL,options:WorkerOptions={},timeoutMs=120000,maxPending=32){
+ let worker:Worker|undefined,active:{id:number;resolve:(v:any)=>void;reject:(e:Error)=>void;timer?:ReturnType<typeof setTimeout>}|undefined,sequence=0;
+ const pending:Array<{id:number;task:string;input:any;resolve:(v:any)=>void;reject:(e:Error)=>void}>=[];
+ function failed(error:Error){if(active){clearTimeout(active.timer);active.reject(error);active=undefined}const old=worker;worker=undefined;void old?.terminate();pump()}
+ function start(){if(worker)return;const w=new Worker(file,options);worker=w;w.unref();w.on('message',message=>{if(w!==worker||!active||message.id!==active.id)return;const job=active;clearTimeout(job.timer);active=undefined;w.unref();if(message.error)job.reject(Error(message.error));else job.resolve(message.result);pump()});w.on('error',error=>{if(w===worker)failed(error)});w.on('exit',code=>{if(w===worker){worker=undefined;if(active)failed(Error('Report worker exited unexpectedly: '+code))}})}
+ function pump(){if(active||!pending.length)return;start();const job=pending.shift()!;active=job;active.timer=setTimeout(()=>failed(Error('Report worker timed out; saved job can be retried')),timeoutMs);worker!.ref();worker!.postMessage({id:job.id,task:job.task,input:job.input})}
+ return{run(task:string,input:any):Promise<any>{if(pending.length>=maxPending)return Promise.reject(Error('Report rendering queue is full; retry the saved job'));return new Promise((resolve,reject)=>{pending.push({id:++sequence,task,input,resolve,reject});pump()})},async close(){for(const p of pending.splice(0))p.reject(Error('Report worker closed'));if(active){clearTimeout(active.timer);active.reject(Error('Report worker closed'));active=undefined}const old=worker;worker=undefined;await old?.terminate()}};
+}

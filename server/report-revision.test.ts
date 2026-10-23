@@ -3,6 +3,7 @@ const mocks = vi.hoisted(() => ({ getDb: vi.fn(), booking: vi.fn(), storage: vi.
 vi.mock("./db", () => ({ getDb: mocks.getDb, getBookingRequestById: mocks.booking, createBookingRequest: vi.fn(), deleteBookingRequest: vi.fn() }));
 vi.mock("./storage", () => ({ storagePut: mocks.storage }));
 vi.mock("./export", () => ({ buildFullNatalReportPdf: mocks.pdf }));
+vi.mock("./report-renderer",()=>({renderLegacyOffThread:mocks.pdf}));
 vi.mock("./client-delivery", () => ({ sendClientReportPdf: mocks.email }));
 import { calculationResults, narrativeDrafts, reportJobs, reportVersions } from "../drizzle/schema";
 import { reviseReportNarrative } from "./report-studio-db";
