@@ -110,7 +110,7 @@ export const sendSlaChartPdfSchema = z.object({
   language: z.enum(["en", "ru", "de", "es"]),
 });
 
-export const slaEvaluationRunsPageSchema = z.object({
+const slaEvaluationRunsFields = z.object({
   status: slaEvaluationStatusSchema.optional(),
   trigger: slaEvaluationTriggerSchema.optional(),
   search: z.string().trim().max(120).optional(),
@@ -120,4 +120,8 @@ export const slaEvaluationRunsPageSchema = z.object({
   sort: slaEvaluationSortSchema.default("evaluated_desc"),
   page: z.number().int().min(1).default(1),
   pageSize: z.number().int().min(1).max(50).default(10),
-}).refine((input) => !input.from || !input.to || input.from <= input.to, { message: "The SLA evaluation date range is invalid." });
+});
+const validSlaRange = (input: { from?: string; to?: string }) => !input.from || !input.to || input.from <= input.to;
+const slaRangeError = { message: "The SLA evaluation date range is invalid." };
+export const slaEvaluationRunsPageSchema = slaEvaluationRunsFields.refine(validSlaRange, slaRangeError);
+export const slaEvaluationExportSchema = slaEvaluationRunsFields.omit({ page: true, pageSize: true }).refine(validSlaRange, slaRangeError);

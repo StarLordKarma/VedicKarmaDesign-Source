@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addSlaEmailAllowlistSchema, removeSlaEmailAllowlistSchema, sendSlaChartPdfSchema, slaEvaluationRunsPageSchema, updateSlaEmailAllowlistSchema } from "./admin";
+import { addSlaEmailAllowlistSchema, removeSlaEmailAllowlistSchema, sendSlaChartPdfSchema, slaEvaluationRunsPageSchema, slaEvaluationExportSchema, updateSlaEmailAllowlistSchema } from "./admin";
 
 describe("SLA journal filters", () => {
   it("accepts searchable run filters and rejects an invalid range", () => {
@@ -7,6 +7,11 @@ describe("SLA journal filters", () => {
     expect(slaEvaluationRunsPageSchema.safeParse({ from: "2026-08-25", to: "2026-08-01" }).success).toBe(false);
     expect(slaEvaluationRunsPageSchema.safeParse({ search: "x".repeat(121) }).success).toBe(false);
     expect(slaEvaluationRunsPageSchema.safeParse({ errorCode: "x".repeat(121) }).success).toBe(false);
+  });
+
+  it("retains date validation when exporting without pagination", () => {
+    expect(slaEvaluationExportSchema.safeParse({ from: "2026-08-25", to: "2026-08-01" }).success).toBe(false);
+    expect(slaEvaluationExportSchema.parse({ search: "timeout", page: 3, pageSize: 20 })).toEqual({ search: "timeout", sort: "evaluated_desc" });
   });
 
   it("validates owner SLA chart email payloads", () => {

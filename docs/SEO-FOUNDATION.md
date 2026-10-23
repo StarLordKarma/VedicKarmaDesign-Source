@@ -45,3 +45,5 @@ Official references: [robots](https://developers.google.com/search/docs/crawling
 `shared/reading-guides.ts` contains the three editorial guides in EN/RU/DE/ES. `server/reading-guides.ts` serves complete HTML without JavaScript, using the existing canonical/hreflang metadata helpers. The reading home page links to the guides, which link to the relevant fictional samples. The articles do not collect birth data, submit orders or load analytics. Canonical URLs exclude marketing parameters. Unknown guide routes retain the existing 404/noindex handling.
 
 `reading-core/app.mjs` now recognizes `#sample-western`, `#sample-tarot`, and the other supported sample/offer anchors before scrolling, so an external sample link selects the correct product pane. The article locale remains explicit when returning to the storefront.
+
+Deployed on 2026-10-24 as e8234ae (Northflank teeny-river-5839). Independent live check run40036614626 passed75/75, including12guide variants and24sitemap URLs. The extended read-only check is in scripts/check-live-reading-release.py (16fa79b).
