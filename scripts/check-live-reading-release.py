@@ -3,6 +3,7 @@ import concurrent.futures
 import json
 import urllib.error
 import urllib.request
+import xml.etree.ElementTree as ET
 
 BASE = "https://karmalifedesign.com"
 SERVICE = "https://p01--vedic-karma-app--mbb49nqg858d.code.run"
@@ -28,6 +29,20 @@ def check(base, path, kind="asset", language=None):
                 assert "/readings/app.mjs" in html
             elif kind == "pdf":
                 assert data.startswith(b"%PDF-")
+            elif kind == "guide":
+                html = data.decode()
+                assert response.headers.get("Content-Language") == language
+                assert '<html lang="' + language + '"' in html
+                assert '<h1>' in html and 'rel="canonical"' in html
+                assert '#sample-' in html
+                assert all('hreflang="' + lang + '"' in html for lang in ["en", "ru", "de", "es"])
+                assert BASE + path.split('?')[0] in html
+            elif kind == "sitemap":
+                urls = ET.fromstring(data).findall("{http://www.sitemaps.org/schemas/sitemap/0.9}url")
+                assert len(urls) == 24
+                assert all('/guides/' + slug in data.decode() for slug in ["unknown-birth-time", "vedic-and-western", "tarot-reflection"])
+            elif kind == "navigation":
+                assert '(sample|offers)' in data.decode()
             elif kind == "payment":
                 settings = json.loads(data)
                 assert settings["direct"] is True and settings["available"] is True
@@ -42,12 +57,15 @@ checks = [(BASE, "/ready", "ready"), (BASE, "/api/reading-catalog", "catalog"),
           (SERVICE, "/ready", "ready"), (SERVICE, "/api/reading-catalog", "catalog")]
 for lang in ["en", "ru", "es", "de"]:
     checks.append((BASE, "/?lang=" + lang, "page", lang))
+    for slug in ["unknown-birth-time", "vedic-and-western", "tarot-reflection"]:
+        checks.append((BASE, "/guides/" + slug + "?lang=" + lang, "guide", lang))
     for area in ["vedic", "western", "tarot"]:
         checks.append((BASE, f"/readings/samples/{lang}/{area}.pdf", "pdf"))
         for page in range(1, 4):
             checks.append((BASE, f"/readings/samples/{lang}/{area}-{page}.webp"))
 for image in ["western-atlas.jpg", "tarot-ritual.jpg", "vedic-temple.jpg"]:
     checks.append((BASE, "/readings/assets/" + image))
+checks.extend([(BASE, "/sitemap.xml", "sitemap"), (BASE, "/readings/app.mjs", "navigation")])
 with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
     results = list(pool.map(lambda args: check(*args), checks))
 print(json.dumps({"passed": sum(r["ok"] for r in results), "total": len(results), "results": results}, indent=2))
