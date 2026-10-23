@@ -1,0 +1,22 @@
+name: Live release check
+on:
+  pull_request:
+    paths:
+      - 'scripts/check-live-reading-release.py'
+      - '.github/workflows/live-release-check.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/check-live-reading-release.py'
+      - '.github/workflows/live-release-check.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  public-https-and-reports:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - name: Check live HTTPS, languages, prices, payment availability and PDF examples
+        run: python3 scripts/check-live-reading-release.py
