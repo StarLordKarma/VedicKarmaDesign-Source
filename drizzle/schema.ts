@@ -1,5 +1,25 @@
 import { boolean, decimal, index, int, mysqlEnum, mysqlTable, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
 
+export const httpMetricBatches=mysqlTable('http_metric_batches',{
+ id:varchar('id',{length:64}).primaryKey(),category:varchar('category',{length:20}).notNull(),requests:int('requests').notNull(),errors:int('errors').notNull(),totalMs:int('totalMs').notNull(),maxMs:int('maxMs').notNull(),day:timestamp('day').notNull(),recordedAt:timestamp('recordedAt').defaultNow().notNull(),
+},t=>({dayIdx:index('http_metric_day_idx').on(t.day)}));
+
+export const audienceEvents = mysqlTable('audience_events', {
+  id: int('id').autoincrement().primaryKey(),
+  eventId: varchar('eventId',{length:36}).notNull(),
+  visitorKey: varchar('visitorKey',{length:64}).notNull(),
+  sessionKey: varchar('sessionKey',{length:64}).notNull(),
+  event: varchar('event',{length:24}).notNull(),
+  section: varchar('section',{length:12}).notNull(),
+  product: varchar('product',{length:20}).notNull(),
+  locale: varchar('locale',{length:2}).notNull(),
+  device: varchar('device',{length:8}).notNull(),
+  source: varchar('source',{length:64}).notNull(),
+  medium: varchar('medium',{length:64}).notNull(),
+  campaign: varchar('campaign',{length:64}).notNull(),
+  createdAt: timestamp('createdAt').defaultNow().notNull(),
+},t=>({eventUnique:uniqueIndex('audience_event_unique').on(t.eventId),dateIdx:index('audience_date_idx').on(t.createdAt),visitorIdx:index('audience_visitor_idx').on(t.visitorKey,t.createdAt),sessionIdx:index('audience_session_idx').on(t.sessionKey,t.createdAt)}));
+
 /**
  * Core user table backing auth flow.
  * Extend this file with additional tables as your product grows.

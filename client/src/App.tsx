@@ -9,6 +9,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import VisitorPrivacyChoices from "./components/VisitorPrivacyChoices";
 import Home from "./pages/Home";
 import PageMetadata from "./components/PageMetadata";
+const ControlRoom = lazy(() => import("./pages/ControlRoom"));
 const Admin = lazy(() => import("./pages/Admin"));
 const ReportStudio = lazy(() => import("@/pages/ReportStudio"));
 const ClientStatus = lazy(() => import("@/pages/ClientStatus"));
@@ -31,6 +32,7 @@ function Router() {
       <Route path={"/privacy"} component={Privacy} />
       <Route path={"/refunds"} component={RefundPolicy} />
       <Route path={"/owner-login"} component={OwnerLogin} />
+      <Route path={"/admin/control"} component={ControlRoom} />
       <Route path={"/admin/refunds"} component={Refunds} />
       <Route path={"/admin"} component={Admin} />
       <Route path={"/admin/report-studio"} component={ReportStudio} />

@@ -28,6 +28,7 @@ import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
 import { Button } from "./ui/button";
 
 const menuItems = [
+  { icon: LayoutDashboard, label: "Control room / Контроль", path: "/admin/control" },
   { icon: LayoutDashboard, label: "Admin dashboard", path: "/admin" },
   { icon: Layers3, label: "Service packages", path: "/admin/packages" },
   { icon: FileCheck2, label: "Report Studio", path: "/admin/report-studio" },

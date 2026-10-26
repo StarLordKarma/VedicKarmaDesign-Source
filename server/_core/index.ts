@@ -1,3 +1,4 @@
+import {registerAudienceCollection} from '../control-room';
 import{requestBoundaries}from'../request-boundaries';
 import{createRateLimit}from'../observability';
 import {registerReadingSite}from'../reading-site';
@@ -85,6 +86,7 @@ async function startServer() {
   registerDirectPaymentRoutes(app);
   startDirectPaymentWorker();
   startKnowledgeUpdates();
+  registerAudienceCollection(app);
   registerReadingGuides(app);
   registerReadingSite(app);
   registerNowPaymentsWebhook(app);

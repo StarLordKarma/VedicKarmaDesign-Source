@@ -9,6 +9,9 @@ it.each(["sample-western", "sample-tarot", "offers-vedic", "western", "tarot"])(
   const dom = new JSDOM(renderPage("de"), { url: `https://karmalifedesign.com/?lang=de#${hash}`, runScripts: "outside-only" });
   const window = dom.window as any;
   window.SITE = SITE;
+  window.trackAudience = () => {};
+  window.initAudience = () => {};
+  window.audienceAttribution = () => undefined;
   window.matchMedia = () => ({ matches: false, addEventListener() {} });
   window.IntersectionObserver = class { observe() {} unobserve() {} disconnect() {} };
   window.eval(script);

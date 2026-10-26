@@ -1,3 +1,4 @@
+import {controlRoomRouter,bookingAudience} from './control-room';
 import{knowledgeRouter}from'./knowledge/router';
 import {PRODUCT_CENTS} from '../shared/reading-products';
 import { COOKIE_NAME } from "@shared/const";
@@ -55,6 +56,7 @@ async function cleanupSmokeTestBooking(input: Parameters<typeof isProductionSmok
 }
 
 export const appRouter = router({
+  controlRoom: controlRoomRouter,
     // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
   system: systemRouter,
   auth: router({
@@ -233,7 +235,9 @@ export const appRouter = router({
       if (input.promoCode && !validatePromoCode(input.promoCode).valid) throw new TRPCError({ code: "BAD_REQUEST", message: "This promo code is not valid." });
       const legacyPriceSnapshot = { ...buildBookingPriceSnapshot({ addon: input.addon, currency: input.currency, basicAmount: pricing.basicUsd, addonAmount: pricing.numerologyAddonUsd, promoCode: input.promoCode }), packageVersion: selectedPackage.version };
       if(newProduct && input.promoCode)throw new TRPCError({code:"BAD_REQUEST",message:"Promo codes are not available for this product."});
-      const priceSnapshot = input.product ? {...legacyPriceSnapshot,...(newProduct?{packageCode:input.product,totalAmount:PRODUCT_CENTS[input.product]/100,basicAmount:PRODUCT_CENTS[input.product]/100,addonAmount:0}:{}),reading:{product:input.product,currentZone:input.currentZone,month:input.month||new Date().toISOString().slice(0,7),unknownTime:input.unknownTime,disambiguation:input.disambiguation,referenceDate:new Date().toISOString(),automaticDelivery:true as const}}:legacyPriceSnapshot;
+      const readingPriceSnapshot = input.product ? {...legacyPriceSnapshot,...(newProduct?{packageCode:input.product,totalAmount:PRODUCT_CENTS[input.product]/100,basicAmount:PRODUCT_CENTS[input.product]/100,addonAmount:0}:{}),reading:{product:input.product,currentZone:input.currentZone,month:input.month||new Date().toISOString().slice(0,7),unknownTime:input.unknownTime,disambiguation:input.disambiguation,referenceDate:new Date().toISOString(),automaticDelivery:true as const}}:legacyPriceSnapshot;
+      const marketing=bookingAudience(input.audience);
+      const priceSnapshot={...readingPriceSnapshot,...(marketing?{audience:marketing}:{})};
       const totalUsd = priceSnapshot.totalAmount;
       if(input.expectedAmountCents!==undefined&&input.expectedAmountCents!==Math.round(totalUsd*100))throw new TRPCError({code:"CONFLICT",message:"Price changed. Refresh the page and confirm the current price before payment."});
       const result = await createBookingRequest({

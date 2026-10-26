@@ -3,6 +3,7 @@ import { z } from "zod";
 import { READING_PRICES } from "./pricing";
 
 export const PRIVACY_NOTICE_VERSION = "privacy-2026-10-21";
+export const audienceAttributionSchema=z.object({consent:z.literal(true),visitor:z.string().uuid(),session:z.string().uuid(),source:z.string().max(64).regex(/^[a-z0-9_.-]*$/),medium:z.string().max(64).regex(/^[a-z0-9_.-]*$/),campaign:z.string().max(64).regex(/^[a-z0-9_.-]*$/)}).strict();
 
 export const bookingSchema = z.object({
   name: z.string().trim().min(2, "Please enter your name.").max(160),
@@ -25,6 +26,7 @@ export const bookingSchema = z.object({
   privacyAcknowledged: z.literal(true),
   privacyNoticeVersion: z.literal(PRIVACY_NOTICE_VERSION),
   privacyLocale: z.enum(["en", "ru", "de", "es"]),
+  audience: audienceAttributionSchema.optional(),
   smokeTest: z.boolean().optional().default(false),
   smokeTestRunId: z.string().regex(/^production-smoke-\d{10,}$/).optional(),
 }).superRefine((v,ctx)=>{

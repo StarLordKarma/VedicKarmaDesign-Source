@@ -1,3 +1,4 @@
+import {recordHttpCounter} from './http-counters';
 import crypto from "node:crypto";
 import type { NextFunction, Request, RequestHandler, Response } from "express";
 
@@ -81,6 +82,7 @@ export const requestObservabilityMiddleware: RequestHandler = (
   res.setHeader("X-Request-ID", request.requestId);
   const startedAt = Date.now();
   res.on("finish", () => {
+    recordHttpCounter(req.path,res.statusCode,Date.now()-startedAt);
     logStructuredEvent(
       res.statusCode >= 500 ? "error" : res.statusCode >= 400 ? "warn" : "info",
       "http.request.completed",

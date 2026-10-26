@@ -267,6 +267,20 @@
       "when": 1792747638856,
       "tag": "0037_sticky_typhoid_mary",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "5",
+      "when": 1793000539976,
+      "tag": "0038_nappy_rumiko_fujikawa",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "5",
+      "when": 1793000982237,
+      "tag": "0039_easy_professor_monster",
+      "breakpoints": true
     }
   ]
 }

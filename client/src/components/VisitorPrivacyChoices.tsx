@@ -13,7 +13,7 @@ const copy: Record<Locale, { title: string; body: string; essential: string; acc
 
 function resolveLocale(value: string | null): Locale { return LOCALES.includes(value as Locale) ? value as Locale : "en"; }
 function loadAnalytics() {
-  if (/^\/(pay|status)\//.test(window.location.pathname)) return;
+  if (/^\/(pay|status|admin)(\/|$)/.test(window.location.pathname)) return;
   if (document.querySelector('script[data-consent-analytics="true"]')) return;
   const endpoint = import.meta.env.VITE_ANALYTICS_ENDPOINT as string | undefined;
   const websiteId = import.meta.env.VITE_ANALYTICS_WEBSITE_ID as string | undefined;
@@ -31,6 +31,7 @@ export default function VisitorPrivacyChoices() {
   const [choice, setChoice] = useState<VisitorChoice | null>(() => window.localStorage.getItem(KEY) as VisitorChoice | null);
   useEffect(() => { const update = () => setLocale(resolveLocale(window.localStorage.getItem("public-locale"))); window.addEventListener("public-locale-changed", update); window.addEventListener("storage", update); return () => { window.removeEventListener("public-locale-changed", update); window.removeEventListener("storage", update); }; }, []);
   useEffect(() => { if (choice === "analytics") loadAnalytics(); }, [choice]);
+  if (/^\/(pay|status|admin)(\/|$)/.test(window.location.pathname)) return null;
   if (choice === "necessary" || choice === "analytics") return null;
   const t = copy[locale];
   const choose = (value: VisitorChoice) => { window.localStorage.setItem(KEY, value); setChoice(value); };

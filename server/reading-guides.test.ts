@@ -29,7 +29,8 @@ describe("public reading guides", () => {
       expect(document.querySelector('link[rel="canonical"]')?.getAttribute("href")).toBe(publicPageUrl(path, locale));
       expect(document.querySelectorAll('link[rel="alternate"][hreflang]')).toHaveLength(5);
       expect(document.querySelector("article a")?.getAttribute("href")).toContain(`#sample-${readingGuides[locale][index].view}`);
-      expect(html).not.toMatch(/private%40|utm_source|<script[^>]+src=/);
+      expect(html).not.toMatch(/private%40|utm_source/);
+      expect(Array.from(document.querySelectorAll("script[src]"), node => node.getAttribute("src"))).toEqual(["/readings/guide-audience.mjs"]);
       expect(sitemapXml()).toContain(publicPageUrl(path, locale).replaceAll("&", "&amp;"));
     }
   });
