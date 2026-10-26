@@ -9,14 +9,14 @@ body[data-mode=vedic]{--ink:#694534;--accent:#a46336;--wash:#f1e5d6}.vedic-hero:
 .benefit-hook span{display:block;font-size:13px;line-height:1.7;margin-top:8px;opacity:.8}
 /* Six compact, square signs per row. The introduction lives below the grid. */
 .zodiac-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;max-width:960px;margin:26px 0;align-items:stretch}
-button.zodiac-card{min-width:0;aspect-ratio:1;padding:12px 8px;border:1px solid #99b7d1;border-radius:7px;background:radial-gradient(ellipse at 50% 25%,#e0efff 0%,#eff6ff 50%,#fafbfc 100%);color:#243f60;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;box-shadow:inset 0 0 20px #699fe51c,0 3px 12px #477db01a;transition:box-shadow .2s,border-color .2s,background .2s}
-.zodiac-symbol{display:block;font-family:Georgia,'Times New Roman',serif;font-variant-emoji:text;font-size:42px;line-height:1.05;color:#397fbb;text-shadow:0 0 16px #639df8aa}
+button.zodiac-card{min-width:0;aspect-ratio:1;padding:12px 8px;border:1px solid #b49a70;border-radius:7px;background:radial-gradient(ellipse at 50% 25%,#fff8e8 0%,#f2e6d0 50%,#eadbc0 100%);color:#493720;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;box-shadow:inset 0 0 20px #b88c4426,0 3px 12px #74552c1a;transition:box-shadow .2s,border-color .2s,background .2s}
+.zodiac-symbol{display:block;font-family:Georgia,'Times New Roman',serif;font-variant-emoji:text;font-size:42px;line-height:1.05;color:#745226;text-shadow:0 0 16px #b88c4440}
 .zodiac-card strong{font-size:14px;font-weight:500;line-height:1.35;overflow-wrap:anywhere;text-align:center;max-width:100%}
-.zodiac-card .sign-dates{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;column-gap:3px;font-size:10.5px;line-height:1.4;color:#465d75;text-align:center;max-width:100%}
+.zodiac-card .sign-dates{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;column-gap:3px;font-size:10.5px;line-height:1.4;color:#604b32;text-align:center;max-width:100%}
 .zodiac-card .sign-dates>span:not(.date-separator){white-space:nowrap}
-.zodiac-card:hover,.zodiac-card[aria-pressed=true]{border-color:#417eba;box-shadow:inset 0 0 24px #72a9ef3d,0 0 16px #4e8ee142;background:#dcecff}
-.zodiac-card:focus-visible{outline:3px solid #316b9e;outline-offset:3px}
-.zodiac-detail{max-width:960px;padding:22px 25px;border:1px solid #b9cadd;border-left:3px solid #467eb5;background:#f0f5fc}
+.zodiac-card:hover,.zodiac-card[aria-pressed=true]{border-color:#806035;box-shadow:inset 0 0 24px #c79c553d,0 0 16px #a77c3542;background:#e7d6b7}
+.zodiac-card:focus-visible{outline:3px solid #745226;outline-offset:3px}
+.zodiac-detail{max-width:960px;padding:22px 25px;border:1px solid #c8b38e;border-left:3px solid #806035;background:#f5ecdc}
 .zodiac-detail h3{font:26px/1.3 Georgia,serif;margin:8px 0 14px}.zodiac-detail p{font-size:14px;line-height:1.8;max-width:740px}
 .zodiac-detail .cta{white-space:normal;font-size:12px;padding:13px 15px;line-height:1.6}
 .zodiac-boundary{border-left:2px solid #a58c5c;padding:8px 0 8px 18px;font-size:14px;line-height:1.8;max-width:800px}
@@ -28,3 +28,5 @@ button.zodiac-card{min-width:0;aspect-ratio:1;padding:12px 8px;border:1px solid 
 @media(max-width:480px){.zodiac-grid{grid-template-columns:repeat(2,minmax(0,1fr));max-width:360px;gap:12px}.zodiac-symbol{font-size:40px}.zodiac-card strong{font-size:14px}.zodiac-card .sign-dates{font-size:11px}.zodiac-detail{padding:18px}.benefit-hook strong{font-size:17px}.benefit-hook span{font-size:13px}.hero-products{grid-template-columns:1fr}.hero-products .cta{flex-direction:row;align-items:center;gap:12px;padding:14px 16px}.hero-products .cta span{flex:1}.hero-products .cta b{font-size:23px;white-space:nowrap}.hero-actions{width:100%}.masthead>*{min-width:0}.small-links{gap:10px}.brand span{letter-spacing:.12em}.tabs{gap:10px}.tabs button{max-width:100%;overflow-wrap:anywhere}.sample-pages,.offers,.steps,.form-grid{min-width:0}.form-grid>*{min-width:0}.form-grid input,.form-grid select{max-width:100%;min-width:0}.cta{max-width:100%;overflow-wrap:anywhere}.result-content{overflow-wrap:anywhere}.result-content svg{max-width:100%;height:auto}}
 @media(prefers-reduced-motion:reduce){button.zodiac-card{transition:none}}
 .specialist-note{font-size:13px!important;line-height:1.7;color:var(--ink)!important;border-top:1px solid var(--line);padding-top:15px;margin-top:22px;max-width:560px!important}.share-note{font-size:13px!important;line-height:1.7;max-width:560px!important}.legal-nav{font-size:12px;line-height:1.8;overflow-wrap:anywhere}#privacy-consent{flex-shrink:0;width:18px;height:18px}#order-form>.form-grid{margin-bottom:16px}
+
+.tradition-intro{max-width:540px;border-left:2px solid var(--accent);padding-left:16px;margin:22px 0;color:var(--ink)}.tradition-intro p{font-size:13px;line-height:1.75;margin:0 0 12px;overflow-wrap:anywhere}.tradition-intro p:last-child{margin-bottom:0}
