@@ -45,18 +45,14 @@ export function canAccept(status:YoutubeStatus,job:Job){return status.channel===
 export async function advance(job:Job,all:Job[],io:EngineIO,time=new Date()){
  if(job.state!=='queued')return;
  job.lastCheck=time.toISOString();
- if(!job.youtubeVerifiedAt){
-  if(time.getTime()<Date.parse(job.youtubePublishAt))return;
-  const yt=await io.youtube(job);
-  if(yt.channel!==CHANNEL||yt.privacy!=='public'){job.blocker='awaiting_youtube_public';await io.save(job);return}
-  job.youtubeVerifiedAt=(io.now?.()||time).toISOString();delete job.blocker;await io.save(job);
- }
+ // The owner opted to use the verified YouTube schedule without checking public status.
+ const youtubeBaseline=job.youtubePublishAt;
  for(let index=0;index<job.targets.length;index++){
   const target=job.targets[index];if(target.status==='published')continue;
   if(['creating','publishing','needs_reconciliation'].includes(target.status)){
    target.status='needs_reconciliation';job.state='needs_reconciliation';await io.save(job);return;
   }
-  const before=index?job.targets[index-1].verifiedAt:job.youtubeVerifiedAt;
+  const before=index?job.targets[index-1].verifiedAt:youtubeBaseline;
   if(!before)return;
   if(time.getTime()<Date.parse(before)+3600000)return;
   // Across all videos, keep at least one hour between accounts and one day per account.
@@ -65,7 +61,6 @@ export async function advance(job:Job,all:Job[],io:EngineIO,time=new Date()){
    const gap=published.username===target.username?86400000:3600000;
    if(time.getTime()<Date.parse(published.verifiedAt)+gap)return;
   }
-  const yt=await io.youtube(job);if(yt.channel!==CHANNEL||yt.privacy!=='public'){job.blocker='youtube_no_longer_public';await io.save(job);return}
   if(!target.containerId){
    target.status='creating';target.attemptedAt=time.toISOString();await io.save(job);
    target.containerId=await io.create(job,target);target.status='processing';target.polls=0;await io.save(job);return;

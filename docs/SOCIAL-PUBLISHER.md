@@ -1,3 +1,9 @@
+# Owner update, 28 October 2026
+
+Instagram uses the verified scheduled YouTube time without checking actual public status. Instagram 1 starts no earlier than 60 minutes after YouTube publishAt; Instagram 2 remains at least 60 minutes after confirmed Instagram 1. A YouTube delay or failure may mean Instagram appears first. Cloud handoff still verifies upload, channel, media hashes, processing and YouTube schedule.
+
+---
+
 # Existing-site cloud publisher
 
 This adds a separate owner-only publisher at `/admin/social-publisher` to the existing Northflank app. It does not create hosting resources or change website products, checkout, customer data, or database schema.
