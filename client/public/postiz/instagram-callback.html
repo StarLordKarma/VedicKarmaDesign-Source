@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Cache-Control" content="no-store">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-fQLQkKdCV0lVmw/2/826rF51ov+iCab00Prty/ERpSc='; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+<title>Return to local Postiz</title>
+<style>body{font:18px/1.5 system-ui,sans-serif;max-width:680px;margin:12vh auto;padding:24px;color:#182234;background:#f6f8fb}a{color:#1458c0}small{display:block;margin-top:24px;color:#586174}</style>
+</head><body>
+<h1>Instagram connection</h1>
+<p id="message">Checking the authorization result…</p>
+<a id="continue" hidden rel="noreferrer">Continue to local Postiz</a>
+<noscript>JavaScript is required to return the authorization result to your local Postiz.</noscript>
+<small>This page connects your Instagram authorization to Postiz on this computer. It does not ask for a password and does not load third-party resources.</small>
+<script>(() => {
+  const params = new URLSearchParams(location.search);
+  history.replaceState(null, "", location.pathname);
+  const message = document.getElementById("message");
+  const link = document.getElementById("continue");
+  const state = params.get("state");
+  const code = params.get("code");
+  if (!state || !/^[A-Za-z0-9_-]{6,256}$/.test(state)) {
+    message.textContent = "No valid authorization result was supplied. Start the connection from your local Postiz.";
+    return;
+  }
+  if (!code || code.length > 8192 || [...code].some(c => c.charCodeAt(0) <= 32)) {
+    message.textContent = "Instagram authorization was not completed. Return to Postiz and start again.";
+    return;
+  }
+  const target = new URL("http://localhost:4007/integrations/social/instagram-standalone");
+  target.searchParams.set("code", code);
+  target.searchParams.set("state", state);
+  link.href = target.href;
+  link.hidden = false;
+  message.textContent = "Returning to your local Postiz. Keep the same browser and computer open.";
+  location.replace(target.href);
+})();</script>
+</body></html>
+
