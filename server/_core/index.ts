@@ -1,3 +1,4 @@
+import {registerSocialPublisher} from '../social-publisher/routes';
 import {registerAudienceCollection} from '../control-room';
 import{requestBoundaries}from'../request-boundaries';
 import{createRateLimit}from'../observability';
@@ -86,6 +87,7 @@ async function startServer() {
   registerDirectPaymentRoutes(app);
   startDirectPaymentWorker();
   startKnowledgeUpdates();
+  registerSocialPublisher(app);
   registerAudienceCollection(app);
   registerReadingGuides(app);
   registerReadingSite(app);

@@ -21,6 +21,7 @@ export function getClientIp(req: Request) {
 
 export function redactRequestPath(path: string) {
   return path
+    .replace(/\/api\/social-publisher\/.*/, "/api/social-publisher/[redacted]")
     .replace(/\/(?:api\/direct-payment|pay)\/[^/]+/g, "/wallet/[redacted]")
     .replace(/\/status\/[^/]+/g, "/status/[redacted]")
     .replace(/\/api\/client\/report\/[^/]+/g, "/api/client/report/[redacted]")
