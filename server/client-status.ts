@@ -1,3 +1,4 @@
+import { cardSandboxEnabled } from "./payments/card-sandbox-config";
 import crypto from "node:crypto";
 import { and, desc, eq, isNull, inArray } from "drizzle-orm";
 import {
@@ -169,6 +170,7 @@ export async function getPublicClientStatus(rawToken: string) {
     await db
       .select({
         paymentStatus: bookingRequests.paymentStatus,
+        paymentUrl: bookingRequests.paymentUrl,
         status: bookingRequests.status,
         deliveryStatus: bookingRequests.deliveryStatus,
         createdAt: bookingRequests.createdAt,
@@ -194,6 +196,7 @@ export async function getPublicClientStatus(rawToken: string) {
       : "waiting_payment");
   return {
     kind: "active" as const,
+    cardCheckoutUrl: cardSandboxEnabled() && /^\/sandbox\/card\/[1-9]\d{0,9}\.[a-f0-9]{64}$/.test(booking.paymentUrl || "") ? booking.paymentUrl : undefined,
     reference: publicReference(tokenHash),
     expiresAt: access.expiresAt.toISOString(),
     paymentState:

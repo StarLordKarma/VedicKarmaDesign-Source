@@ -128,3 +128,11 @@ client/public/__manus__/version.json
 /PROJECT-SEO-UPDATE-*.md
 /marketing/
 reading-core/index.html
+
+# Local registration credentials
+.private/
+
+# Local card checkout sandbox (synthetic credentials).
+.env.card-sandbox
+.netlify/
+deploy/riskpay-relay/lib/deployment.mjs

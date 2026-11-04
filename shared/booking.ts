@@ -15,6 +15,10 @@ export const bookingSchema = z.object({
   language: z.enum(["English", "Русский", "Deutsch", "Español"]),
   addon: z.boolean(),
   product: z.enum(READING_PRODUCTS).optional(),
+  paymentMethod: z.enum(["crypto", "card", "apple_pay", "google_pay"]).optional(),
+  cardBrand: z.enum(["visa", "mastercard"]).optional(),
+  cardRefundConsent: z.boolean().optional(),
+  cardTermsVersion: z.string().max(80).optional(),
   expectedAmountCents:z.number().int().positive().max(100000000).optional(),
   currentZone: z.string().max(64).default("UTC").refine(x=>{try{new Intl.DateTimeFormat("en",{timeZone:x});return true}catch{return false}},"Invalid time zone"),
   month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/).optional(),
@@ -32,6 +36,7 @@ export const bookingSchema = z.object({
 }).superRefine((v,ctx)=>{
  if(v.product&&!v.product.startsWith('vedic_')&&v.currency!=='USD')ctx.addIssue({code:'custom',path:['currency'],message:'This product is priced in USD.'});
  if(v.product&&!v.product.startsWith('vedic_')&&v.addon)ctx.addIssue({code:'custom',path:['addon'],message:'This product does not include a Vedic add-on.'});
+ if(v.paymentMethod&&v.paymentMethod!=='crypto'&&(!v.cardRefundConsent||v.cardTermsVersion!=='card-manual-refund-2026-11-03'||(v.paymentMethod==='card'&&!v.cardBrand)||v.currency!=='USD'))ctx.addIssue({code:'custom',path:['cardRefundConsent'],message:'Confirm the current card refund terms and select a card brand. Card preview uses USD.'});
  if(v.product==='tarot')return;
  if(!z.string().date().safeParse(v.birthDate).success||v.birthDate>new Date().toISOString().slice(0,10))ctx.addIssue({code:'custom',path:['birthDate'],message:'Please enter a valid birth date.'});
  const allowUnknown=v.unknownTime&&['portrait','daily','monthly'].includes(v.product||'');

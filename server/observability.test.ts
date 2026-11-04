@@ -28,6 +28,11 @@ function response() {
 
 describe("observability", () => {
   it("does not log private status tokens or document keys", () => {
+    expect(redactRequestPath('/sandbox/card/7.'+'a'.repeat(64))).toBe('/sandbox/card/[redacted]');
+    expect(redactRequestPath('/card-order/7.'+'a'.repeat(64))).toBe('/card-order/[redacted]');
+    expect(redactRequestPath('/api/riskpay-order/7.'+'a'.repeat(64)+'/refund')).toBe('/api/riskpay-order/[redacted]/refund');
+    expect(redactRequestPath('/api/card-sandbox/7.'+'b'.repeat(64))).toBe('/api/card-sandbox/[redacted]');
+    expect(redactRequestPath('/api/riskpay/callback?order=7&token=secret')).toBe('/api/riskpay/callback');
     expect(redactRequestPath("/status/private-token")).toBe(
       "/status/[redacted]"
     );

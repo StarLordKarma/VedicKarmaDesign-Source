@@ -1,0 +1,42 @@
+# Local dependencies only. The site itself runs on the host with .env.card-sandbox.
+name: karma-card-sandbox
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: card-sandbox-root-only
+      MYSQL_DATABASE: vedic_card_sandbox
+      MYSQL_USER: vedic_sandbox
+      MYSQL_PASSWORD: card-sandbox-db-only
+    ports: ["127.0.0.1:3308:3306"]
+    volumes: ["mysql_card_sandbox:/var/lib/mysql"]
+    healthcheck:
+      test: [CMD, mysqladmin, ping, -h, 127.0.0.1, -u, root, -pcard-sandbox-root-only]
+      interval: 5s
+      retries: 30
+  minio:
+    image: karma-card-sandbox-minio:local
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.card-sandbox-storage
+    entrypoint: [/out/minio]
+    command: server /data --console-address :9001
+    environment:
+      MINIO_ROOT_USER: card-sandbox
+      MINIO_ROOT_PASSWORD: card-sandbox-storage-only
+    ports: ["127.0.0.1:9010:9000", "127.0.0.1:9011:9001"]
+    volumes: ["storage_card_sandbox:/data"]
+  mock-services:
+    image: node:22-alpine
+    working_dir: /sandbox
+    command: [node, sandbox-mock-server.mjs]
+    environment:
+      PORT: 4010
+      NOWPAYMENTS_IPN_SECRET: card-sandbox-ipn-only
+      APP_INTERNAL_URL: http://host.docker.internal:3000
+      MOCK_PUBLIC_URL: http://127.0.0.1:4010
+    volumes: ["../scripts/sandbox-mock-server.mjs:/sandbox/sandbox-mock-server.mjs:ro"]
+    ports: ["127.0.0.1:4010:4010"]
+volumes:
+  mysql_card_sandbox:
+  storage_card_sandbox:

@@ -219,7 +219,7 @@ export default function ClientStatus() {
             </span>
           </CardContent>
         </Card>
-        <RefundRequest token={token} locale={language()} />
+        {data.cardCheckoutUrl ? <a className="block rounded-xl border border-[#b99a64]/40 bg-[#fffaf4] p-4 text-sm text-[#694534] underline underline-offset-4" href={data.cardCheckoutUrl}>{({ru:"Оплата и ручной возврат в USDC",en:"Payment and manual USDC refund",de:"Zahlung und manuelle USDC-Erstattung",es:"Pago y reembolso manual en USDC"})[language()]}</a> : <RefundRequest token={token} locale={language()} />}
         {data.reportDownloadUrl && (
           <Card className="mt-6 border-[#d9a441]/50 bg-[#fffaf1]">
             <CardContent className="p-6">

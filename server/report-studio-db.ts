@@ -1,3 +1,5 @@
+import { assertManualFulfillment } from './payments/riskpay-manual-policy';
+import { cardSandboxEnabled } from "./payments/card-sandbox-config";
 import{renderLegacyOffThread}from'./report-renderer';
 import{runReportWork}from'./report-work-queue';
 import{withPaidBookingLock}from'./fulfillment-claims';
@@ -30,6 +32,7 @@ function languageCode(language: string): "ru" | "en" | "de" | "es" { return lang
 export async function enqueueReportJobForBooking(bookingId: number, confirmedBy = "system") {
   const booking = await getBookingRequestById(bookingId);
   if (!booking || !isPaidPaymentStatus(booking.paymentStatus)) return { created: false, reason: "payment-not-confirmed" as const };
+  assertManualFulfillment(booking);
   const input = frozenBookingInput(booking);
   const inputHash = sha256(JSON.stringify(input));
   const idempotencyKey = `${bookingId}:1:${inputHash}:${REPORT_TEMPLATE_VERSION}`;
@@ -218,6 +221,7 @@ export async function deliverApprovedReport(input: { reportJobId: number; versio
   if (job.testJob) throw new Error("Synthetic test reports cannot be delivered to clients.");
   const bookingRequest = await getBookingRequestById(job.bookingId);
   if (!bookingRequest) throw new Error("Booking request not found");
+  assertManualFulfillment(bookingRequest, { versionId: current.id, pdfSha256: current.pdfSha256 });
   if (isRefundHeld(bookingRequest.paymentStatus)) throw new Error("Refunded orders cannot send new reports");
   if (!isPaidPaymentStatus(bookingRequest.paymentStatus)) throw new Error("Report delivery requires a confirmed payment");
   const idempotencyKey = `report:${current.id}:approved:${current.pdfSha256 ?? current.versionNumber}`;
@@ -242,9 +246,9 @@ export async function deliverApprovedReport(input: { reportJobId: number; versio
   } catch (error) {
     throw new TRPCError({ code: "PRECONDITION_FAILED", message: (error as Error).message });
   }
-  const claim = await withPaidBookingLock(db,bookingRequest.id,async tx=>tx.update(reportDeliveryAttempts)
+  const claim = await withPaidBookingLock(db,bookingRequest.id,async (tx, freshBooking)=>{ assertManualFulfillment(freshBooking, { versionId: current.id, pdfSha256: current.pdfSha256 }); return tx.update(reportDeliveryAttempts)
     .set({ status: "sending", startedAt: new Date(), errorCode: null, errorMessage: null, completedAt: null })
-    .where(and(eq(reportDeliveryAttempts.id, existing.id), inArray(reportDeliveryAttempts.status, ["queued", "failed"]))));
+    .where(and(eq(reportDeliveryAttempts.id, existing.id), inArray(reportDeliveryAttempts.status, ["queued", "failed"]))); });
   if (Number(claim[0].affectedRows ?? 0) !== 1) {
     return { status: existing.status === "sent" ? "sent" as const : "sending" as const, providerMessageId: existing.providerMessageId };
   }
@@ -252,7 +256,9 @@ export async function deliverApprovedReport(input: { reportJobId: number; versio
   let providerAccepted=false;
   try {
     const binding = (await db.select().from(directPaymentBindings).where(eq(directPaymentBindings.bookingId, bookingRequest.id)).limit(1))[0];
-    const statusUrl = binding?.statusToken && process.env.PUBLIC_BASE_URL ? `${process.env.PUBLIC_BASE_URL.replace(/\/$/, "")}/status/${binding.statusToken}` : undefined;
+    const cardStatusPath = JSON.parse(bookingRequest.priceSnapshotJson || "{}").riskpayManual?.statusUrl || (cardSandboxEnabled() ? JSON.parse(bookingRequest.priceSnapshotJson || "{}").cardSandbox?.statusUrl : undefined);
+    const sandboxStatusUrl = typeof cardStatusPath === "string" && /^\/status\/[A-Za-z0-9_-]{32,100}$/.test(cardStatusPath) ? `${process.env.PUBLIC_BASE_URL}${cardStatusPath}` : undefined;
+    const statusUrl = sandboxStatusUrl || (binding?.statusToken && process.env.PUBLIC_BASE_URL ? `${process.env.PUBLIC_BASE_URL.replace(/\/$/, "")}/status/${binding.statusToken}` : undefined);
     const result = await sendClientReportPdf({ email: existing.recipientEmail, name: bookingRequest.name, pdfKey: current.pdfStorageKey, pdfName: `${readingOptions(bookingRequest)?.product||"vedic"}-report-${bookingRequest.id}.pdf`, language: ({en:"English",ru:"Русский",es:"Español",de:"Deutsch"} as Record<string,string>)[job.language]||"English", idempotencyKey, statusUrl, expectedPdfSha256:current.pdfSha256, outboxKey:process.env.STORAGE_PROVIDER==="s3"?`report-delivery/${attemptId}.json`:undefined, product: readingOptions(bookingRequest)?.product });
     providerAccepted=true;
     await db.update(reportDeliveryAttempts).set({ status: "sent", providerMessageId: result.id ?? null, completedAt: new Date() }).where(eq(reportDeliveryAttempts.id, attemptId));
@@ -278,6 +284,8 @@ export async function approveReportVersion(input: { reportJobId: number; version
   const job = (await db.select().from(reportJobs).where(eq(reportJobs.id, input.reportJobId)).limit(1))[0];
   if (!job || job.testJob) throw new Error("Synthetic test reports cannot be approved or delivered.");
   const booking=await getBookingRequestById(job.bookingId);
+  if (booking) assertManualFulfillment(booking, { versionId: version.id, pdfSha256: version.pdfSha256 });
+  if (booking && JSON.parse(booking.priceSnapshotJson || "{}").riskpayManual && input.actorId.startsWith("system:")) throw Error("RiskPay requires an owner PDF approval");
   if(job.lastErrorCode==='NEW_WORDING_REQUIRED')throw new Error('Revise repeated wording before approving this order.');
   if (job.status !== "needs_review") throw new Error("This job is not awaiting owner review.");
   const calculation = (await db.select().from(calculationResults).where(eq(calculationResults.reportJobId, job.id)).limit(1))[0];

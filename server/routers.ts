@@ -1,3 +1,7 @@
+import { riskPayManualEnabled } from './payments/riskpay-manual-policy';
+import { createManualRiskPayCheckout } from './payments/riskpay-manual';
+import { cardSandboxEnabled } from "./payments/card-sandbox-config";
+import { createSandboxCardCheckout } from "./payments/card-sandbox-checkout";
 import {controlRoomRouter,bookingAudience} from './control-room';
 import{knowledgeRouter}from'./knowledge/router';
 import {PRODUCT_CENTS} from '../shared/reading-products';
@@ -129,6 +133,7 @@ export const appRouter = router({
       const booking = await getBookingRequestById(input.bookingId);
       if (!booking) throw new TRPCError({ code: "NOT_FOUND", message: "Booking request not found." });
       if (isRefundHeld(booking.paymentStatus)) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Refunded orders cannot send new reports." });
+      if (JSON.parse(booking.priceSnapshotJson || "{}").riskpayManual) throw new TRPCError({code:"PRECONDITION_FAILED", message:"Use the RiskPay owner queue to verify payment, PDF version and recipient."});
       if (!booking.natalPdfKey || !booking.natalPdfName) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Attach a natal-chart PDF before sending it." });
       await updateBookingDelivery({ id: booking.id, deliveryStatus: "sending", deliveryError: null });
       try {
@@ -147,7 +152,8 @@ export const appRouter = router({
         const booking = await getBookingRequestById(bookingId);
         if (!booking) { results.push({ bookingId, success: false, error: "Booking request not found." }); continue; }
         if (isRefundHeld(booking.paymentStatus)) { results.push({ bookingId, success: false, error: "Refunded orders cannot send new reports." }); continue; }
-        if (!booking.natalPdfKey || !booking.natalPdfName) { results.push({ bookingId, success: false, error: "No natal-chart PDF attached." }); continue; }
+        if (JSON.parse(booking.priceSnapshotJson || "{}").riskpayManual) throw new TRPCError({code:"PRECONDITION_FAILED", message:"Use the RiskPay owner queue to verify payment, PDF version and recipient."});
+      if (!booking.natalPdfKey || !booking.natalPdfName) { results.push({ bookingId, success: false, error: "No natal-chart PDF attached." }); continue; }
         await updateBookingDelivery({ id: booking.id, deliveryStatus: "sending", deliveryError: null });
         try {
           const result = await sendClientNatalPdf({ email: booking.email, name: booking.name, pdfKey: booking.natalPdfKey, pdfName: booking.natalPdfName, language: booking.language });
@@ -222,6 +228,7 @@ export const appRouter = router({
   }),
   booking: router({
     submit: publicProcedure.input(bookingSchema).mutation(async ({ input, ctx }) => {
+      if (input.paymentMethod && input.paymentMethod !== "crypto" && !cardSandboxEnabled() && !riskPayManualEnabled()) throw new TRPCError({ code: "FORBIDDEN", message: "Card checkout is currently unavailable." });
       if (process.env.CHECKOUT_ENABLED === "false") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Online checkout is temporarily unavailable. Please try again later." });
       if (process.env.GEOCODING_PROVIDER === "geonames" && input.product !== "tarot") {
         try { await resolveBirthLocation({ city: input.birthCity, country: input.birthCountry, birthDate: input.birthDate, birthTime: input.unknownTime ? "12:00" : input.birthTime,disambiguation:input.disambiguation }); }
@@ -275,7 +282,7 @@ export const appRouter = router({
       });
       try {
         const origin = getPublicOrigin(ctx.req);
-        const invoice = await createCheckoutForBooking({
+        const invoice = input.paymentMethod && input.paymentMethod !== "crypto" ? riskPayManualEnabled() ? await createManualRiskPayCheckout({bookingId:result.id,grossCents:Math.round(totalUsd*100),currency:input.currency,locale:input.privacyLocale,method:input.paymentMethod as "card"|"apple_pay"|"google_pay",email:input.email,consent:input.cardRefundConsent!,termsVersion:input.cardTermsVersion!}) : await createSandboxCardCheckout({bookingId:result.id,grossCents:Math.round(totalUsd*100),currency:input.currency,locale:input.privacyLocale,brand:input.paymentMethod === "card" ? input.cardBrand! : input.paymentMethod,email:input.email,consent:input.cardRefundConsent!,termsVersion:input.cardTermsVersion!}) : await createCheckoutForBooking({
           bookingId: result.id,
           totalUsd,
           ...(input.product ? {product:input.product} : {}),

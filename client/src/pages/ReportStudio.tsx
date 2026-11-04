@@ -132,6 +132,7 @@ export default function ReportStudio() {
   };
   const selectedVersion = detail.data?.versions?.[0];
   const isTestJob = Boolean(detail.data?.job?.testJob);
+  const isManualRiskPay = Boolean(detail.data?.booking?.paymentId?.startsWith("riskpay-manual:"));
   const previewUrl = selectedVersion?.pdfStorageKey
     ? `/manus-storage/${selectedVersion.pdfStorageKey}`
     : null;
@@ -319,6 +320,7 @@ export default function ReportStudio() {
                           </p>
                         )}
                         <p className="mb-4 text-sm text-[#635a52]">
+                          {detail.data.booking?.paymentId?.startsWith('riskpay-manual:') && <a className="block underline mb-3" href={'/owner/riskpay?order='+detail.data.booking.id}>RiskPay: payment, recipient and PDF approval → order #{detail.data.booking.id}</a>}
                           Client: <strong>{detail.data.booking?.name}</strong> ·{" "}
                           {detail.data.booking?.birthDate}{" "}
                           {detail.data.booking?.birthTime} ·{" "}
@@ -452,7 +454,7 @@ export default function ReportStudio() {
                                       })
                                     }
                                     disabled={
-                                      approve.isPending ||
+                                      approve.isPending || isManualRiskPay ||
                                       reviewedVersionId !== selectedVersion?.id ||
                                       detail.data.calculation?.validationStatus !== "valid" ||
                                       selectedVersion?.status === "approved" ||
@@ -491,7 +493,7 @@ export default function ReportStudio() {
                                           versionId: selectedVersion!.id,
                                         })
                                       }
-                                      disabled={retryDelivery.isPending}
+                                      disabled={retryDelivery.isPending || isManualRiskPay}
                                     >
                                       <RefreshCw size={16} />
                                       {retryDelivery.isPending

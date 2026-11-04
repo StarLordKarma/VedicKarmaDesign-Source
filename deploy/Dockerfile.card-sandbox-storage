@@ -1,0 +1,5 @@
+# Local-only storage. No extra mc CLI is needed: the runner initializes S3.
+FROM golang:1-bookworm
+ENV CGO_ENABLED=0 GOBIN=/out
+RUN go install github.com/minio/minio@RELEASE.2025-07-23T15-54-02Z
+ENTRYPOINT ["/out/minio"]

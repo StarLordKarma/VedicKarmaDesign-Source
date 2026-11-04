@@ -1,4 +1,6 @@
+import { registerManualRiskPayRoutes } from '../payments/riskpay-manual-routes';
 import {registerSocialPublisher} from '../social-publisher/routes';
+import { registerCardSandboxRoutes } from "../payments/card-sandbox-routes";
 import {registerAudienceCollection} from '../control-room';
 import{requestBoundaries}from'../request-boundaries';
 import{createRateLimit}from'../observability';
@@ -91,6 +93,8 @@ async function startServer() {
   registerAudienceCollection(app);
   registerReadingGuides(app);
   registerReadingSite(app);
+  registerCardSandboxRoutes(app);
+  registerManualRiskPayRoutes(app);
   registerNowPaymentsWebhook(app);
   registerHeleketWebhook(app);
   registerPayCryptoWebhook(app);

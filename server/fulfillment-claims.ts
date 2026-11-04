@@ -1,3 +1,4 @@
+import { assertManualFulfillment } from './payments/riskpay-manual-policy';
 import{eq}from'drizzle-orm';import{bookingRequests}from'../drizzle/schema';import{isPaidPaymentStatus}from'../shared/payment-status';import{isRefundHeld}from'./refund-proof';
 // Refund approval takes the same booking lock before examining active jobs and
 // mail attempts. Whichever operation claims the booking first defines the order.
@@ -7,6 +8,7 @@ export async function withPaidBookingLock<T>(db:any,bookingId:number,action:(tx:
   if(!booking)throw Error('Booking request not found');
   if(isRefundHeld(booking.paymentStatus))throw Error('Refunded orders cannot start fulfillment');
   if(!synthetic&&!isPaidPaymentStatus(booking.paymentStatus))throw Error('Fulfillment requires a confirmed payment');
+  assertManualFulfillment(booking);
   return action(tx,booking);
  });
 }
