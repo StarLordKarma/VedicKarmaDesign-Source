@@ -1,3 +1,4 @@
+import {getOrderMailFlow,flowMarker} from '../order-mail-flow';
 import { MANUAL_COPY } from "../../reading-core/payments/manual-copy.mjs";
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { and, desc, eq, like, sql } from "drizzle-orm";
@@ -247,6 +248,7 @@ export async function getManualRiskPayPublic(token: string) {
     locale: card.locale,
     payment: row.paymentStatus,
     accepted: !!card.preparation,
+    orderFlow: flowMarker(row) ? await getOrderMailFlow(row.id).then(f=>f?{acknowledgement:f.ackState,scheduledAt:f.dueAt?.toISOString()||null}:null) : null,
     received: !!card.receipt,
     refundRequested: !!card.refundRequest,
     statusUrl: card.statusUrl,
@@ -428,6 +430,7 @@ async function detail(id: number) {
   };
   return {
     ...review,
+    orderFlow: flowMarker(row) ? await getOrderMailFlow(row.id).then(f=>f?{acknowledgement:f.ackState,scheduledAt:f.dueAt?.toISOString()||null}:null) : null,
     changed,
     reviewHash: manualDigest(review),
     paymentReference: row.paymentId,
@@ -467,7 +470,7 @@ export async function listManualRiskPayOrders() {
     .where(like(bookingRequests.paymentId, "riskpay-manual:%"))
     .orderBy(desc(bookingRequests.createdAt))
     .limit(200);
-  return rows.map(row => {
+  return Promise.all(rows.map(async row => {
     const { card } = unpack(row);
     return {
       id: row.id,
@@ -478,10 +481,11 @@ export async function listManualRiskPayOrders() {
       payment: row.paymentStatus,
       received: card.receipt?.merchantMicroUsdc,
       accepted: !!card.preparation,
+    orderFlow: flowMarker(row) ? await getOrderMailFlow(row.id).then(f=>f?{acknowledgement:f.ackState,scheduledAt:f.dueAt?.toISOString()||null}:null) : null,
       refund: !!card.refundRequest,
       at: row.createdAt,
     };
-  });
+  }));
 }
 export async function manualRiskPayFunds() {
   const db = await database(),

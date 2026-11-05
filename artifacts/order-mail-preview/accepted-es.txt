@@ -1,0 +1,5 @@
+Tu pedido #42 (Astrología védica) se ha aceptado para su preparación. Normalmente enviamos el PDF entre 20 y 40 minutos después de este mensaje. La preparación o revisión necesaria puede tardar más.
+
+Estado del pedido: http://127.0.0.1:4092/status/synthetic-preview-only
+
+Karma Life Design

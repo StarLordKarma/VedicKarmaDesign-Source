@@ -321,7 +321,7 @@ export default function ReportStudio() {
                         )}
                         <p className="mb-4 text-sm text-[#635a52]">
                           {detail.data.booking?.paymentId?.startsWith('riskpay-manual:') && <a className="block underline mb-3" href={'/owner/riskpay?order='+detail.data.booking.id}>RiskPay: payment, recipient and PDF approval → order #{detail.data.booking.id}</a>}
-                          Client: <strong>{detail.data.booking?.name}</strong> ·{" "}
+                          <a href="/owner/order-flow" className="block underline mb-3">Все этапы: оплата → первое письмо → PDF → расписание → отправка</a>Client: <strong>{detail.data.booking?.name}</strong> ·{" "}
                           {detail.data.booking?.birthDate}{" "}
                           {detail.data.booking?.birthTime} ·{" "}
                           {detail.data.booking?.birthCity},{" "}
@@ -462,7 +462,7 @@ export default function ReportStudio() {
                                     }
                                   >
                                     {approve.isPending ? (
-                                      "Approving and sending…"
+                                      "Approving and scheduling…"
                                     ) : selectedVersion?.status === "sent" ? (
                                       <>
                                         <CheckCircle2 size={16} />
@@ -480,7 +480,7 @@ export default function ReportStudio() {
                                   </Button>
                                   <label className="flex items-start gap-2 rounded-xl border border-[#28231f]/15 p-3 text-xs leading-5">
                                     <input type="checkbox" className="mt-1" checked={reviewedVersionId === selectedVersion?.id} onChange={event => setReviewedVersionId(event.target.checked ? selectedVersion!.id : null)} />
-                                    <span>I checked the source facts, every PDF page and the recipient: <strong>{detail.data.booking?.email}</strong>. Approval sends this version by email.</span>
+                                    <span>I checked the source facts, every PDF page and the recipient: <strong>{detail.data.booking?.email}</strong>. Approval authorizes this version; enrolled orders wait for the acceptance email and scheduled time.</span>
                                   </label>
                                   {detail.data.job?.status ===
                                     "delivery_failed" && (

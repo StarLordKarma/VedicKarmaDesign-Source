@@ -1,3 +1,5 @@
+import {registerOrderMailRoutes} from '../order-mail-routes';
+import {startOrderMailWorker} from '../order-mail-flow';
 import { registerManualRiskPayRoutes } from '../payments/riskpay-manual-routes';
 import {registerSocialPublisher} from '../social-publisher/routes';
 import { registerCardSandboxRoutes } from "../payments/card-sandbox-routes";
@@ -95,6 +97,8 @@ async function startServer() {
   registerReadingSite(app);
   registerCardSandboxRoutes(app);
   registerManualRiskPayRoutes(app);
+  startOrderMailWorker();
+  registerOrderMailRoutes(app);
   registerNowPaymentsWebhook(app);
   registerHeleketWebhook(app);
   registerPayCryptoWebhook(app);

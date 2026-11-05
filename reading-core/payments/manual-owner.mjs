@@ -1,3 +1,4 @@
+const flowLink=document.createElement('a');flowLink.href='/owner/order-flow';flowLink.textContent='Все этапы заказа и расписание писем →';document.querySelector('#manual-root').before(flowLink);
 const root = document.querySelector("#manual-root"),
   feedback = document.querySelector("#manual-feedback");
 const el = (tag, text, cls) => {
@@ -352,7 +353,7 @@ async function show(id) {
     if (d.version) {
       const pdf = el("section", undefined, "manual-panel");
       pdf.append(
-        el("h3", "2. Проверить PDF и отправить"),
+        el("h3", d.orderFlow ? "2. Проверить PDF и запланировать отправку" : "2. Проверить PDF и отправить"),
         el(
           "p",
           "Заказ #" + id + " · PDF v" + d.version.number + " · " + i.email
@@ -399,7 +400,7 @@ async function show(id) {
           "button",
           d.job.status === "delivery_failed"
             ? "Повторить неудачную отправку этой версии"
-            : "Подтвердить отправку PDF v" + d.version.number
+            : (d.orderFlow ? "Одобрить и запланировать PDF v" : "Подтвердить отправку PDF v") + d.version.number
         );
         b.type = "submit";
         form.append(b);

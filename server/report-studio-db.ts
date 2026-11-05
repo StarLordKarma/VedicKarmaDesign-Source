@@ -1,3 +1,5 @@
+import {recommendProducts} from '../shared/order-lifecycle';
+import {ensureOrderMailFlow,orderDeliverySchedule,getOrderMailFlow} from './order-mail-flow';
 import { assertManualFulfillment } from './payments/riskpay-manual-policy';
 import { cardSandboxEnabled } from "./payments/card-sandbox-config";
 import{renderLegacyOffThread}from'./report-renderer';
@@ -31,8 +33,9 @@ function languageCode(language: string): "ru" | "en" | "de" | "es" { return lang
 
 export async function enqueueReportJobForBooking(bookingId: number, confirmedBy = "system") {
   const booking = await getBookingRequestById(bookingId);
-  if (!booking || !isPaidPaymentStatus(booking.paymentStatus)) return { created: false, reason: "payment-not-confirmed" as const };
+  if (!booking || booking.status === "cancelled" || !isPaidPaymentStatus(booking.paymentStatus)) return { created: false, reason: "payment-not-confirmed" as const };
   assertManualFulfillment(booking);
+  await ensureOrderMailFlow(booking);
   const input = frozenBookingInput(booking);
   const inputHash = sha256(JSON.stringify(input));
   const idempotencyKey = `${bookingId}:1:${inputHash}:${REPORT_TEMPLATE_VERSION}`;
@@ -119,7 +122,7 @@ export async function getReportReviewJob(reportJobId: number) {
   const versions = await db.select().from(reportVersions).where(eq(reportVersions.reportJobId, reportJobId)).orderBy(desc(reportVersions.versionNumber));
   const result = (await db.select().from(calculationResults).where(eq(calculationResults.reportJobId, reportJobId)).limit(1))[0];
   const narrative = (await db.select().from(narrativeDrafts).where(eq(narrativeDrafts.reportJobId, reportJobId)).orderBy(desc(narrativeDrafts.createdAt), desc(narrativeDrafts.id)).limit(1))[0];
-  return { job, booking, versions, calculation: result, narrative: await expandedNarrative(narrative) };
+  return { job, booking, orderFlow: booking && JSON.parse(booking.priceSnapshotJson || "{}").orderMailV1 ? await getOrderMailFlow(booking.id).then(f=>f?{ackState:f.ackState,ackAcceptedAt:f.ackAcceptedAt,dueAt:f.dueAt,delaySeconds:f.delaySeconds,error:f.error}:null) : null, versions, calculation: result, narrative: await expandedNarrative(narrative) };
 }
 
 export function processReportJob(input: { reportJobId: number; actorId: string }) {
@@ -224,6 +227,8 @@ export async function deliverApprovedReport(input: { reportJobId: number; versio
   assertManualFulfillment(bookingRequest, { versionId: current.id, pdfSha256: current.pdfSha256 });
   if (isRefundHeld(bookingRequest.paymentStatus)) throw new Error("Refunded orders cannot send new reports");
   if (!isPaidPaymentStatus(bookingRequest.paymentStatus)) throw new Error("Report delivery requires a confirmed payment");
+  const scheduled = await orderDeliverySchedule(bookingRequest);
+  if(scheduled)return scheduled;
   const idempotencyKey = `report:${current.id}:approved:${current.pdfSha256 ?? current.versionNumber}`;
   let existing = (await db.select().from(reportDeliveryAttempts).where(eq(reportDeliveryAttempts.idempotencyKey, idempotencyKey)).limit(1))[0];
   if (existing?.status === "sent") {
@@ -246,7 +251,7 @@ export async function deliverApprovedReport(input: { reportJobId: number; versio
   } catch (error) {
     throw new TRPCError({ code: "PRECONDITION_FAILED", message: (error as Error).message });
   }
-  const claim = await withPaidBookingLock(db,bookingRequest.id,async (tx, freshBooking)=>{ assertManualFulfillment(freshBooking, { versionId: current.id, pdfSha256: current.pdfSha256 }); return tx.update(reportDeliveryAttempts)
+  const claim = await withPaidBookingLock(db,bookingRequest.id,async (tx, freshBooking)=>{ if(await orderDeliverySchedule(freshBooking))throw Error("Order is awaiting its scheduled delivery");if(existing.recipientEmail!==freshBooking.email.toLowerCase())throw Error("Recipient changed; review required"); assertManualFulfillment(freshBooking, { versionId: current.id, pdfSha256: current.pdfSha256 }); return tx.update(reportDeliveryAttempts)
     .set({ status: "sending", startedAt: new Date(), errorCode: null, errorMessage: null, completedAt: null })
     .where(and(eq(reportDeliveryAttempts.id, existing.id), inArray(reportDeliveryAttempts.status, ["queued", "failed"]))); });
   if (Number(claim[0].affectedRows ?? 0) !== 1) {
@@ -259,7 +264,7 @@ export async function deliverApprovedReport(input: { reportJobId: number; versio
     const cardStatusPath = JSON.parse(bookingRequest.priceSnapshotJson || "{}").riskpayManual?.statusUrl || (cardSandboxEnabled() ? JSON.parse(bookingRequest.priceSnapshotJson || "{}").cardSandbox?.statusUrl : undefined);
     const sandboxStatusUrl = typeof cardStatusPath === "string" && /^\/status\/[A-Za-z0-9_-]{32,100}$/.test(cardStatusPath) ? `${process.env.PUBLIC_BASE_URL}${cardStatusPath}` : undefined;
     const statusUrl = sandboxStatusUrl || (binding?.statusToken && process.env.PUBLIC_BASE_URL ? `${process.env.PUBLIC_BASE_URL.replace(/\/$/, "")}/status/${binding.statusToken}` : undefined);
-    const result = await sendClientReportPdf({ email: existing.recipientEmail, name: bookingRequest.name, pdfKey: current.pdfStorageKey, pdfName: `${readingOptions(bookingRequest)?.product||"vedic"}-report-${bookingRequest.id}.pdf`, language: ({en:"English",ru:"Русский",es:"Español",de:"Deutsch"} as Record<string,string>)[job.language]||"English", idempotencyKey, statusUrl, expectedPdfSha256:current.pdfSha256, outboxKey:process.env.STORAGE_PROVIDER==="s3"?`report-delivery/${attemptId}.json`:undefined, product: readingOptions(bookingRequest)?.product });
+    const result = await sendClientReportPdf({ email: existing.recipientEmail, name: bookingRequest.name, pdfKey: current.pdfStorageKey, pdfName: `${readingOptions(bookingRequest)?.product||"vedic"}-report-${bookingRequest.id}.pdf`, language: ({en:"English",ru:"Русский",es:"Español",de:"Deutsch"} as Record<string,string>)[JSON.parse(bookingRequest.priceSnapshotJson||"{}").orderMailV1?.locale||job.language]||"English", idempotencyKey, statusUrl, expectedPdfSha256:current.pdfSha256, outboxKey:process.env.STORAGE_PROVIDER==="s3"?`report-delivery/${attemptId}.json`:undefined, product: readingOptions(bookingRequest)?.product, recommendationHistoryProducts:JSON.parse(bookingRequest.priceSnapshotJson||"{}").orderMailV1?.previousProducts||[], recommendations: recommendProducts({current:readingOptions(bookingRequest)?.product||bookingRequest.packageCode||"basic",verifiedPurchased:JSON.parse(bookingRequest.priceSnapshotJson||"{}").orderMailV1?.previousProducts||[],available:["tarot","portrait","vedic_basic"],promotionsAllowed:JSON.parse(bookingRequest.priceSnapshotJson||"{}").orderMailV1?.recommendations===true}) });
     providerAccepted=true;
     await db.update(reportDeliveryAttempts).set({ status: "sent", providerMessageId: result.id ?? null, completedAt: new Date() }).where(eq(reportDeliveryAttempts.id, attemptId));
     await db.update(reportVersions).set({ status: "sent" }).where(eq(reportVersions.id, current.id));

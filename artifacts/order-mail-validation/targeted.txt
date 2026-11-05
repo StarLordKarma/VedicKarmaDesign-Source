@@ -1,0 +1,16 @@
+
+ RUN  v2.1.9 /private/tmp/karma-order-mail-20261105
+
+ ✓ server/order-lifecycle.test.ts (27 tests) 7ms
+ ✓ server/payments/riskpay-manual-policy.test.ts (30 tests) 19ms
+ ✓ server/report-mail-outbox.test.ts (4 tests) 53ms
+ ✓ server/order-recommendation-history.test.ts (3 tests) 12ms
+ ✓ server/report-studio-hardening.test.ts (4 tests) 27ms
+ ✓ server/client-status.test.ts (3 tests) 7ms
+ ✓ server/order-mail-copy.test.ts (5 tests) 10ms
+
+ Test Files  7 passed (7)
+      Tests  76 passed (76)
+   Start at  08:48:31
+   Duration  7.53s (transform 1.19s, setup 59ms, collect 8.99s, tests 135ms, environment 6ms, prepare 1.12s)
+

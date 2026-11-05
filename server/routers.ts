@@ -1,3 +1,4 @@
+import {readRecommendationHistory} from './order-recommendation-history';
 import { riskPayManualEnabled } from './payments/riskpay-manual-policy';
 import { createManualRiskPayCheckout } from './payments/riskpay-manual';
 import { cardSandboxEnabled } from "./payments/card-sandbox-config";
@@ -133,7 +134,7 @@ export const appRouter = router({
       const booking = await getBookingRequestById(input.bookingId);
       if (!booking) throw new TRPCError({ code: "NOT_FOUND", message: "Booking request not found." });
       if (isRefundHeld(booking.paymentStatus)) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Refunded orders cannot send new reports." });
-      if (JSON.parse(booking.priceSnapshotJson || "{}").riskpayManual) throw new TRPCError({code:"PRECONDITION_FAILED", message:"Use the RiskPay owner queue to verify payment, PDF version and recipient."});
+      if (JSON.parse(booking.priceSnapshotJson || "{}").riskpayManual || JSON.parse(booking.priceSnapshotJson || "{}").orderMailV1) throw new TRPCError({code:"PRECONDITION_FAILED", message:"Use the RiskPay owner queue to verify payment, PDF version and recipient."});
       if (!booking.natalPdfKey || !booking.natalPdfName) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Attach a natal-chart PDF before sending it." });
       await updateBookingDelivery({ id: booking.id, deliveryStatus: "sending", deliveryError: null });
       try {
@@ -152,7 +153,7 @@ export const appRouter = router({
         const booking = await getBookingRequestById(bookingId);
         if (!booking) { results.push({ bookingId, success: false, error: "Booking request not found." }); continue; }
         if (isRefundHeld(booking.paymentStatus)) { results.push({ bookingId, success: false, error: "Refunded orders cannot send new reports." }); continue; }
-        if (JSON.parse(booking.priceSnapshotJson || "{}").riskpayManual) throw new TRPCError({code:"PRECONDITION_FAILED", message:"Use the RiskPay owner queue to verify payment, PDF version and recipient."});
+        if (JSON.parse(booking.priceSnapshotJson || "{}").riskpayManual || JSON.parse(booking.priceSnapshotJson || "{}").orderMailV1) throw new TRPCError({code:"PRECONDITION_FAILED", message:"Use the RiskPay owner queue to verify payment, PDF version and recipient."});
       if (!booking.natalPdfKey || !booking.natalPdfName) { results.push({ bookingId, success: false, error: "No natal-chart PDF attached." }); continue; }
         await updateBookingDelivery({ id: booking.id, deliveryStatus: "sending", deliveryError: null });
         try {
@@ -258,7 +259,7 @@ export const appRouter = router({
         addon: input.product ? (input.product === "vedic_plus" ? 1 : 0) : input.addon ? 1 : 0,
         packageCode: priceSnapshot.packageCode,
         packageVersion: priceSnapshot.packageVersion,
-        priceSnapshotJson: JSON.stringify(priceSnapshot),
+        priceSnapshotJson: JSON.stringify({...priceSnapshot,...(process.env.ORDER_MAIL_LIFECYCLE_ENABLED === "true" ? {orderMailV1:{locale:input.privacyLocale,version:1,recommendations:input.orderRecommendations===true,previousProducts:readRecommendationHistory(input.recommendationHistory,input.email)}} : {})}),
         totalUsd,
         currency: input.currency,
         interest: input.interest || null,

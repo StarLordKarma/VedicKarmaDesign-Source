@@ -7,6 +7,7 @@ const appUrl = process.env.APP_INTERNAL_URL || "http://app:3000";
 const ipnSecret = process.env.NOWPAYMENTS_IPN_SECRET || "sandbox-ipn-secret";
 const invoices = new Map();
 const messages = [];
+const emailKeys = new Map();
 
 function json(res, status, value) {
   res.writeHead(status, {
@@ -95,13 +96,13 @@ createServer(async (req, res) => {
     });
   }
   if (req.method === "POST" && url.pathname === "/emails") {
-    const message = {
-      id: `email-${randomUUID()}`,
-      receivedAt: new Date().toISOString(),
-      ...(await body(req)),
-    };
+    const payload=await body(req), key=req.headers['idempotency-key'];
+    const prior=typeof key==='string'?emailKeys.get(key):null;
+    if(prior&&Date.now()-prior.at<24*3600000){if(prior.payload!==JSON.stringify(payload))return json(res,409,{name:'invalid_idempotent_request'});return json(res,200,{id:prior.id});}
+    const message = {id:`email-${randomUUID()}`,receivedAt:new Date().toISOString(),...payload};
     messages.push(message);
-    return json(res, 200, { id: message.id });
+    if(typeof key==='string')emailKeys.set(key,{id:message.id,at:Date.now(),payload:JSON.stringify(payload)});
+    return json(res,200,{id:message.id});
   }
   if (url.pathname === "/messages")
     return json(res, 200, {
@@ -166,6 +167,6 @@ createServer(async (req, res) => {
       dstOffset: 0,
     });
   json(res, 404, { error: "sandbox endpoint not found", path: url.pathname });
-}).listen(port, "0.0.0.0", () =>
+}).listen(port, process.env.MOCK_HOST || "0.0.0.0", () =>
   console.info(`Sandbox mock server listening on ${port}`)
 );

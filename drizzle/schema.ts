@@ -568,3 +568,7 @@ export const verifiedPaymentClaims = mysqlTable('verified_payment_claims', {
   bookingId: int('bookingId').notNull(),
   createdAt: timestamp('createdAt').defaultNow().notNull(),
 },table=>({paymentUnique:uniqueIndex('verified_payment_claims_payment_unique').on(table.paymentId),bookingIdx:index('verified_payment_claims_booking_idx').on(table.bookingId)}));
+
+export const orderMailFlows=mysqlTable('order_mail_flows',{
+ bookingId:int('bookingId').primaryKey(),locale:varchar('locale',{length:2}).notNull(),product:varchar('product',{length:32}).notNull(),recipient:varchar('recipient',{length:320}).notNull(),identityHash:varchar('identityHash',{length:64}).notNull(),delaySeconds:int('delaySeconds').notNull(),acceptedAt:timestamp('acceptedAt').defaultNow().notNull(),ackState:varchar('ackState',{length:20}).notNull().default('pending'),ackPayload:text('ackPayload').notNull(),ackStartedAt:timestamp('ackStartedAt'),ackAcceptedAt:timestamp('ackAcceptedAt'),dueAt:timestamp('dueAt'),providerMessageId:varchar('providerMessageId',{length:256}),attempts:int('attempts').notNull().default(0),nextAttemptAt:timestamp('nextAttemptAt'),error:text('error'),updatedAt:timestamp('updatedAt').defaultNow().onUpdateNow().notNull()
+},t=>({pending:index('order_mail_pending_idx').on(t.ackState,t.nextAttemptAt)}));

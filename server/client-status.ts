@@ -1,3 +1,5 @@
+import {flowMarker,orderDeliverySchedule,getOrderMailFlow} from './order-mail-flow';
+import {getBookingRequestById} from './db';
 import { cardSandboxEnabled } from "./payments/card-sandbox-config";
 import crypto from "node:crypto";
 import { and, desc, eq, isNull, inArray } from "drizzle-orm";
@@ -194,8 +196,10 @@ export async function getPublicClientStatus(rawToken: string) {
     (isPaidPaymentStatus(booking.paymentStatus)
       ? "queued"
       : "waiting_payment");
+  const publicFlow=await publicOrderMailFlow(access.bookingId);
   return {
     kind: "active" as const,
+    orderFlow: publicFlow,
     cardCheckoutUrl: cardSandboxEnabled() && /^\/sandbox\/card\/[1-9]\d{0,9}\.[a-f0-9]{64}$/.test(booking.paymentUrl || "") ? booking.paymentUrl : undefined,
     reference: publicReference(tokenHash),
     expiresAt: access.expiresAt.toISOString(),
@@ -219,7 +223,7 @@ export async function getPublicClientStatus(rawToken: string) {
       booking.createdAt
     ).toISOString(),
     reportDownloadUrl:
-      !isRefundHeld(booking.paymentStatus) && ["sent", "approved", "delivery_failed"].includes(jobStatus)
+      !isRefundHeld(booking.paymentStatus) && (!publicFlow || (publicFlow.scheduledAt && Date.parse(publicFlow.scheduledAt)<=Date.now())) && ["sent", "approved", "delivery_failed"].includes(jobStatus)
         ? `/api/client/report/${encodeURIComponent(normalized)}`
         : null,
   };
@@ -229,6 +233,8 @@ export async function getClientReportDownload(rawToken: string) {
   const resolved = await findActiveAccess(rawToken);
   if (resolved.kind !== "active") return resolved;
   const { db, access, tokenHash } = resolved;
+  const fullBooking = await getBookingRequestById(access.bookingId);
+  if(fullBooking && flowMarker(fullBooking) && await orderDeliverySchedule(fullBooking)) return {kind:"not_ready" as const};
   const booking = (await db.select({ paymentStatus: bookingRequests.paymentStatus }).from(bookingRequests).where(eq(bookingRequests.id, access.bookingId)).limit(1))[0];
   if (!booking || isRefundHeld(booking.paymentStatus)) return { kind: "not_ready" as const };
   const job = (
@@ -283,3 +289,5 @@ export async function getClientReportDownload(rawToken: string) {
     });
   return { kind: "ready" as const, url };
 }
+
+async function publicOrderMailFlow(id:number){const b=await getBookingRequestById(id);if(!b||!flowMarker(b))return null;const f=await getOrderMailFlow(id);return f?{acknowledgement:f.ackState,scheduledAt:f.dueAt?.toISOString()||null}:null;}

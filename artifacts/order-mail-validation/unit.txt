@@ -1,0 +1,221 @@
+
+ RUN  v2.1.9 /private/tmp/karma-order-mail-20261105
+
+ ✓ client/src/pages/Home.test.tsx (30 tests) 11999ms
+   ✓ Home booking payment UX > does not expose a customer file attachment input 1019ms
+   ✓ Home booking payment UX > disables an inactive package and selects the remaining active package 634ms
+   ✓ Home booking payment UX > autosaves safe form values, restores a recent draft, and never restores consent 829ms
+   ✓ Home booking payment UX > clears the draft and resets the form in one action 416ms
+   ✓ Home booking payment UX > renders the current configured prices from the public pricing query 604ms
+   ✓ Home booking payment UX > recovers checkout availability after a restart without losing birth details 466ms
+   ✓ Home booking payment UX > recovers from a failed availability request when the connection returns 386ms
+   ✓ Home booking payment UX > validates a promo code and updates the live total and included services 453ms
+   ✓ Home booking payment UX > keeps price-breakdown tooltip copy aligned with the selected language 688ms
+   ✓ Home booking payment UX > shows application-controlled validation in de 316ms
+   ✓ Home booking payment UX > offers localized birth-field help, downloads the PDF, and shares its receipt link 670ms
+   ✓ Home booking payment UX > highlights and shakes the consent block when submitting without acceptance 454ms
+   ✓ Home booking payment UX > shows pending loading, success confirmation, and schedules the checkout redirect 1299ms
+   ✓ Home booking payment UX > emails the generated receipt from the checkout success state and surfaces delivery errors 645ms
+ ✓ client/src/pages/Admin.test.tsx (26 tests) 17470ms
+   ✓ Admin interactions > shows an OAuth login action when the owner is not signed in 1021ms
+   ✓ Admin interactions > toggles RU/EN labels and persists admin-locale 710ms
+   ✓ Admin interactions > invokes both export mutations and handles blob downloads 462ms
+   ✓ Admin interactions > invokes PDF delivery for a booking with an attached chart 628ms
+   ✓ Admin interactions > paginates client history and navigates between pages 918ms
+   ✓ Admin interactions > edits client details from the PDF preview modal 727ms
+   ✓ Admin interactions > opens the attached PDF in a preview dialog 493ms
+   ✓ Admin interactions > shows distinct bulk delivery feedback for all, partial, and failed results 591ms
+   ✓ Admin interactions > selects clients with PDFs and invokes bulk delivery 348ms
+   ✓ Admin interactions > filters client history by language and interest 435ms
+   ✓ Admin interactions > renders owner activity metrics, persists display preferences, and supports mobile quick delivery 1328ms
+   ✓ Admin interactions > edits receipt retention from the owner settings panel and sends the selected allowed value 614ms
+   ✓ Admin interactions > edits service prices from the owner pricing panel and shows success feedback 3203ms
+   ✓ Admin interactions > shows a saved-draft badge and clears the draft from the modal 616ms
+   ✓ Admin interactions > autosaves client modal drafts and renders change history 2189ms
+   ✓ Admin interactions > filters client history by search term and date range 452ms
+   ✓ Admin interactions > shows Russian success feedback after switching locale and completing PDF upload 464ms
+   ✓ Admin interactions > manually cleans expired receipts and reports the deleted count 608ms
+   ✓ Admin interactions > accepts valid PDF upload and shows invalid/oversized feedback 1131ms
+ ✓ client/src/pages/ReportStudio.test.tsx (3 tests) 856ms
+   ✓ Report Studio review screen > offers open and download actions for an owner-reviewed generated PDF 668ms
+ ✓ client/src/pages/AdminMetrics.test.tsx (4 tests) 1811ms
+   ✓ AdminMetrics localization > persists the metrics dashboard dark theme and exposes journal search 1252ms
+   ✓ AdminMetrics localization > persists the journal view mode and PNG background preference 378ms
+ ✓ client/src/pages/ServicePackages.test.tsx (2 tests) 1036ms
+   ✓ ServicePackages > shows the owner package catalog and confirms a deactivate action 606ms
+   ✓ ServicePackages > creates a localized next package version without overwriting the existing version 427ms
+ ✓ client/src/pages/Privacy.test.tsx (7 tests) 1133ms
+   ✓ Privacy page > renders the localized notice for en 469ms
+ ✓ client/src/components/PageMetadata.test.tsx (2 tests) 89ms
+ ✓ client/src/pages/PaymentTestLab.test.tsx (1 test) 298ms
+ ✓ client/src/components/VisitorPrivacyChoices.test.tsx (2 tests) 230ms
+ ✓ client/src/components/ReportEvidencePanel.test.tsx (1 test) 258ms
+ ✓ client/src/App.test.tsx (1 test) 93ms
+ ✓ server/payments/riskpay-api.test.ts (25 tests) 63ms
+ ✓ server/notifications.admin.test.ts (17 tests | 10 skipped) 19ms
+ ✓ server/export.test.ts (14 tests) 2212ms
+   ✓ full natal report PDF > renders the requested Basic and Basic+ page counts with chart panels 1021ms
+stderr | server/booking-pricing.integration.test.ts > booking pricing integration > cleans up a marked smoke-test booking when checkout creation fails
+[Payments] Failed to create crypto checkout Error: provider unavailable
+    at /private/tmp/karma-order-mail-20261105/server/booking-pricing.integration.test.ts:88:58
+    at file:///Users/namesurname/Documents/Codex/Github%20starlordkarma%20site/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///Users/namesurname/Documents/Codex/Github%20starlordkarma%20site/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///Users/namesurname/Documents/Codex/Github%20starlordkarma%20site/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///Users/namesurname/Documents/Codex/Github%20starlordkarma%20site/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at runSuite (file:///Users/namesurname/Documents/Codex/Github%20starlordkarma%20site/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/namesurname/Documents/Codex/Github%20starlordkarma%20site/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/namesurname/Documents/Codex/Github%20starlordkarma%20site/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+    at startTests (file:///Users/namesurname/Documents/Codex/Github%20starlordkarma%20site/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1271:3)
+
+ ✓ server/booking-pricing.integration.test.ts (11 tests) 70ms
+ ✓ server/refunds.test.ts (9 tests) 28ms
+ ✓ server/payments/riskpay-manual-policy.test.ts (30 tests) 27ms
+ ✓ server/payments/direct.test.ts (17 tests) 40ms
+ ↓ server/pipeline-mysql.integration.test.ts (6 tests | 6 skipped)
+ ✓ server/payments/card-sandbox.test.ts (18 tests) 32ms
+ ✓ server/client-delivery.test.ts (9 tests) 42ms
+ ✓ server/social-publisher/core.test.ts (10 tests) 34ms
+ ✓ server/payments/card-checkout-policy.test.ts (17 tests) 745ms
+   ✓ manual card refund and sandbox boundaries > renders distinct localized consent with crypto selected and no prechecked agreement: en 391ms
+ ✓ server/_core/seo.test.ts (16 tests) 1143ms
+   ✓ public search metadata > renders localized initial content and reciprocal alternatives for en 442ms
+ ✓ server/payments/riskpay-callback-gateway.test.ts (31 tests) 36ms
+ ✓ server/refund-proof.test.ts (6 tests) 94ms
+ ✓ server/social-publisher/routes.test.ts (5 tests) 426ms
+ ✓ server/payments/alternative-providers.test.ts (4 tests) 17ms
+ ↓ server/order-mail.mysql.test.ts (5 tests | 5 skipped)
+ ✓ server/vedic-astrology-calculator.test.ts (9 tests) 17ms
+ ✓ server/three-direction-reports.test.ts (6 tests) 6655ms
+   ✓ paid en jobs preserve language in all directions and reuse stored calculations 1748ms
+   ✓ paid ru jobs preserve language in all directions and reuse stored calculations 1423ms
+   ✓ paid es jobs preserve language in all directions and reuse stored calculations 2055ms
+   ✓ paid de jobs preserve language in all directions and reuse stored calculations 1412ms
+ ✓ server/payments/direct-tron.test.ts (10 tests) 46ms
+ ↓ server/control-room.mysql.integration.test.ts (2 tests | 2 skipped)
+ ✓ server/payments/riskpay-refund-proof.test.ts (16 tests) 32ms
+ ✓ server/order-lifecycle.test.ts (27 tests) 16ms
+ ✓ server/booking.test.ts (8 tests) 58ms
+ ✓ server/report-automation.test.ts (7 tests) 60ms
+ ✓ server/direct-payment-routes.test.ts (5 tests) 19ms
+ ✓ server/report-revision.test.ts (2 tests) 19ms
+stderr | server/observability.test.ts > observability > limits a scope per client key and returns retry metadata
+{"timestamp":"2026-11-05T05:40:50.193Z","level":"warn","event":"http.rate_limited","scope":"test","retryAfterSeconds":60}
+
+stderr | server/observability.test.ts > observability > matches mounted tRPC procedures through originalUrl
+{"timestamp":"2026-11-05T05:40:50.238Z","level":"warn","event":"http.rate_limited","scope":"booking-submit","retryAfterSeconds":900}
+
+ ✓ server/observability.test.ts (5 tests) 57ms
+ ✓ server/payments/direct-binding.test.ts (6 tests) 196ms
+ ✓ server/report-auto-policy.test.ts (9 tests) 18ms
+ ✓ server/configuration.test.ts (6 tests) 7ms
+ ✓ server/payments/card-reserve.test.ts (8 tests) 14ms
+ ✓ server/pipeline-audit.test.ts (5 tests) 664ms
+   ✓ rejects unsupported dates and Tarot currency before accepting a payment 617ms
+ ✓ shared/admin-localization.test.ts (6 tests) 23ms
+stdout | server/_core/owner-wallet-auth.test.ts
+[OAuth] Initialized with baseURL: 
+
+stderr | server/_core/owner-wallet-auth.test.ts
+[OAuth] ERROR: OAUTH_SERVER_URL is not configured! Set OAUTH_SERVER_URL environment variable.
+
+ ✓ server/service-packages.integration.test.ts (1 test) 12ms
+ ✓ server/_core/owner-wallet-auth.test.ts (5 tests) 103ms
+ ✓ server/report-narrative-provider.test.ts (3 tests) 18ms
+ ✓ server/payments/direct-estimates.test.ts (3 tests) 13ms
+ ✓ server/nowpayments.test.ts (5 tests) 15ms
+ ✓ server/report-studio-hardening.test.ts (4 tests) 18ms
+ ✓ server/reading-guides.test.ts (5 tests) 941ms
+   ✓ public reading guides > serves complete localized articles without JavaScript for en 482ms
+ ✓ server/receipt-retention.test.ts (3 tests) 18ms
+ ✓ server/report-mail-outbox.test.ts (4 tests) 66ms
+ ✓ server/payment-notification.test.ts (3 tests) 33ms
+ ✓ shared/admin-sla-journal.test.ts (4 tests) 42ms
+ ✓ server/manual-smoke-test.test.ts (2 tests) 250ms
+ ✓ server/knowledge/wording.test.ts (9 tests) 19ms
+ ✓ server/knowledge/updates.test.ts (4 tests) 88ms
+stdout | server/standalone.test.ts
+[OAuth] Initialized with baseURL: 
+
+stderr | server/standalone.test.ts
+[OAuth] ERROR: OAUTH_SERVER_URL is not configured! Set OAUTH_SERVER_URL environment variable.
+
+ ✓ server/standalone.test.ts (3 tests) 29ms
+ ✓ server/_core/scheduledAuth.test.ts (3 tests) 13ms
+ ✓ server/report-narrative-curated.test.ts (6 tests) 37ms
+ ✓ server/sla-retention.test.ts (3 tests) 58ms
+ ✓ server/sla.test.ts (2 tests) 489ms
+   ✓ SLA violation trend aggregation > groups actual evaluation runs by UTC day and preserves both violation types 335ms
+stdout | server/request-boundaries.test.ts
+[OAuth] Initialized with baseURL: 
+
+stderr | server/request-boundaries.test.ts
+[OAuth] ERROR: OAUTH_SERVER_URL is not configured! Set OAUTH_SERVER_URL environment variable.
+
+ ✓ server/request-boundaries.test.ts (3 tests) 3282ms
+   ✓ rejects oversized public input and batched mutations before processing 801ms
+   ✓ preserves authenticated PDF upload and editorial tools 2307ms
+ ✓ server/full-report-content.test.ts (2 tests) 11ms
+ ✓ server/_core/security.test.ts (3 tests) 41ms
+ ✓ server/audience-consent.test.ts (1 test) 1092ms
+   ✓ collects nothing before consent and stops after withdrawal, without sending form contents 1087ms
+ ✓ server/control-room.test.ts (3 tests) 57ms
+ ✓ shared/payment-networks.test.ts (5 tests) 5ms
+ ✓ server/payments/order-signing.test.ts (3 tests) 23ms
+ ✓ server/auth.logout.test.ts (1 test) 18ms
+ ✓ server/payments/card-live-readiness.test.ts (1 test) 33ms
+ ✓ server/reading-products.test.ts (4 tests) 576ms
+   ✓ accepts Tarot without inventing birth details and preserves the server price 541ms
+ ✓ server/order-recommendation-history.test.ts (3 tests) 20ms
+ ✓ server/report-delivery-policy.test.ts (5 tests) 11ms
+ ✓ server/payments/provider.test.ts (2 tests) 36ms
+ ✓ server/geonames-location.test.ts (3 tests) 6328ms
+   ✓ offline birth city resolution > resolves translated city and country names to a consistent location 6246ms
+ ✓ server/reading-deeplinks.test.ts (5 tests) 1122ms
+   ✓ opens the correct visible product for a direct #sample-western marketing link 614ms
+ ✓ server/nowpayments.webhook.test.ts (2 tests) 14ms
+ ✓ server/_core/llm-cloudflare.test.ts (1 test) 12ms
+ ✓ server/payment-flow.test.ts (2 tests) 8ms
+ ✓ server/payments/direct-rates.test.ts (3 tests) 25ms
+ ✓ shared/currency.test.ts (3 tests) 43ms
+ ✓ server/report-work-queue.test.ts (3 tests) 53ms
+ ✓ server/receipt-email-policy.test.ts (3 tests) 5ms
+ ✓ shared/pricing.test.ts (2 tests) 9ms
+ ✓ server/database-url.test.ts (3 tests) 13ms
+ ↓ server/resend.credentials.test.ts (1 test | 1 skipped)
+ ✓ server/health.test.ts (2 tests) 12ms
+ ✓ server/report-worker-pool.test.ts (2 tests) 2515ms
+   ✓ keeps the main event loop responsive while worker CPU is busy 450ms
+   ✓ terminates a stuck worker and recovers for a later job 2064ms
+ ✓ server/reading-language.test.ts (24 tests) 11174ms
+   ✓ vedic_basic: chosen en remains in order, text and PDF 572ms
+   ✓ vedic_plus: chosen en remains in order, text and PDF 568ms
+   ✓ portrait: chosen en remains in order, text and PDF 812ms
+   ✓ monthly: chosen en remains in order, text and PDF 570ms
+   ✓ vedic_basic: chosen ru remains in order, text and PDF 469ms
+   ✓ vedic_plus: chosen ru remains in order, text and PDF 471ms
+   ✓ portrait: chosen ru remains in order, text and PDF 737ms
+   ✓ monthly: chosen ru remains in order, text and PDF 591ms
+   ✓ vedic_basic: chosen es remains in order, text and PDF 570ms
+   ✓ vedic_plus: chosen es remains in order, text and PDF 971ms
+   ✓ portrait: chosen es remains in order, text and PDF 923ms
+   ✓ monthly: chosen es remains in order, text and PDF 934ms
+   ✓ vedic_basic: chosen de remains in order, text and PDF 402ms
+   ✓ vedic_plus: chosen de remains in order, text and PDF 426ms
+   ✓ portrait: chosen de remains in order, text and PDF 588ms
+   ✓ monthly: chosen de remains in order, text and PDF 712ms
+ ✓ server/admin-update-flow.test.ts (2 tests) 9ms
+ ✓ server/knowledge/repeat-pdf.test.ts (4 tests) 605ms
+ ✓ server/client-status.test.ts (3 tests) 8ms
+ ✓ server/order-mail-copy.test.ts (5 tests) 7ms
+ ↓ server/nowpayments.credentials.test.ts (1 test | 1 skipped)
+ ✓ shared/refund-amount.test.ts (4 tests) 9ms
+ ✓ server/owner-alert-email.test.ts (1 test) 3ms
+ ✓ server/db-allowlist.test.ts (1 test) 3ms
+ ✓ server/pricing.test.ts (1 test) 5ms
+
+ Test Files  97 passed | 5 skipped (102)
+      Tests  630 passed | 25 skipped (655)
+   Start at  08:39:36
+   Duration  172.55s (transform 8.30s, setup 534ms, collect 173.78s, tests 77.65s, environment 12.84s, prepare 22.33s)
+

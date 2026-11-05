@@ -1,0 +1,26 @@
+
+ RUN  v2.1.9 /private/tmp/karma-order-mail-20261105
+
+ ✓ server/notifications.admin.test.ts (17 tests) 172ms
+stderr | server/order-mail.mysql.test.ts > refund prevents acknowledgement and final schedule
+[Order mail] acceptance paused 137
+
+stderr | server/order-mail.mysql.test.ts > automatic approved report waits for its deadline then sends exactly once
+[Order mail] acceptance paused 137
+
+stderr | server/order-mail.mysql.test.ts > automatic approved report waits for its deadline then sends exactly once
+[Order mail] acceptance paused 137
+
+stderr | server/order-mail.mysql.test.ts > automatic approved report waits for its deadline then sends exactly once
+[Order mail] acceptance paused 137
+
+ ✓ server/order-mail.mysql.test.ts (7 tests) 728ms
+ ✓ server/pipeline-mysql.integration.test.ts (6 tests) 915ms
+   ✓ 200 reordered concurrent payment events retain a confirmed payment identity 486ms
+ ✓ server/control-room.mysql.integration.test.ts (2 tests) 176ms
+
+ Test Files  4 passed (4)
+      Tests  32 passed (32)
+   Start at  08:47:31
+   Duration  8.50s (transform 767ms, setup 31ms, collect 5.34s, tests 1.99s, environment 5ms, prepare 261ms)
+

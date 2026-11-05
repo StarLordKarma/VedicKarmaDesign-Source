@@ -1,0 +1,11 @@
+
+Running 2 tests using 1 worker
+
+(node:62210) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:62210) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [chromium] › e2e/order-mail-flow.spec.ts:95:1 › owner sees exact natal order/payment/recipient; two explicit approvals, one job and one email (29.6s)
+  ✓  2 [chromium] › e2e/order-mail-flow.spec.ts:307:1 › changed recipient invalidates owner review and prevents preparation; refund request pauses new work (1.0s)
+
+  2 passed (47.8s)

@@ -167,7 +167,7 @@ export default function ClientStatus() {
         }
       />
     );
-  const rows = [
+  const rows: {label:string;value:string;icon:typeof Clock3}[] = [
     {
       label: t.paid,
       value: data.paymentState === "paid" ? t.paidValue : data.paymentState === "refunded" ? ({ ru: "Возвращено", en: "Refunded", de: "Erstattet", es: "Reembolsado" })[language()] : data.paymentState === "refund_pending" ? ({ ru: "Возврат одобрен", en: "Refund approved", de: "Erstattung genehmigt", es: "Reembolso aprobado" })[language()] : data.paymentState === "expired" ? ({ ru: "Срок оплаты истёк", en: "Payment window expired", de: "Zahlungsfrist abgelaufen", es: "Plazo de pago vencido" })[language()] : ["review", "failed"].includes(data.paymentState) ? t.failed : t.pending,
@@ -184,6 +184,7 @@ export default function ClientStatus() {
       icon: MailCheck,
     },
   ];
+  if(data.orderFlow){rows.push({label:({ru:'Письмо о принятии',en:'Acceptance email',es:'Correo de aceptación',de:'Annahmebestätigung'})[language()],value:['accepted','delivered'].includes(data.orderFlow.acknowledgement)?({ru:'Принято почтовым сервисом',en:'Accepted by email service',es:'Aceptado por el servicio de correo',de:'Vom E-Mail-Dienst angenommen'})[language()]:t.pending,icon:MailCheck});if(data.orderFlow.scheduledAt)rows.push({label:({ru:'Отправка не раньше',en:'Scheduled no earlier than',es:'Envío no antes de',de:'Versand frühestens'})[language()],value:new Date(data.orderFlow.scheduledAt).toLocaleString(),icon:Clock3});}
   return (
     <main className="min-h-screen bg-[#f8f5f0] p-6 md:p-12">
       <div className="mx-auto max-w-3xl">

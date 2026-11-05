@@ -42,6 +42,20 @@ async function load() {
       ),
       el("p", c.save)
     );
+    if (d.orderFlow) {
+      const messages = {
+        en: "Acceptance email / earliest report delivery",
+        ru: "Письмо о принятии / отправка отчёта не раньше",
+        es: "Correo de aceptación / primer envío posible",
+        de: "Annahmebestätigung / frühester Berichtversand",
+      };
+      panel.append(
+        el(
+          "p",
+          `${messages[d.locale] || messages.en}: ${(["accepted", "delivered"].includes(d.orderFlow.acknowledgement) ? { en: "Accepted by email service", ru: "Принято почтовым сервисом", es: "Aceptado por el servicio de correo", de: "Vom E-Mail-Dienst angenommen" } : { en: "Awaiting acceptance email", ru: "Ожидается письмо о принятии", es: "Correo de aceptación pendiente", de: "Annahmebestätigung ausstehend" })[d.locale] || "—"} · ${d.orderFlow.scheduledAt ? new Date(d.orderFlow.scheduledAt).toLocaleString() : "—"}`
+        )
+      );
+    }
     if (d.gatewayUrl) {
       const a = el("a", c.pay, "manual-link");
       a.href = d.gatewayUrl;

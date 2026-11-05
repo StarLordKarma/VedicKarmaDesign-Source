@@ -281,6 +281,13 @@
       "when": 1793000982237,
       "tag": "0039_easy_professor_monster",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "5",
+      "when": 1793820000000,
+      "tag": "0040_order_mail_flows",
+      "breakpoints": true
     }
   ]
 }

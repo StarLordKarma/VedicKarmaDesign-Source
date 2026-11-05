@@ -651,7 +651,7 @@ export async function runDirectPaymentWorker() {
         and(
           inArray(reportJobs.bookingId, directBookingIds),
           inArray(reportJobs.status, ["approved", "delivery_failed"]),
-          sql`coalesce(${reportJobs.lastErrorCode}, '') <> 'AUTO_DELIVERY_STOPPED'`
+          sql`coalesce(${reportJobs.lastErrorCode}, '') not in ('AUTO_DELIVERY_STOPPED','ORDER_MAIL_HELD')`
         )
       )
       .limit(5);

@@ -17,6 +17,8 @@ export const bookingSchema = z.object({
   product: z.enum(READING_PRODUCTS).optional(),
   paymentMethod: z.enum(["crypto", "card", "apple_pay", "google_pay"]).optional(),
   cardBrand: z.enum(["visa", "mastercard"]).optional(),
+  recommendationHistory: z.string().max(2048).optional(),
+  orderRecommendations: z.boolean().optional(),
   cardRefundConsent: z.boolean().optional(),
   cardTermsVersion: z.string().max(80).optional(),
   expectedAmountCents:z.number().int().positive().max(100000000).optional(),

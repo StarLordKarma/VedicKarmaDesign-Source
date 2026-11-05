@@ -1,3 +1,4 @@
+import {writeRecommendationHistory} from './order-recommendation-history';
 import {readReportAttachment,assertReportAttachment} from './report-attachment';
 import {knowledgeStore} from './knowledge/store';
 import { TRPCError } from "@trpc/server";
@@ -204,6 +205,8 @@ export async function sendClientReportPdf(input: {
   product?: string;
   expectedPdfSha256?: string | null;
   outboxKey?: string;
+  recommendations?: string[];
+  recommendationHistoryProducts?: string[];
 }) {
   if (!ENV.resendApiKey || !ENV.resendFromEmail)
     throw new TRPCError({
@@ -236,12 +239,19 @@ export async function sendClientReportPdf(input: {
   const statusLabel = {en:'Order status and PDF',ru:'Статус заказа и PDF',es:'Estado del pedido y PDF',de:'Bestellstatus und PDF'}[locale];
   const safeName = escapeHtml(input.name.trim());
   const safeStatusUrl = input.statusUrl && /^https:\/\//.test(input.statusUrl) ? escapeHtml(input.statusUrl) : undefined;
+  const suggestionLabels={en:'Explore other readings',ru:'Другие виды чтений',es:'Explora otras lecturas',de:'Weitere Lesungen entdecken'};
+  const suggestionNames:Record<string,Record<string,string>>={en:{tarot:'Tarot',portrait:'Western astrology',vedic_basic:'Vedic astrology'},ru:{tarot:'Таро',portrait:'Западная астрология',vedic_basic:'Ведическая астрология'},es:{tarot:'Tarot',portrait:'Astrología occidental',vedic_basic:'Astrología védica'},de:{tarot:'Tarot',portrait:'Westliche Astrologie',vedic_basic:'Vedische Astrologie'}};
+  const historyToken=writeRecommendationHistory(input.email,[...(input.recommendationHistoryProducts||[]),input.product||"basic"]);
+  const historyQuery=historyToken?"&reading_history="+encodeURIComponent(historyToken):"";
+  const suggestionLinks=(input.recommendations||[]).filter(p=>['tarot','portrait','vedic_basic'].includes(p)).slice(0,2).map(p=>({name:suggestionNames[locale][p],url:`${process.env.PUBLIC_BASE_URL}/?lang=${locale}${historyQuery}#${p==='tarot'?'tarot':p==='portrait'?'western':'vedic'}`}));
+  const suggestionText=suggestionLinks.length?'\n\n'+suggestionLabels[locale]+':\n'+suggestionLinks.map(x=>x.name+': '+x.url).join('\n'):'';
+  const suggestionHtml=suggestionLinks.length?`<p>${suggestionLabels[locale]}</p><ul>${suggestionLinks.map(x=>`<li><a href="${escapeHtml(x.url)}">${x.name}</a></li>`).join('')}</ul>`:'';
     mail={
       from: ENV.resendFromEmail,
       to: [input.email],
       subject: copy.subject,
-      text: `${copy.greeting}, ${input.name.trim()}!\n\n${copy.body}\n\n${input.statusUrl ? statusLabel+": "+input.statusUrl+"\n\n" : ""}${copy.signoff},\nKarma Life Design`,
-      html: `<html lang="${locale}"><body><p>${copy.greeting}, ${safeName}!</p><p>${copy.body}</p>${safeStatusUrl ? `<p><a href="${safeStatusUrl}">${statusLabel}</a></p>` : ""}<p style="font-size:12px;color:#635a52">${copy.disclaimer}</p><p>${copy.signoff},<br />Karma Life Design</p></body></html>`,
+      text: `${copy.greeting}, ${input.name.trim()}!\n\n${copy.body}\n\n${input.statusUrl ? statusLabel+": "+input.statusUrl+"\n\n" : ""}${copy.signoff},\nKarma Life Design${suggestionText}`,
+      html: `<html lang="${locale}"><body><p>${copy.greeting}, ${safeName}!</p><p>${copy.body}</p>${safeStatusUrl ? `<p><a href="${safeStatusUrl}">${statusLabel}</a></p>` : ""}<p style="font-size:12px;color:#635a52">${copy.disclaimer}</p><p>${copy.signoff},<br />Karma Life Design</p>${suggestionHtml}</body></html>`,
       attachments: [
         {
           filename: input.pdfName || "vedic-report.pdf",
