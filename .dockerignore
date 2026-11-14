@@ -20,3 +20,9 @@ NEW-CHAT-START.md
 PROJECT-HANDOFF-*.md
 PROJECT-SEO-UPDATE-*.md
 marketing
+
+# Gazetteer is installed from the pinned data release during the image build.
+*.sqlite
+*.sqlite-*
+server/data/geonames-source/
+sandboxes/

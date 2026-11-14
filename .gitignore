@@ -136,3 +136,6 @@ reading-core/index.html
 .env.card-sandbox
 .netlify/
 deploy/riskpay-relay/lib/deployment.mjs
+
+server/data/geonames-source/
+*.sqlite-*

@@ -1,0 +1,22 @@
+import {beforeAll,afterAll,describe,it,expect} from 'vitest';
+import express from 'express';
+import type {Server} from 'node:http';
+import {registerFreePreviewRoutes} from './free-preview';
+import {requestBoundaries} from './request-boundaries';
+let server:Server,base:string;
+beforeAll(async()=>{const app=express();app.use(requestBoundaries());registerFreePreviewRoutes(app);app.use((e:any,_q:any,r:any,_n:any)=>r.status(e.status||400).json({error:'invalid'}));server=await new Promise<Server>(resolve=>{const s=app.listen(0,'127.0.0.1',()=>resolve(s));});base=`http://127.0.0.1:${(server.address() as any).port}`;});
+afterAll(()=>new Promise<void>(resolve=>server.close(()=>resolve())));
+const payload={locale:'en',birthDate:'2000-01-01',birthTime:'13:00',unknownTime:false,cityId:2950159,consent:true};
+const post=(value:unknown,headers={})=>fetch(base+'/api/free-preview',{method:'POST',headers:{'Content-Type':'application/json',...headers},body:JSON.stringify(value)});
+describe('free preview HTTP boundary',()=>{
+ it('sets private no-store headers and does not expose birth data in page HTML',async()=>{const r=await fetch(base+'/free-reading?lang=es');expect(r.headers.get('Content-Language')).toBe('es');expect(r.headers.get('Cache-Control')).toBe('no-store');expect(r.headers.get('Referrer-Policy')).toBe('no-referrer');expect(r.headers.get('X-Robots-Tag')).toContain('noindex');expect(await r.text()).not.toContain('2000-01-01');});
+ it('limits city response and never returns its internal alias directory',async()=>{const r=await fetch(base+'/api/free-preview/cities?query=Berlin&lang=de');const json=await r.json();expect(json.cities[0].id).toBe(2950159);expect(Object.keys(json.cities[0]).sort()).toEqual(['id','label']);});
+ it('calculates a JSON result without creating an order or setting a cookie',async()=>{const r=await post(payload);expect(r.status).toBe(200);expect(r.headers.get('Set-Cookie')).toBeNull();expect(r.headers.get('Cache-Control')).toBe('no-store');const b=await r.json();expect(b.placements[0].signs[0].name).toBe('Capricorn');expect(b).not.toHaveProperty('orderId');});
+ it('rejects cross-site calculation requests',async()=>expect((await post(payload,{'Sec-Fetch-Site':'cross-site'})).status).toBe(403));
+ it('rejects invalid values without returning a stack or birth payload',async()=>{const r=await post({...payload,birthDate:'2000-02-31'});expect(r.status).toBe(422);expect(await r.json()).toEqual({error:'invalid'});});
+ it('rejects oversized request bodies',async()=>{const r=await post({...payload,padding:'x'.repeat(2500)});expect(r.status).toBe(413);});
+ it('returns the DST overlap code so the UI can request clarification',async()=>{const r=await post({...payload,birthDate:'2024-10-27',birthTime:'02:30'});expect(r.status).toBe(422);expect(await r.json()).toEqual({error:'overlap'});});
+ it('keeps birth coordinates out of URLs and requires a country for nearby search',async()=>{const r=await fetch(base+'/api/free-preview/nearby',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({latitude:52.52,longitude:13.405,locale:'ru'})});expect(r.status).toBe(422);});
+ it('returns nearby labels with distance and does not select a place automatically',async()=>{const r=await fetch(base+'/api/free-preview/nearby',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({latitude:52.52,longitude:13.405,country:'DE',locale:'ru'})});expect(r.status).toBe(200);const b=await r.json();expect(b.cities).toHaveLength(5);expect(b.cities[0].approximate).toBe(true);expect(b.cities[0].label).toContain('км');expect(b).not.toHaveProperty('selected');});
+ it('rate limits calculation requests and returns a retry instruction',async()=>{let response:Response|undefined;for(let i=0;i<12;i++)response=await post(payload);expect(response!.status).toBe(429);expect(response!.headers.get('Retry-After')).toBe('60');});
+});

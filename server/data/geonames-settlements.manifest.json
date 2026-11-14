@@ -1,0 +1,12 @@
+{
+  "source": "https://download.geonames.org/export/dump/allCountries.zip",
+  "license": "CC BY 4.0",
+  "attribution": "GeoNames — https://www.geonames.org/",
+  "builtAt": "2026-11-14T13:35:08.612210+00:00",
+  "archiveSha256": "b61155e9b902c6b2ad212c0d31a44fe1280c91ccbe6703cc52d22f2e9050509d",
+  "settlements": 5233013,
+  "historicalSettlements": 59782,
+  "skippedMissingTimezoneCountryOrCoordinates": 1893,
+  "databaseBytes": 1550127104,
+  "indexedNames": 11512783
+}

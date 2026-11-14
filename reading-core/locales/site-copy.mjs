@@ -11,8 +11,8 @@ export const SITE={
       "Tarot cards"
     ],
     "motion": [
-      "Pause movement",
-      "Resume movement"
+      "Disable animation",
+      "Enable animation"
     ],
     "history": "My readings",
     "empty": "Open the private order link supplied at checkout or in your report email to view your order and PDF.",
@@ -215,8 +215,8 @@ export const SITE={
       "Карты Таро"
     ],
     "motion": [
-      "Приостановить движение",
-      "Продолжить движение"
+      "Отключить анимацию",
+      "Включить анимацию"
     ],
     "history": "Мои отчёты",
     "empty": "Чтобы открыть заказ и PDF, воспользуйтесь личной ссылкой со страницы оплаты или из письма с отчётом.",
@@ -419,8 +419,8 @@ export const SITE={
       "Cartas del Tarot"
     ],
     "motion": [
-      "Pausar movimiento",
-      "Reanudar movimiento"
+      "Desactivar animación",
+      "Activar animación"
     ],
     "history": "Mis lecturas",
     "empty": "Para ver tu pedido y PDF, abre el enlace privado de la página de pago o del correo con tu informe.",
@@ -623,8 +623,8 @@ export const SITE={
       "Tarotkarten"
     ],
     "motion": [
-      "Bewegung anhalten",
-      "Bewegung fortsetzen"
+      "Animation ausschalten",
+      "Animation einschalten"
     ],
     "history": "Meine Deutungen",
     "empty": "Öffnen Sie den privaten Link von der Zahlungsseite oder aus Ihrer Berichts-E-Mail, um Bestellung und PDF aufzurufen.",

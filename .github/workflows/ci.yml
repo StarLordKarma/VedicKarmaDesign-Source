@@ -25,6 +25,8 @@ jobs:
       - run: pnpm audit --prod --audit-level high
       - run: pnpm lint
       - run: pnpm check
+      - name: Install verified settlement directory
+        run: node scripts/install-settlement-directory.mjs
       - run: pnpm test
       - run: pnpm build
 
@@ -91,8 +93,12 @@ jobs:
         run: docker compose --env-file .env.sandbox -f docker-compose.sandbox.yml logs --no-color > sandbox-compose.log
       - if: always()
         uses: actions/upload-artifact@v6
+        # Test failures remain fatal. Only optional diagnostic storage may fail
+        # when the account's artifact quota is temporarily exhausted.
+        continue-on-error: true
         with:
           name: sandbox-e2e-artifacts
+          retention-days: 3
           path: |
             sandbox-compose.log
             test-results

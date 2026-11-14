@@ -1,0 +1,14 @@
+import {describe,it,expect} from 'vitest';
+import {nearbySettlements,searchSettlements,settlementById,settlementCountries,distanceKm} from './settlement-directory';
+import {calculatePreview} from './free-preview';
+import {readFileSync} from 'node:fs';
+describe('worldwide settlement directory',()=>{
+ it('contains millions of settlements and records its source and license',()=>{const m=JSON.parse(readFileSync('server/data/geonames-settlements.manifest.json','utf8'));expect(m.settlements).toBeGreaterThan(1_000_000);expect(m.license).toBe('CC BY 4.0');expect(m.archiveSha256).toMatch(/^[0-9a-f]{64}$/);});
+ it('finds a small village omitted by cities15000',()=>{const hits=searchSettlements('Kildwick','en','GB');expect(hits.length).toBeGreaterThan(0);const place=settlementById(hits[0].id)!;expect(place.name.toLowerCase()).toBe('kildwick');expect(place.country).toBe('GB');expect(place.region).toBeTruthy();});
+ it('finds translated names and separates countries',()=>{expect(searchSettlements('Берлин','ru','DE')[0].id).toBe(2950159);expect(searchSettlements('Berlin','en','US').every(c=>settlementById(c.id)!.country==='US')).toBe(true);});
+ it('treats punctuation as text, never FTS syntax',()=>{expect(searchSettlements('" OR ***','en','DE').length).toBeLessThanOrEqual(12);expect(searchSettlements('😀😀')).toEqual([]);});
+ it('returns nearby settlements sorted by geodesic distance, within the chosen country and 50km',()=>{const hits=nearbySettlements(52.5201,13.4051,'DE');expect(hits.length).toBe(5);for(let i=0;i<hits.length;i++){expect(hits[i].place.country).toBe('DE');expect(hits[i].distanceKm).toBeLessThanOrEqual(50);if(i)expect(hits[i].distanceKm).toBeGreaterThanOrEqual(hits[i-1].distanceKm);}expect(distanceKm(52.5201,13.4051,hits[0].place)).toBeCloseTo(hits[0].distanceKm,8);});
+ it('does not choose a remote place or a foreign-country substitute',()=>{expect(nearbySettlements(0,0,'DE')).toEqual([]);expect(nearbySettlements(52.52,13.405,'US')).toEqual([]);expect(nearbySettlements(91,0,'DE')).toEqual([]);});
+ it('requires explicit confirmation and binds the replacement to the supplied point',()=>{const n=nearbySettlements(52.5201,13.4051,'DE')[0];const b={locale:'en',birthDate:'2000-01-01',birthTime:'13:00',unknownTime:false,cityId:n.place.id,consent:true,nearby:{latitude:52.5201,longitude:13.4051,country:'DE',confirmed:true}};const r=calculatePreview(b);expect(r.approximation!.note).toContain('Approximate');expect(r.placements[2].signs).toEqual([]);expect(r.placements[2].note).toContain('nearby');expect(()=>calculatePreview({...b,nearby:{...b.nearby,confirmed:false}})).toThrow();expect(()=>calculatePreview({...b,nearby:{...b.nearby,latitude:0,longitude:0}})).toThrow('nearby');});
+ it('localizes country names for all supported languages',()=>{for(const [locale,name]of [['en','Germany'],['ru','Германия'],['es','Alemania'],['de','Deutschland']])expect(settlementCountries(locale).find(c=>c.code==='DE')!.name).toBe(name);});
+});
