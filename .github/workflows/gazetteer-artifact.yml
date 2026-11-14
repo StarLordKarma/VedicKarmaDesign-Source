@@ -1,0 +1,41 @@
+name: Build settlement directory artifact
+on:
+  push:
+    branches: [data/geonames-2026-11-14]
+    paths: ['.github/workflows/gazetteer-artifact.yml', 'scripts/build-settlement-directory.py', 'scripts/index-settlement-names.py']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  directory:
+    if: github.repository == 'StarLordKarma/VedicKarmaDesign-Source'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Download licensed public source data
+        run: |
+          mkdir -p server/data/geonames-source
+          for file in allCountries.zip admin1CodesASCII.txt admin2Codes.txt countryInfo.txt; do
+            curl --fail --location --retry 3 --output "server/data/geonames-source/$file" "https://download.geonames.org/export/dump/$file"
+          done
+          echo 'b61155e9b902c6b2ad212c0d31a44fe1280c91ccbe6703cc52d22f2e9050509d  server/data/geonames-source/allCountries.zip' | sha256sum --check
+      - name: Build read-only settlement and spatial indexes
+        run: python3 scripts/build-settlement-directory.py
+      - name: Package versioned artifact and checksums
+        run: |
+          mkdir -p geodata-release
+          gzip -6 -n -c server/data/geonames-settlements.sqlite > geodata-release/geonames-settlements.sqlite.gz
+          cp server/data/geonames-settlements.manifest.json geodata-release/
+          cd server/data
+          sha256sum geonames-settlements.sqlite > ../../geodata-release/database.sha256
+          cd ../../geodata-release
+          sha256sum geonames-settlements.sqlite.gz > archive.sha256
+          printf '%s\n' 'GeoNames settlement directory, source snapshot 2026-11-14.' 'Public geographic data only; no customer data.' 'Source: https://download.geonames.org/export/dump/' 'Attribution: GeoNames https://www.geonames.org/ — CC BY 4.0 https://creativecommons.org/licenses/by/4.0/' 'Built with the source scripts attached to this release commit. SHA-256 checksums cover compressed and uncompressed files.' > NOTES.txt
+      - name: Publish immutable data release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create geonames-2026-11-14-v1 geodata-release/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title 'GeoNames settlements 2026-11-14' --notes-file geodata-release/NOTES.txt
