@@ -1,5 +1,9 @@
+import {initAudience,trackAudience} from './audience.mjs';
 import {PREVIEW_COPY} from './free-preview-copy.mjs';
 const lang=document.documentElement.lang,t=PREVIEW_COPY[lang],$=s=>document.querySelector(s),form=$('#preview-form');
+const trackPreview=event=>trackAudience(event,'portrait','western');
+initAudience({pageEvent:'free_preview_view'});
+for(const [id,event] of [['#preview-sample','free_sample_open'],['#preview-paid','free_product_open']])$(id).addEventListener('click',()=>trackPreview(event));
 // Campaign tags may travel between pages. Birth details and results never do.
 const campaign=new URL(location.href).searchParams;
 for(const a of document.querySelectorAll('[data-locale], [data-back], #preview-paid')){const u=new URL(a.href);for(const k of ['utm_source','utm_medium','utm_campaign']){const v=campaign.get(k);if(v&&/^[a-z0-9_.-]{1,64}$/i.test(v))u.searchParams.set(k,v);}a.href=u.href;}
@@ -34,9 +38,9 @@ $('#preview-find-nearby').onclick=async()=>{
 function text(parent,tag,value,cls){const node=document.createElement(tag);node.textContent=value;if(cls)node.className=cls;parent.append(node);return node;}
 function show(result){const cards=$('#preview-placements');cards.replaceChildren();result.placements.forEach((p,i)=>{const card=document.createElement('article');card.className='preview-card';text(card,'span',['☉','☽','↑'][i],'preview-glyph').setAttribute('aria-hidden','true');text(card,'h3',p.role);text(card,'p',p.context);for(const sign of p.signs){text(card,'h4',sign.name);text(card,'p',sign.text);}if(p.note)text(card,'p',p.note,'preview-note');cards.append(card);});$('#preview-place-label').textContent=t.selected+': '+result.place;const approximation=$('#preview-approximation');approximation.hidden=!result.approximation;approximation.textContent=result.approximation?result.approximation.note+' '+t.distance+': '+new Intl.NumberFormat(lang,{maximumFractionDigits:1}).format(result.approximation.distanceKm)+' '+t.km:'';form.hidden=true;$('#preview-result').hidden=false;$('#preview-result-title').focus();$('#preview-result').scrollIntoView({block:'start'});}
 form.onsubmit=async e=>{
- e.preventDefault();if(!form.reportValidity())return;const token=++requestSerial;const button=$('#preview-submit');button.disabled=true;status(t.working);
+ e.preventDefault();if(!form.reportValidity())return;const token=++requestSerial;const button=$('#preview-submit');button.disabled=true;status(t.working);trackPreview('free_preview_start');
  const payload={locale:lang,birthDate:$('#preview-date').value,birthTime:$('#preview-unknown').checked?undefined:$('#preview-time').value,unknownTime:$('#preview-unknown').checked,cityId:Number($('#preview-city-choice').value),disambiguation:$('#preview-occurrence').value,consent:$('#preview-consent').checked,...(nearbyOrigin?{nearby:{...nearbyOrigin,confirmed:$('#preview-nearby-consent').checked}}:{})};
- try{const response=await fetch('/api/free-preview',{method:'POST',headers:{'Content-Type':'application/json'},cache:'no-store',body:JSON.stringify(payload)});const result=await response.json();if(token!==requestSerial)return;if(!response.ok)throw Error(result.error||'network');status('');show(result);}
+ try{const response=await fetch('/api/free-preview',{method:'POST',headers:{'Content-Type':'application/json'},cache:'no-store',body:JSON.stringify(payload)});const result=await response.json();if(token!==requestSerial)return;if(!response.ok)throw Error(result.error||'network');status('');show(result);trackPreview('free_preview_complete');}
  catch(e){if(token===requestSerial){status(t.errors[e.message]||t.errors.network,true);if(e.message==='overlap'){$('#preview-occurrence-group').hidden=false;$('#preview-occurrence').focus();}}}
  finally{if(token===requestSerial)button.disabled=false;}
 };

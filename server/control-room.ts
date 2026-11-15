@@ -8,13 +8,14 @@ import {createRateLimit} from './observability';
 import {adminProcedure,router} from './_core/trpc';
 import {TRPCError} from '@trpc/server';
 
-export const audienceEventSchema=z.object({consent:z.literal(true),eventId:z.string().uuid(),visitor:z.string().uuid(),session:z.string().uuid(),event:z.enum(['page_view','section_view','form_open','form_submit','checkout_open','form_error','sample_open','guide_open']),section:z.enum(['vedic','western','tarot']),product:z.enum(['none','vedic_basic','vedic_plus','portrait','daily','monthly','tarot']),locale:z.enum(['en','ru','es','de']),device:z.enum(['mobile','desktop']),source:z.string().max(64).regex(/^[a-z0-9_.-]*$/),medium:z.string().max(64).regex(/^[a-z0-9_.-]*$/),campaign:z.string().max(64).regex(/^[a-z0-9_.-]*$/)}).strict();
+export const audienceEventSchema=z.object({consent:z.literal(true),eventId:z.string().uuid(),visitor:z.string().uuid(),session:z.string().uuid(),event:z.enum(['page_view','section_view','form_open','form_submit','checkout_open','form_error','sample_open','guide_open','free_preview_view','free_preview_start','free_preview_complete','free_sample_open','free_product_open']),section:z.enum(['vedic','western','tarot']),product:z.enum(['none','vedic_basic','vedic_plus','portrait','daily','monthly','tarot']),locale:z.enum(['en','ru','es','de']),device:z.enum(['mobile','desktop']),source:z.string().max(64).regex(/^[a-z0-9_.-]*$/),medium:z.string().max(64).regex(/^[a-z0-9_.-]*$/),campaign:z.string().max(64).regex(/^[a-z0-9_.-]*$/)}).strict();
 export function audienceHash(value:string){const key=process.env.ORDER_SIGNING_SECRET;if(!key&&process.env.NODE_ENV==='production')throw Error('Analytics key unavailable');return createHmac('sha256',key||'local-analytics').update(value).digest('hex')}
 export function bookingAudience(input:{source:string;medium:string;campaign:string;visitor:string;session:string}|undefined){if(!input)return undefined;try{return{source:input.source,medium:input.medium,campaign:input.campaign,visitorKey:audienceHash(input.visitor),sessionKey:audienceHash(input.session)}}catch{return undefined}}
 let collecting=0,nextCleanup=0;
 export function registerAudienceCollection(app:Express){
  app.post('/api/audience',createRateLimit({name:'audience',windowMs:60000,max:60}),async(req,res)=>{
   res.set('Cache-Control','no-store');
+  if(req.headers.dnt==='1'||req.headers['sec-gpc']==='1'){res.status(204).end();return}
   if(/bot|crawler|spider|headless|lighthouse|playwright|monitor/i.test(req.headers['user-agent']||'')){res.status(204).end();return}
   const parsed=audienceEventSchema.safeParse(req.body);if(!parsed.success){res.status(400).json({error:'invalid_event'});return}
   if(collecting>=8){res.status(429).end();return}collecting++;
@@ -67,7 +68,7 @@ export async function controlRoomSummary(input:Filters){
   rows(sql`SELECT COUNT(DISTINCT visitorKey) AS visitors,COUNT(DISTINCT sessionKey) AS sessions,SUM(event='page_view') AS views FROM audience_events WHERE ${eventFilter}`),
   rows(sql`SELECT DATE_FORMAT(createdAt,'%Y-%m-%d') AS day,COUNT(DISTINCT visitorKey) AS visitors,SUM(event='page_view') AS views FROM audience_events WHERE ${eventFilter} GROUP BY day ORDER BY day`),
   rows(sql`SELECT event,COUNT(*) AS events,COUNT(DISTINCT sessionKey) AS sessions FROM audience_events WHERE ${eventFilter} GROUP BY event`),
-  rows(sql`SELECT source,medium,campaign,COUNT(DISTINCT sessionKey) AS sessions,SUM(event='form_submit') AS submits FROM audience_events WHERE ${eventFilter} GROUP BY source,medium,campaign ORDER BY sessions DESC LIMIT 20`),
+  rows(sql`SELECT source,medium,campaign,COUNT(DISTINCT sessionKey) AS sessions,SUM(event='form_submit') AS submits,COUNT(DISTINCT CASE WHEN event='free_preview_view' THEN sessionKey END) AS previewViews,COUNT(DISTINCT CASE WHEN event='free_preview_start' THEN sessionKey END) AS previewStarts,COUNT(DISTINCT CASE WHEN event='free_preview_complete' THEN sessionKey END) AS previewCompleted,COUNT(DISTINCT CASE WHEN event='free_sample_open' THEN sessionKey END) AS previewSamples,COUNT(DISTINCT CASE WHEN event='free_product_open' THEN sessionKey END) AS previewProducts FROM audience_events WHERE ${eventFilter} GROUP BY source,medium,campaign ORDER BY sessions DESC LIMIT 20`),
   rows(sql`SELECT locale,COUNT(DISTINCT sessionKey) AS sessions FROM audience_events WHERE ${eventFilter} GROUP BY locale ORDER BY sessions DESC`),
   rows(sql`SELECT device,COUNT(DISTINCT sessionKey) AS sessions FROM audience_events WHERE ${eventFilter} GROUP BY device`),
  ]);audience={available:true,firstCollectedAt:first[0]?.firstCollectedAt,totals:totals[0]||{},daily,events,sources,languages,devices}}catch{/* Missing migration is shown as missing data, never as zero visitors. */}
